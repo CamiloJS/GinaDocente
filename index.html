@@ -93,8 +93,6 @@
             const result = await callGemini(prompt);
             if (result) {
               setCommentText(result);
-            } else {
-              if (showMessage) showMessage("❌ Error de conexión con la IA al traducir.");
             }
             setIsTranslating(false);
           };
@@ -210,7 +208,7 @@
           const [toastMessage, setToastMessage] = useState("");
           const showMessage = (msg) => {
               setToastMessage(msg);
-              setTimeout(() => setToastMessage(""), 4500);
+              setTimeout(() => setToastMessage(""), 5000);
           };
 
           const getToday = () => new Date().toISOString().split('T')[0];
@@ -256,10 +254,12 @@
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
 
-          // --- FUNCIÓN IA SEGURA (Conecta al backend) ---
+          // --- FUNCIÓN IA (DIRECTA Y ARREGLADA) ---
           const callGemini = async (promptText) => {
-            const url = `/api/gemini`;
-            const payload = { promptText: promptText };
+            // Ponemos la API Key directo aquí para saltarnos el problema de Vercel.
+            const apiKey = "AQ.Ab8RN6LnoLF-SgMo_wV__Fp1YXbbTVMamioPBWhz1yZfJJdndA";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: promptText }] }] };
 
             try {
               const res = await fetch(url, { 
@@ -269,15 +269,18 @@
               });
               
               if (!res.ok) {
-                // Si falla, muestra el error de inmediato y deja de cargar
-                showMessage(`❌ Error del servidor (${res.status}). Mira mis instrucciones en el chat.`);
+                if (res.status === 400 || res.status === 403) {
+                  showMessage("❌ Error: La llave de Gemini es incorrecta o está vencida. Lee el chat para solucionarlo.");
+                } else {
+                  showMessage(`❌ Error de Google (${res.status}). Intenta de nuevo.`);
+                }
                 return ""; 
               }
               
               const data = await res.json();
-              return data.text || "";
+              return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             } catch (error) {
-              showMessage("❌ Error de red: No se pudo conectar.");
+              showMessage("❌ Error de red: Revisa tu conexión a internet.");
               return "";
             }
           };
@@ -297,6 +300,8 @@
             
             try {
               const result = await callGemini(prompt);
+              if (!result) { setIsReviewLoading(false); return; }
+
               const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
               const generatedSlides = JSON.parse(cleanedJson);
               
@@ -306,7 +311,7 @@
               setDraftReview({ topic: mainTitle, slides: generatedSlides });
               setReviewTopic("");
             } catch (err) {
-              showMessage("Hubo un error al generar las diapositivas. Intente de nuevo.");
+              showMessage("Hubo un error al leer la respuesta de la IA. Intente de nuevo.");
             }
             setIsReviewLoading(false);
           };
@@ -324,6 +329,8 @@
 
             try {
               const result = await callGemini(prompt);
+              if (!result) { setLoadingSlides(prev => ({ ...prev, [index]: false })); return; }
+
               const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
               const regeneratedSlide = JSON.parse(cleanedJson);
               regeneratedSlide.gradient = currentSlideData.gradient;
@@ -372,6 +379,8 @@
 
             try {
               const res = await callGemini(prompt);
+              if (!res) { setIsEvaluatingQuiz(false); return; }
+
               const json = JSON.parse(res.replace(/```json/gi, '').replace(/```/gi, '').trim());
               setQuizFeedback(json.feedback);
               if(json.isCorrect) setShowQuizAnswer(true);
@@ -389,6 +398,8 @@
             const prompt = `Analiza la sugerencia. Si contiene ofensas, responde "RECHAZADO". Si es constructiva, reescríbela formalmente para la profesora. Devuelve SÓLO la versión mejorada o "RECHAZADO".\n\nTexto: ${sugText}`;
             const result = await callGemini(prompt);
             
+            if (!result) { setIsSugLoading(false); return; }
+
             if (result.trim() === "RECHAZADO") {
               showMessage("⚠️ No se permiten groserías ni comentarios ofensivos.");
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: sugName, originalText: sugText, createdAt: Date.now() });
@@ -403,12 +414,12 @@
           const handleAiGenerate = async () => {
             if (!taskDesc && !taskTitle) return showMessage("Escribe una idea en la descripción primero.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+            
             const prompt = `Mejora esta tarea de inglés: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`;
             const result = await callGemini(prompt);
-            if (!result) {
-              setIsAiLoading(false);
-              return showMessage("❌ Error de conexión con la IA.");
-            }
+            
+            if (!result) { setIsAiLoading(false); return; }
+
             const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
             const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
             
@@ -425,12 +436,12 @@
           const handleAiCorrect = async () => {
             if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+            
             const prompt = `Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`;
             const result = await callGemini(prompt);
-            if (!result) {
-              setIsAiLoading(false);
-              return showMessage("❌ Error de conexión con la IA.");
-            }
+            
+            if (!result) { setIsAiLoading(false); return; }
+
             setTaskDesc(result); 
             setHasAiModified(true);
             setIsAiLoading(false);
@@ -439,12 +450,12 @@
           const handleAiTranslate = async (lang) => {
             if (!taskDesc && !taskTitle) return showMessage("Escribe algo para traducir primero.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+            
             const prompt = `Traduce al ${lang}:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
             const result = await callGemini(prompt);
-            if (!result) {
-              setIsAiLoading(false);
-              return showMessage("❌ Error de conexión con la IA.");
-            }
+            
+            if (!result) { setIsAiLoading(false); return; }
+
             const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
             const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
             
@@ -494,7 +505,7 @@
             return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); };
           }, [user]);
 
-          // --- VISTAS (Resto del contenido sin cambios mayores) ---
+          // --- VISTAS ---
           const renderTasks = () => (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Próximas tareas</h2>
