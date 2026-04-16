@@ -1,0 +1,939 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { BookOpen, Calendar, CheckSquare, Plus, Send, FileText, Trash2, X, Sparkles, CheckCheck, Globe, Loader2, Undo2, Clock, Lock, Mail, AlertTriangle, Presentation, ChevronRight, ChevronLeft, Edit3, Palette, Sun, Moon } from 'lucide-react';
+
+// --- CONFIGURACIÓN FIREBASE ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'unipamplona-english-app';
+
+// --- ESTILOS LIQUID Glass MEJORADOS ---
+const glassCard = "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(173,51,51,0.1)] rounded-3xl p-6 transition-all duration-300";
+const glassInput = "w-full bg-white/30 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#AD3333]/50 focus:border-[#AD3333] transition-all placeholder-gray-600 text-gray-900 shadow-inner";
+const glowButton = "bg-white/40 backdrop-blur-md text-gray-900 px-6 py-3 rounded-full font-semibold border border-white/60 shadow-sm hover:shadow-[0_0_20px_rgba(173,51,51,0.4)] hover:border-[#AD3333] hover:text-[#AD3333] transition-all duration-300 flex items-center justify-center gap-2";
+const redButton = "bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-3 rounded-full font-semibold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 flex items-center justify-center gap-2";
+
+const REACTION_EMOJIS = { like: '👍', love: '❤️', sad: '😢', happy: '😃', wow: '😲' };
+
+// Paleta de gradientes coloridos Liquid Glass para las diapositivas
+const SLIDE_GRADIENTS = [
+  "from-blue-400/40 to-indigo-500/40",
+  "from-emerald-400/40 to-teal-500/40",
+  "from-rose-400/40 to-orange-500/40",
+  "from-purple-400/40 to-pink-500/40",
+  "from-amber-400/40 to-red-500/40",
+  "from-cyan-400/40 to-blue-500/40",
+  "from-fuchsia-400/40 to-rose-500/40"
+];
+
+// --- COMPONENTE DE TARJETA ---
+const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser }) => {
+  const [commentText, setCommentText] = useState("");
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
+  const isExpired = new Date() > deadline;
+  const isLocked = isExpired && !task.allowLate;
+
+  const cardStyle = isExpired 
+    ? "bg-red-900/10 backdrop-blur-2xl border border-red-500/40 shadow-[0_8px_32px_0_rgba(220,38,38,0.15)] rounded-3xl p-6 transition-all duration-300"
+    : glassCard;
+
+  const handleTranslate = async (lang) => {
+    if (!commentText) return;
+    setIsTranslating(true);
+    const prompt = `Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`;
+    const result = await callGemini(prompt);
+    if (result) setCommentText(result);
+    setIsTranslating(false);
+  };
+
+  const toggleReaction = async (type) => {
+    if (isLocked || !currentUser) return;
+    const currentReactions = task.reactions || {};
+    const newReactions = { ...currentReactions };
+    
+    if (newReactions[currentUser.uid] === type) {
+      delete newReactions[currentUser.uid];
+    } else {
+      newReactions[currentUser.uid] = type;
+    }
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions });
+  };
+
+  const renderReactions = () => {
+    const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
+    Object.values(task.reactions || {}).forEach(r => { if (counts[r] !== undefined) counts[r]++; });
+
+    return (
+      <div className="flex gap-2 mt-4">
+        {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => {
+          const isSelected = task.reactions?.[currentUser?.uid] === key;
+          return (
+            <button 
+              key={key} onClick={() => toggleReaction(key)} disabled={isLocked}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`${cardStyle} group ${!isLocked && 'hover:bg-white/30'}`}>
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
+          </h3>
+          <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
+            <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
+            {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
+          </p>
+        </div>
+        {role === 'teacher' && (
+          <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id))} className="text-gray-400 hover:text-red-600 transition relative z-10">
+            <Trash2 size={20} />
+          </button>
+        )}
+      </div>
+      <p className="mt-4 text-gray-800 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+      {renderReactions()}
+
+      <div className="mt-6 pt-6 border-t border-white/30">
+        <h4 className="text-sm font-bold text-gray-700 mb-3 drop-shadow-sm">Comentarios</h4>
+        <div className="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2 relative z-10">
+          {task.comments?.map((c, i) => (
+            <div key={i} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30">
+              <span className={`font-bold ${c.author === 'Profesora Gina' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}: </span>
+              <span className="text-gray-800">{c.text}</span>
+            </div>
+          ))}
+          {(!task.comments || task.comments.length === 0) && <p className="text-xs text-gray-500 italic">No hay comentarios.</p>}
+        </div>
+        
+        {!isLocked ? (
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if(!commentText.trim()) return;
+            const newComments = [...(task.comments || []), { author: role === 'teacher' ? 'Profesora Gina' : 'Estudiante', text: commentText.trim() }];
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
+            setCommentText("");
+          }} className="flex flex-col gap-2 relative z-10">
+            <div className="flex gap-2">
+              <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Escribe un comentario..." className={`${glassInput} py-2`} />
+              <button type="submit" disabled={isTranslating} className="bg-[#AD3333]/90 text-white p-3 rounded-xl hover:shadow-[0_0_20px_#AD3333] transition disabled:opacity-50"><Send size={18} /></button>
+            </div>
+            {role === 'teacher' && (
+              <div className="flex gap-2 justify-start mt-1">
+                <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isTranslating} title="Traducir a Inglés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇺🇸</button>
+                <button type="button" onClick={() => handleTranslate('Francés')} disabled={isTranslating} title="Traducir a Francés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇫🇷</button>
+                {isTranslating && <Loader2 className="animate-spin text-[#AD3333]" size={14} />}
+              </div>
+            )}
+          </form>
+        ) : (
+          <p className="text-sm font-bold text-red-600 bg-red-100/50 p-3 rounded-xl border border-red-200">🔒 La interacción para esta tarea ha sido bloqueada.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState('student');
+  const [activeTab, setActiveTab] = useState('tasks');
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const [showSugModal, setShowSugModal] = useState(false);
+  const [sugName, setSugName] = useState("");
+  const [sugText, setSugText] = useState("");
+  const [isSugLoading, setIsSugLoading] = useState(false);
+
+  const getToday = () => new Date().toISOString().split('T')[0];
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDesc, setTaskDesc] = useState("");
+  const [taskDate, setTaskDate] = useState(getToday());
+  const [taskTime, setTaskTime] = useState("23:59");
+  const [allowLate, setAllowLate] = useState(false);
+  
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [prevTaskTitle, setPrevTaskTitle] = useState("");
+  const [prevTaskDesc, setPrevTaskDesc] = useState("");
+  const [hasAiModified, setHasAiModified] = useState(false);
+
+  // Estados para Repasos
+  const [reviewTopic, setReviewTopic] = useState("");
+  const [reviewCount, setReviewCount] = useState(3);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [activeReview, setActiveReview] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Estados para interacción de estudiantes en el Quiz
+  const [studentQuizAnswer, setStudentQuizAnswer] = useState("");
+  const [quizAttempts, setQuizAttempts] = useState(0);
+  const [quizFeedback, setQuizFeedback] = useState("");
+  const [showQuizAnswer, setShowQuizAnswer] = useState(false);
+  const [isEvaluatingQuiz, setIsEvaluatingQuiz] = useState(false);
+
+  const [draftReview, setDraftReview] = useState(null); 
+  const [slideInstructions, setSlideInstructions] = useState({}); 
+  const [loadingSlides, setLoadingSlides] = useState({}); 
+
+  // Limpiar el estado del quiz al cambiar de diapositiva
+  useEffect(() => {
+    setStudentQuizAnswer("");
+    setQuizAttempts(0);
+    setQuizFeedback("");
+    setShowQuizAnswer(false);
+  }, [currentSlide, activeReview]);
+
+  // Datos
+  const [tasks, setTasks] = useState([]);
+  const [syllabus, setSyllabus] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [reviews, setReviews] = useState([]); 
+
+  // --- FUNCIONES IA ---
+  const callGemini = async (promptText) => {
+    const apiKey = "";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const payload = { contents: [{ parts: [{ text: promptText }] }] };
+
+    let delay = 1000;
+    for (let i = 0; i < 5; i++) {
+      try {
+        const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
+        if (!res.ok) throw new Error("API Error");
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } catch (error) {
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 2;
+      }
+    }
+    return "";
+  };
+
+  const handleGenerateReview = async (e) => {
+    e.preventDefault();
+    if (!reviewTopic) return;
+    setIsReviewLoading(true);
+
+    const prompt = `Actúa como una profesora de inglés universitaria. Crea una presentación de repaso sobre lo que te indico aquí: "${reviewTopic}". 
+    Genera exactamente ${reviewCount} diapositivas de contenido.
+    
+    REGLAS ESTRICTAS:
+    1. Usa abundantes EMOJIS relevantes.
+    2. El texto DEBE ser TEXTO HUMANO NORMAL, NO HTML. Utiliza saltos de línea normales para separar los párrafos.
+    3. Haz una mezcla de diapositivas tipo "info" (explicaciones) y tipo "quiz" (preguntas para pensar).
+    4. Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta (no añadas nada fuera del JSON):
+    [
+      { "type": "info", "title": "Título con emoji", "content": "Texto del párrafo 1.\\n\\nTexto del párrafo 2." },
+      { "type": "quiz", "title": "Pregunta rápida 🤔", "question": "¿Qué verbo falta aquí?", "answer": "Falta el verbo 'is'." }
+    ]`;
+    
+    try {
+      const result = await callGemini(prompt);
+      const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
+      const generatedSlides = JSON.parse(cleanedJson);
+      
+      // Asignar colores por defecto a cada slide generado
+      generatedSlides.forEach((s, idx) => {
+        s.gradient = SLIDE_GRADIENTS[idx % SLIDE_GRADIENTS.length];
+      });
+
+      // Se usa el título de la primera diapositiva en lugar de la instrucción de la profe
+      const mainTitle = generatedSlides[0]?.title || "Nuevo Repaso de Inglés ✨";
+
+      setDraftReview({
+        topic: mainTitle,
+        slides: generatedSlides
+      });
+      setReviewTopic("");
+    } catch (err) {
+      console.error(err);
+      alert("Hubo un error al generar las diapositivas. Asegúrese de que el modelo entendió su solicitud e intente de nuevo.");
+    }
+    setIsReviewLoading(false);
+  };
+
+  const handleRegenerateSingleSlide = async (index) => {
+    const instruction = slideInstructions[index];
+    if (!instruction) return alert("Escribe una instrucción para modificar esta diapositiva primero.");
+    
+    setLoadingSlides(prev => ({ ...prev, [index]: true }));
+
+    const currentSlideData = draftReview.slides[index];
+    const prompt = `Modifica la siguiente diapositiva basándote en esta instrucción de la profesora: "${instruction}".
+    
+    Diapositiva actual:
+    ${JSON.stringify(currentSlideData)}
+    
+    Reglas:
+    1. Responde ÚNICAMENTE con un objeto JSON válido.
+    2. Mantén la estructura de texto simple (sin HTML).
+    3. Puede ser tipo "info" o "quiz".
+    Ejemplo Formato Info: { "type": "info", "title": "...", "content": "..." }
+    Ejemplo Formato Quiz: { "type": "quiz", "title": "...", "question": "...", "answer": "..." }`;
+
+    try {
+      const result = await callGemini(prompt);
+      const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
+      const regeneratedSlide = JSON.parse(cleanedJson);
+      
+      // Preservar el color original que tenía
+      regeneratedSlide.gradient = currentSlideData.gradient;
+
+      const newSlides = [...draftReview.slides];
+      newSlides[index] = regeneratedSlide;
+      setDraftReview({ ...draftReview, slides: newSlides });
+      
+      const newInstructions = { ...slideInstructions };
+      newInstructions[index] = "";
+      setSlideInstructions(newInstructions);
+
+    } catch (err) {
+      console.error("Error regenerando slide:", err);
+      alert("No se pudo regenerar esta diapositiva. Intente de nuevo.");
+    }
+    setLoadingSlides(prev => ({ ...prev, [index]: false }));
+  };
+
+  const handlePublishDraft = async () => {
+    if (!draftReview) return;
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'), {
+        topic: draftReview.topic,
+        slides: draftReview.slides,
+        createdAt: Date.now()
+      });
+      setDraftReview(null);
+      alert("✅ Repaso publicado exitosamente.");
+    } catch (err) {
+      console.error(err);
+      alert("Error al publicar.");
+    }
+  };
+
+  const handleQuizSubmit = async (e) => {
+    e.preventDefault();
+    if (!studentQuizAnswer.trim()) return;
+    setIsEvaluatingQuiz(true);
+
+    const currentAttempt = quizAttempts + 1;
+    setQuizAttempts(currentAttempt);
+
+    const activeSlide = activeReview.slides[currentSlide];
+
+    if (currentAttempt >= 3) {
+      setQuizFeedback("¡Hiciste un muy buen esfuerzo! 🌟 No te preocupes, aquí tienes la respuesta correcta para que la repases. ¡La próxima lo harás genial!");
+      setShowQuizAnswer(true);
+      setIsEvaluatingQuiz(false);
+      return;
+    }
+
+    const prompt = `Un estudiante está respondiendo un quiz de inglés.
+    Pregunta: "${activeSlide.question}"
+    Respuesta correcta esperada: "${activeSlide.answer}"
+    Respuesta del estudiante: "${studentQuizAnswer}"
+
+    Evalúa si la respuesta del estudiante es correcta o muy cercana a la idea principal.
+    Reglas:
+    1. Responde ÚNICAMENTE con un JSON válido exacto: {"isCorrect": true, "feedback": "Mensaje"} o {"isCorrect": false, "feedback": "Mensaje"}
+    2. Si es correcta (isCorrect: true), felicítalo con mucha emoción y emojis 🎉.
+    3. Si es incorrecta (isCorrect: false), dale una pista SUTIL y anímalo a intentar de nuevo. Sé MUY empático, dulce y positivo para que no se sienta mal. NO le des la respuesta exacta todavía.`;
+
+    try {
+      const res = await callGemini(prompt);
+      const cleaned = res.replace(/```json/gi, '').replace(/```/gi, '').trim();
+      const json = JSON.parse(cleaned);
+      
+      setQuizFeedback(json.feedback);
+      if(json.isCorrect) {
+        setShowQuizAnswer(true);
+      }
+    } catch(err) {
+      setQuizFeedback("¡Ups! Hubo un pequeño error al revisar, pero ¡sigue intentándolo! ✨");
+    }
+    setIsEvaluatingQuiz(false);
+  };
+
+  const handleSubmitSuggestion = async (e) => {
+    e.preventDefault();
+    if (!sugName || !sugText) return;
+    setIsSugLoading(true);
+
+    const prompt = `Analiza la siguiente sugerencia de un estudiante. Si contiene lenguaje ofensivo, groserías, insultos o quejas destructivas, responde ÚNICAMENTE con la palabra "RECHAZADO". Si es una sugerencia respetuosa y constructiva, reescríbela para que suene extremadamente profesional y formal para la profesora. Devuelve SOLAMENTE la versión mejorada o la palabra "RECHAZADO".\n\nTexto: ${sugText}`;
+    
+    const result = await callGemini(prompt);
+    
+    if (result.trim() === "RECHAZADO") {
+      alert("⚠️ Acción bloqueada: No se permiten groserías ni comentarios ofensivos. Intente de nuevo con respeto.");
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: sugName, originalText: sugText, createdAt: Date.now() });
+    } else {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: sugName, text: result, createdAt: Date.now() });
+      alert("✅ Sugerencia enviada correctamente. Gracias por su aporte.");
+      setShowSugModal(false);
+      setSugText("");
+    }
+    setIsSugLoading(false);
+  };
+
+  const handleAiGenerate = async () => {
+    if (!taskDesc && !taskTitle) return alert("Escribe una idea en la descripción o título primero.");
+    setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc);
+    setIsAiLoading(true);
+
+    const prompt = `Actúa como una profesora de inglés experta. Voy a darte una idea básica para una tarea. Tu objetivo es potenciarla: crea un título muy atractivo y una descripción detallada, clara y profesional. MANTÉN ESTRICTAMENTE LA IDEA CENTRAL Y LOS REQUERIMIENTOS ORIGINALES, no inventes temas ni objetivos nuevos.\n\nIdea original:\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}\n\nDevuelve tu respuesta EXACTAMENTE en este formato (sin usar asteriscos ni formato markdown extra):\nTITULO: [Tu nuevo título]\nDESCRIPCION: [Tu nueva descripción detallada]`;
+    
+    const result = await callGemini(prompt);
+    if (result) {
+      const titleMatch = result.match(/TITULO:\s*(.*)/i);
+      const descMatch = result.match(/DESCRIPCION:\s*([\s\S]*)/i);
+      if (titleMatch && descMatch) {
+        setTaskTitle(titleMatch[1].trim());
+        setTaskDesc(descMatch[1].trim());
+      } else setTaskDesc(result);
+      setHasAiModified(true);
+    }
+    setIsAiLoading(false);
+  };
+
+  const handleAiCorrect = async () => {
+    if (!taskDesc) return;
+    setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc);
+    setIsAiLoading(true);
+    const prompt = `Corrige la ortografía y gramática del siguiente texto. Mantén el idioma original. Devuelve ÚNICAMENTE el texto corregido:\n\n${taskDesc}`;
+    const result = await callGemini(prompt);
+    if (result) { setTaskDesc(result); setHasAiModified(true); }
+    setIsAiLoading(false);
+  };
+
+  const handleAiTranslate = async (lang) => {
+    if (!taskDesc && !taskTitle) return;
+    setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc);
+    setIsAiLoading(true);
+    const prompt = `Traduce el siguiente título y descripción al ${lang} de forma 100% profesional. Devuelve EXACTAMENTE en este formato:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
+    const result = await callGemini(prompt);
+    if (result) {
+      const titleMatch = result.match(/TITULO:\s*(.*)/i);
+      const descMatch = result.match(/DESCRIPCION:\s*([\s\S]*)/i);
+      if (titleMatch && descMatch) {
+        setTaskTitle(titleMatch[1].trim());
+        setTaskDesc(descMatch[1].trim());
+      } else setTaskDesc(result);
+      setHasAiModified(true);
+    }
+    setIsAiLoading(false);
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (e.target.username.value === 'GinaDocente' && e.target.password.value === 'DANTE12345') {
+      setRole('teacher'); setShowLogin(false); setLoginError("");
+    } else {
+      setLoginError("Usuario o contraseña incorrectos");
+    }
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+      else await signInAnonymously(auth);
+    };
+    initAuth();
+    return onAuthStateChanged(auth, setUser);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const base = ['artifacts', appId, 'public', 'data'];
+
+    const uTasks = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uSyllabus = onSnapshot(collection(db, ...base, 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
+    const uEvals = onSnapshot(collection(db, ...base, 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uGrades = onSnapshot(collection(db, ...base, 'grades'), s => setGrades(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uSug = onSnapshot(collection(db, ...base, 'suggestions'), s => setSuggestions(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uAlerts = onSnapshot(collection(db, ...base, 'alerts'), s => setAlerts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uReviews = onSnapshot(collection(db, ...base, 'reviews'), s => setReviews(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+
+    return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); };
+  }, [user]);
+
+  // --- VISTAS ---
+  const renderTasks = () => (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Próximas tareas</h2>
+      {role === 'teacher' && (
+        <div className={`${glassCard} mb-8 flex flex-col gap-4`}>
+          <h3 className="font-semibold text-lg text-gray-800 flex items-center gap-2">📝 Publicar Nueva Tarea {isAiLoading && <Loader2 className="animate-spin text-[#AD3333]" size={20} />}</h3>
+          <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Título del taller o idea base..." className={glassInput} required />
+          <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas o escribe una idea y usa la IA para potenciarla..." className={`${glassInput} h-32 resize-none`} required />
+          
+          <div className="flex flex-wrap gap-2 mb-2 items-center">
+            <button type="button" onClick={handleAiGenerate} disabled={isAiLoading} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1 disabled:opacity-50"><Sparkles size={16} /> Potenciar Idea</button>
+            <button type="button" onClick={handleAiCorrect} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir Ortografía</button>
+            <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} title="Traducir a Inglés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇺🇸</button>
+            <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} title="Traducir a Francés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇫🇷</button>
+            {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} disabled={isAiLoading} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 hover:border-red-400 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-center bg-white/30 p-4 rounded-xl border border-white/40">
+            <div><label className="text-xs font-bold text-gray-700 ml-1 block">Fecha límite</label><input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} className={`${glassInput} py-2`} required /></div>
+            <div><label className="text-xs font-bold text-gray-700 ml-1 block">Hora límite</label><input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className={`${glassInput} py-2`} required /></div>
+            <label className="flex items-center gap-2 mt-4 cursor-pointer"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-[#AD3333]" /><span className="text-sm font-bold text-gray-800">Permitir entregas fuera de plazo</span></label>
+            <button type="button" onClick={async () => {
+              if(taskTitle && taskDesc && taskDate && taskTime) {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { title: taskTitle, description: taskDesc, dueDate: taskDate, dueTime: taskTime, allowLate, createdAt: Date.now(), comments: [], reactions: {} });
+                setTaskTitle(""); setTaskDesc(""); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
+              } else alert("Llena todos los campos.");
+            }} className={`${redButton} ml-auto mt-4`}>Publicar</button>
+          </div>
+        </div>
+      )}
+
+      {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay tareas publicadas aún.</p> : null}
+      {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} />)}
+    </div>
+  );
+
+  const renderReviews = () => {
+    // Modo Edición Profesor
+    if (draftReview) {
+      return (
+        <div className="space-y-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm">
+            <Edit3 className="text-[#AD3333]" /> Edición de Diapositivas
+          </h2>
+          <div className={`${glassCard} flex flex-col gap-8`}>
+            <div className="bg-white/40 p-4 rounded-xl border border-[#AD3333]/30 text-sm text-gray-800 font-medium">
+              💡 Revisa el texto y haz cambios. Si deseas cambiar algo específico (ej. "Haz que sea sobre animales"), escríbeselo a la IA en la caja morada de la diapositiva correspondiente.
+            </div>
+
+            <div className="bg-white/30 backdrop-blur-sm p-6 rounded-3xl border border-white/60 shadow-sm">
+               <label className="text-sm font-bold text-gray-800 mb-2 block">Título Principal de la Presentación (Lo que verán los estudiantes)</label>
+               <input 
+                 className={`${glassInput} font-extrabold text-xl bg-white/80`} 
+                 value={draftReview.topic} 
+                 onChange={e => setDraftReview({...draftReview, topic: e.target.value})} 
+               />
+            </div>
+            
+            {draftReview.slides.map((slide, i) => (
+              <div key={i} className={`bg-gradient-to-br ${slide.gradient || SLIDE_GRADIENTS[0]} backdrop-blur-xl p-6 rounded-3xl border border-white/60 relative shadow-md`}>
+                <div className="absolute inset-0 bg-white/40 rounded-3xl pointer-events-none"></div>
+                <div className="relative z-10">
+                  <span className="absolute -top-2 -right-2 bg-gray-900 text-white font-bold px-4 py-1.5 rounded-full text-xs shadow-lg">
+                    Slide {i + 1} - {slide.type === 'quiz' ? 'Interactivo ❓' : 'Info 📝'}
+                  </span>
+                  
+                  {/* Selector de Color */}
+                  <div className="mb-4 bg-white/40 p-2 rounded-2xl inline-flex gap-2 border border-white/50 backdrop-blur-md">
+                    <span className="text-xs font-bold text-gray-700 flex items-center gap-1 ml-1 mr-2"><Palette size={14}/> Color:</span>
+                    {SLIDE_GRADIENTS.map(grad => (
+                      <button 
+                        key={grad} type="button"
+                        onClick={() => { const newSlides = [...draftReview.slides]; newSlides[i].gradient = grad; setDraftReview({...draftReview, slides: newSlides}); }}
+                        className={`w-6 h-6 rounded-full bg-gradient-to-br ${grad} border-2 transition-transform ${slide.gradient === grad ? 'border-gray-800 scale-125 shadow-md' : 'border-white/80 hover:scale-110'}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Textos */}
+                  <div className="mb-6 bg-white/50 p-4 rounded-2xl border border-white/50">
+                    <label className="text-sm font-bold text-gray-800 mb-1 block mt-1">Título de la diapositiva</label>
+                    <input className={`${glassInput} mb-4 font-bold text-lg bg-white/60`} value={slide.title} onChange={e => {
+                        const newSlides = [...draftReview.slides]; newSlides[i].title = e.target.value; setDraftReview({...draftReview, slides: newSlides});
+                      }} 
+                    />
+
+                    {slide.type === 'quiz' ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-bold text-gray-800 mb-1 block">Pregunta para los estudiantes</label>
+                          <textarea className={`${glassInput} h-24 resize-none bg-white/60`} value={slide.question || ""} onChange={e => {
+                            const newSlides = [...draftReview.slides]; newSlides[i].question = e.target.value; setDraftReview({...draftReview, slides: newSlides});
+                          }} />
+                        </div>
+                        <div>
+                          <label className="text-sm font-bold text-green-800 mb-1 block">Respuesta correcta esperada</label>
+                          <textarea className={`${glassInput} h-20 resize-none border-green-300 bg-white/60`} value={slide.answer || ""} onChange={e => {
+                            const newSlides = [...draftReview.slides]; newSlides[i].answer = e.target.value; setDraftReview({...draftReview, slides: newSlides});
+                          }} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-sm font-bold text-gray-800 mb-1 block">Contenido (Párrafos normales)</label>
+                        <textarea className={`${glassInput} h-32 resize-none leading-relaxed text-base bg-white/60`} value={slide.content || ""} onChange={e => {
+                            const newSlides = [...draftReview.slides]; newSlides[i].content = e.target.value; setDraftReview({...draftReview, slides: newSlides});
+                          }} 
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* IA */}
+                  <div className="bg-gradient-to-r from-purple-100/70 to-indigo-100/70 p-4 rounded-2xl border border-indigo-200/50 flex flex-col sm:flex-row gap-3 sm:items-end">
+                    <div className="flex-1">
+                      <label className="text-xs font-bold text-indigo-800 mb-1 block">Instrucción para cambiar esta diapositiva</label>
+                      <input 
+                        placeholder="Ej. Haz que esta diapositiva enseñe verbos irregulares de cocina..." 
+                        className={`${glassInput} py-2 text-sm border-indigo-200 bg-white/80`}
+                        value={slideInstructions[i] || ""}
+                        onChange={e => setSlideInstructions({...slideInstructions, [i]: e.target.value})}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleRegenerateSingleSlide(i)} disabled={loadingSlides[i]}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-xl shadow-md transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap justify-center"
+                    >
+                      {loadingSlides[i] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>} Regenerar Slide
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex gap-4 pt-4 border-t border-white/40">
+               <button onClick={() => setDraftReview(null)} className="px-6 py-3 rounded-full font-bold bg-white/50 border border-white/60 text-gray-700 hover:bg-white/80 hover:text-red-600 transition flex items-center gap-2 shadow-sm">
+                 <X size={20}/> Descartar
+               </button>
+               <button onClick={handlePublishDraft} className={`${redButton} ml-auto`}>
+                 <Send size={20}/> Publicar Presentación
+               </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const activeSlide = activeReview?.slides[currentSlide];
+    const currentGradient = activeSlide?.gradient || SLIDE_GRADIENTS[0];
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm">
+          <Presentation className="text-[#AD3333]" /> Repasos
+        </h2>
+
+        {role === 'teacher' && !activeReview && (
+          <form onSubmit={handleGenerateReview} className={`${glassCard} mb-8 flex flex-col gap-4`}>
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">🪄 Generador Inteligente de Diapositivas</h3>
+            
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-gray-700 ml-1">Tema e Instrucciones Generales</label>
+              <textarea 
+                value={reviewTopic} onChange={(e) => setReviewTopic(e.target.value)} 
+                placeholder="Ej. Explica el Present Simple 100% en francés con ejemplos de comidas..." 
+                className={`${glassInput} h-24 resize-none`} required 
+              />
+            </div>
+
+            <div className="flex justify-between items-center mt-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-gray-700 ml-1 block">Cantidad</label>
+                <select value={reviewCount} onChange={(e) => setReviewCount(Number(e.target.value))} className={`${glassInput} py-2 w-auto`}>
+                  {[2, 3, 4, 5, 6, 7].map(num => <option key={num} value={num}>{num}</option>)}
+                </select>
+              </div>
+              <button type="submit" disabled={isReviewLoading} className={`${redButton} disabled:opacity-50`}>
+                {isReviewLoading ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} />} 
+                Preparar Borrador
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Visor de Presentaciones Interactivo */}
+        {activeReview && activeSlide ? (
+          <div className={`relative overflow-hidden rounded-[2rem] border border-white/50 shadow-[0_15px_40px_0_rgba(0,0,0,0.15)] min-h-[550px] flex flex-col justify-between bg-gradient-to-br ${currentGradient} backdrop-blur-2xl transition-all duration-700`}>
+            <div className="absolute inset-0 bg-white/20 pointer-events-none"></div>
+            
+            <div className="relative z-10 flex justify-between items-center p-6 border-b border-white/30 bg-white/10">
+              <h3 className="text-xl font-extrabold text-gray-900 drop-shadow-sm flex items-center gap-2"><Presentation size={24}/> {activeReview.topic}</h3>
+              <button onClick={() => setActiveReview(null)} className="bg-white/40 hover:bg-white/60 text-gray-800 rounded-full p-2 transition shadow-sm backdrop-blur-md border border-white/50"><X size={24} /></button>
+            </div>
+
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 sm:p-12 text-center">
+              <div className="bg-white/50 backdrop-blur-2xl border border-white/60 p-8 md:p-12 rounded-[2rem] shadow-xl max-w-3xl w-full transform transition-all duration-500 hover:scale-[1.01]">
+                <h4 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-8 drop-shadow-sm leading-tight">{activeSlide.title}</h4>
+                
+                {activeSlide.type === 'quiz' ? (
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <p className="text-2xl text-gray-800 font-bold mb-4">{activeSlide.question}</p>
+                    
+                    {!showQuizAnswer ? (
+                      <form onSubmit={handleQuizSubmit} className="w-full flex flex-col gap-4 animate-in fade-in">
+                        <input 
+                          value={studentQuizAnswer} onChange={e => setStudentQuizAnswer(e.target.value)} 
+                          placeholder="Escribe tu respuesta aquí..." 
+                          className="w-full bg-white/60 border border-white/80 rounded-2xl px-6 py-4 text-xl outline-none focus:ring-4 focus:ring-indigo-400/30 transition-all text-center font-medium text-gray-800 shadow-inner"
+                        />
+                        <button type="submit" disabled={isEvaluatingQuiz} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition flex justify-center items-center gap-2 text-lg mx-auto disabled:opacity-50">
+                          {isEvaluatingQuiz ? <Loader2 className="animate-spin" size={24}/> : <Send size={20}/>} Comprobar Respuesta
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="w-full bg-green-100/80 border border-green-300 p-6 rounded-3xl animate-in slide-in-from-top-4 fade-in duration-300">
+                        <span className="block text-sm font-black text-green-700 uppercase mb-2">Respuesta Correcta</span>
+                        <p className="text-xl font-medium text-gray-800">{activeSlide.answer}</p>
+                      </div>
+                    )}
+
+                    {/* Feedback de la IA */}
+                    {quizFeedback && (
+                      <div className={`mt-4 p-4 rounded-2xl border w-full text-left font-medium ${showQuizAnswer ? 'bg-green-50/90 border-green-200 text-green-800' : 'bg-indigo-50/90 border-indigo-200 text-indigo-800'} animate-in fade-in`}>
+                        {quizFeedback}
+                      </div>
+                    )}
+                    
+                    {!showQuizAnswer && quizAttempts > 0 && (
+                      <p className="text-xs font-bold text-gray-500 mt-2">Intento {quizAttempts} de 3</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xl md:text-2xl text-gray-800 leading-relaxed text-left font-medium space-y-4">
+                    {activeSlide.content?.split('\n').map((paragraph, idx) => paragraph.trim() && <p key={idx}>{paragraph}</p>)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="relative z-10 flex justify-between items-center p-6 border-t border-white/30 bg-white/10 backdrop-blur-md">
+              <button 
+                onClick={() => setCurrentSlide(s => Math.max(0, s - 1))} 
+                disabled={currentSlide === 0} 
+                className="flex items-center gap-2 px-6 py-3 bg-white/50 hover:bg-white/70 border border-white/60 text-gray-800 rounded-full font-bold transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              >
+                <ChevronLeft size={20} /> Anterior
+              </button>
+              <span className="font-extrabold text-gray-800 tracking-widest bg-white/50 border border-white/60 shadow-sm px-5 py-2 rounded-full">{currentSlide + 1} / {activeReview.slides.length}</span>
+              <button 
+                onClick={() => setCurrentSlide(s => Math.min(activeReview.slides.length - 1, s + 1))} 
+                disabled={currentSlide === activeReview.slides.length - 1} 
+                className="flex items-center gap-2 px-6 py-3 bg-white/80 hover:bg-white border border-white/60 text-gray-900 rounded-full font-bold shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {reviews.length === 0 ? <p className="text-gray-600 italic px-4 col-span-3">No hay presentaciones de repaso generadas aún.</p> : null}
+            {reviews.map((r, idx) => {
+              const previewGradient = r.slides[0]?.gradient || SLIDE_GRADIENTS[idx % SLIDE_GRADIENTS.length];
+              return (
+                <div 
+                  key={r.id} 
+                  className={`cursor-pointer hover:scale-[1.03] transition-transform duration-300 relative overflow-hidden rounded-[1.5rem] border border-white/50 shadow-lg flex flex-col bg-gradient-to-br ${previewGradient} backdrop-blur-xl aspect-video`} 
+                  onClick={() => { setActiveReview(r); setCurrentSlide(0); setShowQuizAnswer(false); }}
+                >
+                  <div className="absolute inset-0 bg-white/20 pointer-events-none"></div>
+                  <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-5 text-center">
+                    <div className="bg-white/40 backdrop-blur-md border border-white/60 p-4 rounded-xl w-full shadow-sm">
+                      <h4 className="text-lg font-extrabold text-gray-900 drop-shadow-sm line-clamp-3">{r.topic}</h4>
+                    </div>
+                  </div>
+                  <div className="relative z-10 flex justify-between items-center px-5 py-3 border-t border-white/30 bg-white/20 backdrop-blur-md">
+                    <span className="text-xs font-bold text-gray-900 flex items-center gap-1"><Presentation size={14}/> {r.slides.length} diapositivas</span>
+                    {role === 'teacher' && (
+                      <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reviews', r.id)); }} className="text-gray-800 hover:text-red-600 transition">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSyllabus = () => (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><Calendar className="text-[#AD3333]" /> Contenidos programáticos</h2>
+      {role === 'teacher' && (
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const week = Number(e.target.week.value);
+          const topic = e.target.topic.value;
+          const material = e.target.material.value;
+          if(topic) {
+            addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), { week, topic, material });
+            e.target.reset();
+          }
+        }} className={`${glassCard} mb-8 flex flex-wrap gap-4 items-end`}>
+          <div className="flex-1 min-w-[100px]"><label className="text-xs font-bold text-gray-700 ml-2 drop-shadow-sm">Semana</label><input type="number" name="week" placeholder="1" className={glassInput} required /></div>
+          <div className="flex-[3] min-w-[200px]"><label className="text-xs font-bold text-gray-700 ml-2 drop-shadow-sm">Tema</label><input name="topic" placeholder="Ej. Present Simple" className={glassInput} required /></div>
+          <div className="flex-[2] min-w-[150px]"><label className="text-xs font-bold text-gray-700 ml-2 drop-shadow-sm">Material (Enlace)</label><input name="material" placeholder="URL del documento" className={glassInput} /></div>
+          <button type="submit" className={redButton}><Plus size={20}/> Añadir</button>
+        </form>
+      )}
+      <div className={`${glassCard} overflow-hidden p-0`}>
+        <table className="w-full text-left border-collapse">
+          <thead><tr className="bg-white/40 border-b border-white/50 backdrop-blur-md"><th className="p-4 font-bold text-gray-800">Semana</th><th className="p-4 font-bold text-gray-800">Tema a tratar</th><th className="p-4 font-bold text-gray-800">Documentos</th>{role === 'teacher' && <th className="p-4"></th>}</tr></thead>
+          <tbody>
+            {syllabus.length === 0 ? <tr><td colSpan="4" className="p-4 text-gray-600 text-center font-medium">No hay contenidos en el calendario.</td></tr> : syllabus.map((item) => (
+              <tr key={item.id} className="border-b border-white/20 hover:bg-white/40 transition">
+                <td className="p-4 font-extrabold text-[#AD3333]">Semana {item.week}</td><td className="p-4 text-gray-900 font-medium">{item.topic}</td>
+                <td className="p-4">{item.material ? <a href={item.material} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-700 font-bold hover:text-blue-900 hover:underline"><FileText size={16} /> Ver PDF</a> : <span className="text-gray-400">-</span>}</td>
+                {role === 'teacher' && <td className="p-4 text-right"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))} className="text-gray-500 hover:text-red-600 transition"><Trash2 size={18} /></button></td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderEvaluations = () => (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <h2 className="text-4xl font-extrabold text-gray-800 mb-6 text-center drop-shadow-md">Evaluaciones ya realizadas 📝</h2>
+      <div className={glassCard}><p className="text-center text-gray-700 font-medium">Aún nada por aquí...</p></div>
+    </div>
+  );
+
+  const renderInbox = () => (
+    <div className="space-y-8">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><Mail className="text-[#AD3333]" /> Buzón de Sugerencias</h2>
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className={glassCard}>
+          <h3 className="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">Sugerencias</h3>
+          <div className="space-y-4">
+            {suggestions.length === 0 ? <p className="text-sm text-gray-500">Buzón vacío.</p> : suggestions.map(s => (
+              <div key={s.id} className="bg-white/40 p-4 rounded-xl border border-green-200">
+                <p className="font-bold text-gray-800 text-sm mb-1">{s.studentName}</p>
+                <p className="text-gray-700">{s.text}</p>
+                <p className="text-xs text-gray-400 mt-2">{new Date(s.createdAt).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={glassCard}>
+          <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center gap-2"><AlertTriangle /> Alertas de Conducta</h3>
+          <div className="space-y-4">
+            {alerts.length === 0 ? <p className="text-sm text-gray-500">Sin incidentes registrados.</p> : alerts.map(a => (
+              <div key={a.id} className="bg-red-50 p-4 rounded-xl border border-red-200">
+                <p className="font-bold text-red-800 text-sm mb-1">Estudiante: {a.studentName}</p>
+                <p className="text-red-900 font-medium italic">" {a.originalText} "</p>
+                <p className="text-xs text-red-400 mt-2">{new Date(a.createdAt).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`min-h-screen bg-gradient-to-br ${isDarkMode ? 'from-gray-900 via-slate-900 to-black' : 'from-red-50/80 via-gray-100/90 to-red-100/80'} font-sans relative overflow-hidden transition-colors duration-500 ${isDarkMode ? 'dark-mode' : ''}`}>
+      <style>{`
+        .dark-mode .text-gray-900 { color: #f9fafb !important; }
+        .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
+        .dark-mode .text-gray-700 { color: #d1d5db !important; }
+        .dark-mode .text-gray-600 { color: #9ca3af !important; }
+        .dark-mode .text-gray-500 { color: #6b7280 !important; }
+        
+        .dark-mode [class*="bg-white/20"] { background-color: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+        .dark-mode [class*="bg-white/30"] { background-color: rgba(0, 0, 0, 0.5) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
+        .dark-mode [class*="bg-white/40"] { background-color: rgba(0, 0, 0, 0.6) !important; border-color: rgba(255, 255, 255, 0.2) !important; }
+        .dark-mode [class*="bg-white/50"] { background-color: rgba(0, 0, 0, 0.7) !important; border-color: rgba(255, 255, 255, 0.25) !important; }
+        .dark-mode [class*="bg-white/60"] { background-color: rgba(0, 0, 0, 0.8) !important; border-color: rgba(255, 255, 255, 0.3) !important; }
+        .dark-mode [class*="bg-white/80"] { background-color: rgba(0, 0, 0, 0.9) !important; border-color: rgba(255, 255, 255, 0.4) !important; }
+        
+        .dark-mode [class*="border-white/"] { border-color: rgba(255, 255, 255, 0.2) !important; }
+        
+        .dark-mode [class*="bg-red-100/"] { background-color: rgba(153, 27, 27, 0.2) !important; border-color: rgba(220, 38, 38, 0.3) !important; }
+        .dark-mode [class*="bg-red-50"] { background-color: rgba(69, 10, 10, 0.4) !important; }
+        .dark-mode [class*="text-red-600"] { color: #f87171 !important; }
+        
+        .dark-mode [class*="bg-green-100/"] { background-color: rgba(6, 78, 59, 0.4) !important; border-color: rgba(52, 211, 153, 0.3) !important; }
+        .dark-mode [class*="text-green-700"] { color: #34d399 !important; }
+        
+        .dark-mode [class*="bg-indigo-50/"] { background-color: rgba(49, 46, 129, 0.5) !important; border-color: rgba(129, 140, 248, 0.3) !important; }
+        .dark-mode [class*="text-indigo-800"] { color: #818cf8 !important; }
+      `}</style>
+      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-300/15 rounded-full blur-[120px] pointer-events-none" />
+
+      {showSugModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <form onSubmit={handleSubmitSuggestion} className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200`}>
+            <button type="button" onClick={() => setShowSugModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
+            <h3 className="text-2xl font-bold text-center text-gray-800 drop-shadow-sm flex items-center justify-center gap-2"><Mail className="text-[#AD3333]"/> Enviar Sugerencia</h3>
+            <p className="text-xs text-center text-gray-600 mb-2">Buzón de sugerencias para mejorar las clases.</p>
+            <input value={sugName} onChange={e => setSugName(e.target.value)} placeholder="Tu nombre completo" className={glassInput} required />
+            <textarea value={sugText} onChange={e => setSugText(e.target.value)} placeholder="Escribe tu idea para mejorar la clase..." className={`${glassInput} h-32 resize-none`} required />
+            <button type="submit" disabled={isSugLoading} className={`${redButton} w-full mt-2 disabled:opacity-50`}>{isSugLoading ? 'Enviando...' : 'Enviar'}</button>
+          </form>
+        </div>
+      )}
+
+      {showLogin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm p-4 transition-all">
+          <form onSubmit={handleLogin} className={`${glassCard} max-w-sm w-full flex flex-col gap-5 relative animate-in fade-in zoom-in duration-200`}>
+            <button type="button" onClick={() => setShowLogin(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
+            <h3 className="text-2xl font-bold text-center text-gray-800 mb-2 drop-shadow-sm">Acceso</h3>
+            <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input name="username" placeholder="Pon tu usuario" className={glassInput} required /></div>
+            <div><label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label><input name="password" type="password" placeholder="••••••••" className={glassInput} required /></div>
+            {loginError && <p className="text-[#AD3333] text-sm text-center font-bold bg-white/50 py-2 rounded-lg">{loginError}</p>}
+            <button type="submit" className={`${redButton} w-full`}>Ingresar</button>
+          </form>
+        </div>
+      )}
+
+      <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-6 py-4 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-3">
+          <button onClick={() => role === 'teacher' ? setRole('student') : setShowLogin(true)} className="w-11 h-11 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg shadow-[#AD3333]/40 hover:scale-105 transition-transform border border-white/20" title={role === 'teacher' ? "Cerrar sesión" : "Acceso Docente"}>UP</button>
+          <div><h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">Profesora Gina</h1><p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p></div>
+        </div>
+
+        <div className="flex gap-2 items-center flex-wrap">
+          <button onClick={() => setActiveTab('tasks')} className={`${activeTab === 'tasks' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Asignaciones</button>
+          <button onClick={() => setActiveTab('reviews')} className={`${activeTab === 'reviews' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800 hover:text-gray-900 flex items-center gap-1`}><Presentation size={16}/> Repasos</button>
+          <button onClick={() => setActiveTab('syllabus')} className={`${activeTab === 'syllabus' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Syllabus</button>
+          <button onClick={() => setActiveTab('evaluations')} className={`${activeTab === 'evaluations' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Evaluaciones</button>
+          
+          <div className="w-px h-6 bg-gray-400 mx-2"></div>
+          
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-full bg-white/40 hover:bg-white/60 text-gray-800 transition-all shadow-sm border border-white/50" title="Alternar Modo Oscuro">
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          
+          {role === 'student' ? (
+            <button onClick={() => setShowSugModal(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-bold px-4 py-2 rounded-full hover:scale-105 transition flex items-center gap-2 text-sm ml-2"><Mail size={16}/> Sugerencias</button>
+          ) : (
+            <button onClick={() => setActiveTab('inbox')} className={`${activeTab === 'inbox' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'bg-white/60 hover:bg-white/80 font-bold text-gray-800'} px-4 py-2 rounded-full transition flex items-center gap-2 text-sm ml-2`}>
+              <Mail size={16}/> Buzón {alerts.length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+            </button>
+          )}
+        </div>
+      </nav>
+
+      <main className="max-w-5xl mx-auto p-8 relative z-10">
+        {activeTab === 'tasks' && renderTasks()}
+        {activeTab === 'reviews' && renderReviews()}
+        {activeTab === 'syllabus' && renderSyllabus()}
+        {activeTab === 'evaluations' && renderEvaluations()}
+        {activeTab === 'inbox' && role === 'teacher' && renderInbox()}
+      </main>
+    </div>
+  );
+}
