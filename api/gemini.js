@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Obtenemos la llave secreta de la "caja fuerte" de Vercel
+  // Obtenemos la llave secreta de la "caja fuerte" de Vercel que acabas de configurar
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   try {
     const { promptText } = req.body;
 
-    // CAMBIO CLAVE: Usamos el modelo 'gemini-1.5-flash' que es el público y más estable.
+    // Conexión oficial al modelo de Gemini usando tu llave secreta
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: promptText }] }] };
 
@@ -28,7 +28,8 @@ export default async function handler(req, res) {
     if (!geminiRes.ok) {
       const errorData = await geminiRes.text();
       console.error("Detalle del error de Gemini:", errorData);
-      throw new Error(`Error de Gemini: ${geminiRes.status}`);
+      // Le pasamos el error exacto a la página para saber qué pasó
+      return res.status(geminiRes.status).json({ error: `Error de Gemini: ${geminiRes.status}` });
     }
 
     const data = await geminiRes.json();
@@ -38,6 +39,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("Error en el servidor:", error);
-    return res.status(500).json({ error: 'Error al contactar a la IA' });
+    return res.status(500).json({ error: 'Error de red en el servidor' });
   }
 }
