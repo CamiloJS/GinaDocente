@@ -74,7 +74,7 @@
           "from-fuchsia-400/40 to-rose-500/40"
         ];
 
-        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser }) => {
+        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage }) => {
           const [commentText, setCommentText] = useState("");
           const [isTranslating, setIsTranslating] = useState(false);
 
@@ -91,7 +91,11 @@
             setIsTranslating(true);
             const prompt = `Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`;
             const result = await callGemini(prompt);
-            if (result) setCommentText(result);
+            if (result) {
+              setCommentText(result);
+            } else {
+              if (showMessage) showMessage("❌ Error de conexión con la IA al traducir.");
+            }
             setIsTranslating(false);
           };
 
@@ -257,23 +261,25 @@
             const url = `/api/gemini`;
             const payload = { promptText: promptText };
 
-            let delay = 1000;
-            for (let i = 0; i < 5; i++) {
-              try {
-                const res = await fetch(url, { 
-                  method: 'POST', 
-                  body: JSON.stringify(payload), 
-                  headers: { 'Content-Type': 'application/json' } 
-                });
-                if (!res.ok) throw new Error("API Error");
-                const data = await res.json();
-                return data.text || "";
-              } catch (error) {
-                await new Promise(r => setTimeout(r, delay));
-                delay *= 2;
+            try {
+              const res = await fetch(url, { 
+                method: 'POST', 
+                body: JSON.stringify(payload), 
+                headers: { 'Content-Type': 'application/json' } 
+              });
+              
+              if (!res.ok) {
+                // Si falla, muestra el error de inmediato y deja de cargar
+                showMessage(`❌ Error del servidor (${res.status}). Mira mis instrucciones en el chat.`);
+                return ""; 
               }
+              
+              const data = await res.json();
+              return data.text || "";
+            } catch (error) {
+              showMessage("❌ Error de red: No se pudo conectar.");
+              return "";
             }
-            return "";
           };
 
           const handleGenerateReview = async (e) => {
@@ -399,37 +405,56 @@
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
             const prompt = `Mejora esta tarea de inglés: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`;
             const result = await callGemini(prompt);
-            if (result) {
-              const titleMatch = result.match(/TITULO:\s*(.*)/i);
-              const descMatch = result.match(/DESCRIPCION:\s*([\s\S]*)/i);
-              if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].trim()); setTaskDesc(descMatch[1].trim()); } 
-              else setTaskDesc(result);
-              setHasAiModified(true);
+            if (!result) {
+              setIsAiLoading(false);
+              return showMessage("❌ Error de conexión con la IA.");
             }
+            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
+            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
+            
+            if (titleMatch && descMatch) { 
+              setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); 
+              setTaskDesc(descMatch[1].trim()); 
+            } else {
+              setTaskDesc(result);
+            }
+            setHasAiModified(true);
             setIsAiLoading(false);
           };
 
           const handleAiCorrect = async () => {
-            if (!taskDesc) return;
+            if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
             const prompt = `Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`;
             const result = await callGemini(prompt);
-            if (result) { setTaskDesc(result); setHasAiModified(true); }
+            if (!result) {
+              setIsAiLoading(false);
+              return showMessage("❌ Error de conexión con la IA.");
+            }
+            setTaskDesc(result); 
+            setHasAiModified(true);
             setIsAiLoading(false);
           };
 
           const handleAiTranslate = async (lang) => {
-            if (!taskDesc && !taskTitle) return;
+            if (!taskDesc && !taskTitle) return showMessage("Escribe algo para traducir primero.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
             const prompt = `Traduce al ${lang}:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
             const result = await callGemini(prompt);
-            if (result) {
-              const titleMatch = result.match(/TITULO:\s*(.*)/i);
-              const descMatch = result.match(/DESCRIPCION:\s*([\s\S]*)/i);
-              if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].trim()); setTaskDesc(descMatch[1].trim()); } 
-              else setTaskDesc(result);
-              setHasAiModified(true);
+            if (!result) {
+              setIsAiLoading(false);
+              return showMessage("❌ Error de conexión con la IA.");
             }
+            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
+            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
+            
+            if (titleMatch && descMatch) { 
+              setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); 
+              setTaskDesc(descMatch[1].trim()); 
+            } else {
+              setTaskDesc(result);
+            }
+            setHasAiModified(true);
             setIsAiLoading(false);
           };
 
@@ -499,7 +524,7 @@
                 </div>
               )}
               {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay tareas publicadas aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} />)}
+              {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} />)}
             </div>
           );
 
