@@ -31,11 +31,12 @@
         const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); const Edit3 = createIcon('✏️');
         const Palette = createIcon('🎨'); 
         
-        // Íconos SVG para Sol y Luna
+        // Íconos SVG
         const Sun = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
         const Moon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+        const LogOutIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>;
 
-        // NUEVOS: Íconos SVG profesionales en blanco y negro para la barra inferior de celulares
+        // Íconos SVG barra inferior de celulares
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
         const NavCalendar = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>;
@@ -59,8 +60,8 @@
         // --- ESTILOS LIQUID Glass MEJORADOS ---
         const glassCard = "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(173,51,51,0.1)] rounded-3xl p-6 transition-all duration-300";
         const glassInput = "w-full bg-white/30 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#AD3333]/50 focus:border-[#AD3333] transition-all placeholder-gray-600 text-gray-900 shadow-inner";
-        const glowButton = "bg-white/40 backdrop-blur-md text-gray-900 px-6 py-3 rounded-full font-semibold border border-white/60 shadow-sm hover:shadow-[0_0_20px_rgba(173,51,51,0.4)] hover:border-[#AD3333] hover:text-[#AD3333] transition-all duration-300 flex items-center justify-center gap-2";
         const redButton = "bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-3 rounded-full font-semibold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 flex items-center justify-center gap-2";
+        const outlineButton = "bg-white/20 backdrop-blur-md text-gray-800 border border-gray-400 px-6 py-3 rounded-full font-semibold hover:bg-gray-200 transition-all duration-300 flex items-center justify-center gap-2";
 
         const REACTION_EMOJIS = { like: '👍', love: '❤️', sad: '😢', happy: '😃', wow: '😲' };
 
@@ -74,7 +75,13 @@
           "from-fuchsia-400/40 to-rose-500/40"
         ];
 
-        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage }) => {
+        // --- BASE DE DATOS LOCAL DE USUARIOS (PROTOTIPO) ---
+        const USERS_DB = {
+            'GinaDocente': { pass: 'DANTE12345', name: 'Profesora Gina', role: 'teacher' },
+            '@CamiloPruebas': { pass: '12345', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
+        };
+
+        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName }) => {
           const [commentText, setCommentText] = useState("");
           const [isTranslating, setIsTranslating] = useState(false);
 
@@ -102,25 +109,53 @@
             const currentReactions = task.reactions || {};
             const newReactions = { ...currentReactions };
             
-            if (newReactions[currentUser.uid] === type) {
+            // Verificamos el tipo de reacción actual que tiene el usuario en la BD
+            const currentReactionData = newReactions[currentUser.uid];
+            const currentType = typeof currentReactionData === 'object' ? currentReactionData.type : currentReactionData;
+
+            if (currentType === type) {
+              // Si vuelve a tocar la misma reacción, se quita (toggle)
               delete newReactions[currentUser.uid];
             } else {
-              newReactions[currentUser.uid] = type;
+              // Si toca una nueva, reemplaza la anterior y guarda su nombre completo
+              newReactions[currentUser.uid] = { type: type, name: loggedInName };
             }
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions });
           };
 
           const renderReactions = () => {
             const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
-            Object.values(task.reactions || {}).forEach(r => { if (counts[r] !== undefined) counts[r]++; });
+            const namesByType = { like: [], love: [], sad: [], happy: [], wow: [] };
+
+            // Procesar las reacciones y agrupar los nombres de quienes reaccionaron
+            Object.values(task.reactions || {}).forEach(r => { 
+                const rType = typeof r === 'object' ? r.type : r;
+                const rName = typeof r === 'object' ? r.name : 'Un usuario';
+                
+                if (counts[rType] !== undefined) { 
+                    counts[rType]++; 
+                    namesByType[rType].push(rName);
+                } 
+            });
 
             return (
-              <div className="flex gap-2 mt-4">
+              <div className="flex gap-2 mt-4 flex-wrap">
                 {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => {
-                  const isSelected = task.reactions?.[currentUser?.uid] === key;
+                  const rData = task.reactions?.[currentUser?.uid];
+                  const userReactionType = typeof rData === 'object' ? rData.type : rData;
+                  const isSelected = userReactionType === key;
+                  
+                  // Crear el texto que aparecerá al pasar el mouse por encima
+                  const hoverText = namesByType[key].length > 0 
+                      ? `${namesByType[key].join(', ')} reaccionó así` 
+                      : "";
+
                   return (
                     <button 
-                      key={key} onClick={() => toggleReaction(key)} disabled={isLocked}
+                      key={key} 
+                      onClick={() => toggleReaction(key)} 
+                      disabled={isLocked}
+                      title={hoverText}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
@@ -157,7 +192,7 @@
                 <div className="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2 relative z-10">
                   {task.comments?.map((c, i) => (
                     <div key={i} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30">
-                      <span className={`font-bold ${c.author === 'English TECH' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}: </span>
+                      <span className={`font-bold ${c.author === 'Profesora Gina' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}: </span>
                       <span className="text-gray-800">{c.text}</span>
                     </div>
                   ))}
@@ -168,7 +203,7 @@
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     if(!commentText.trim()) return;
-                    const newComments = [...(task.comments || []), { author: role === 'teacher' ? 'English TECH' : 'Estudiante', text: commentText.trim() }];
+                    const newComments = [...(task.comments || []), { author: loggedInName, text: commentText.trim() }];
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
                     setCommentText("");
                   }} className="flex flex-col gap-2 relative z-10">
@@ -193,15 +228,30 @@
         };
 
         function App() {
+          // --- ESTADOS PRINCIPALES ---
+          const [hasEntered, setHasEntered] = useState(false); 
+          const [loginType, setLoginType] = useState(null); // 'teacher' o 'student'
+          const [loggedInUser, setLoggedInUser] = useState(""); // Guarda el username (ej. @CamiloPruebas)
+          const [loggedInName, setLoggedInName] = useState(""); // Guarda el nombre completo (ej. Edwin Camilo...)
+          
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
           const [activeTab, setActiveTab] = useState('tasks');
-          const [showLogin, setShowLogin] = useState(false);
           const [loginError, setLoginError] = useState("");
-          const [isDarkMode, setIsDarkMode] = useState(false);
+          
+          // --- MODO OSCURO AUTOMÁTICO ---
+          const [isDarkMode, setIsDarkMode] = useState(() => {
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          });
+
+          useEffect(() => {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleChange = (e) => setIsDarkMode(e.matches);
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+          }, []);
 
           const [showSugModal, setShowSugModal] = useState(false);
-          const [sugName, setSugName] = useState("");
           const [sugText, setSugText] = useState("");
           const [isSugLoading, setIsSugLoading] = useState(false);
           
@@ -249,12 +299,12 @@
           const [tasks, setTasks] = useState([]);
           const [syllabus, setSyllabus] = useState([]);
           const [evaluations, setEvaluations] = useState([]);
-          const [grades, setGrades] = useState([]);
+          const [grades, setGrades] = useState([]); // <-- CORRECCIÓN: Estado agregado
           const [suggestions, setSuggestions] = useState([]);
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
 
-          // --- FUNCIÓN IA (CONECTADA A VERCEL DE FORMA SEGURA) ---
+          // --- FUNCIÓN IA ---
           const callGemini = async (promptText) => {
             try {
               const res = await fetch('/api/gemini', { 
@@ -384,7 +434,7 @@
 
           const handleSubmitSuggestion = async (e) => {
             e.preventDefault();
-            if (!sugName || !sugText) return;
+            if (!sugText) return;
             setIsSugLoading(true);
 
             const prompt = `Analiza la sugerencia. Si contiene ofensas, responde "RECHAZADO". Si es constructiva, reescríbela formalmente para la profesora. Devuelve SÓLO la versión mejorada o "RECHAZADO".\n\nTexto: ${sugText}`;
@@ -394,9 +444,9 @@
 
             if (result.trim() === "RECHAZADO") {
               showMessage("⚠️ No se permiten groserías ni comentarios ofensivos.");
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: sugName, originalText: sugText, createdAt: Date.now() });
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: loggedInName, originalText: sugText, createdAt: Date.now() });
             } else {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: sugName, text: result, createdAt: Date.now() });
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: loggedInName, text: result, createdAt: Date.now() });
               showMessage("✅ Sugerencia enviada correctamente.");
               setShowSugModal(false); setSugText("");
             }
@@ -463,11 +513,29 @@
 
           const handleLogin = (e) => {
             e.preventDefault();
-            if (e.target.username.value === 'GinaDocente' && e.target.password.value === 'DANTE12345') {
-              setRole('teacher'); setShowLogin(false); setLoginError("");
+            const u = e.target.username.value;
+            const p = e.target.password.value;
+            
+            const userInfo = USERS_DB[u];
+
+            // Validamos que el usuario exista, su contraseña sea correcta y el rol corresponda al botón que tocó
+            if (userInfo && userInfo.pass === p && userInfo.role === loginType) {
+              setRole(userInfo.role); 
+              setLoggedInUser(u);
+              setLoggedInName(userInfo.name);
+              setLoginType(null); 
+              setLoginError("");
+              setHasEntered(true);
             } else {
               setLoginError("Usuario o contraseña incorrectos");
             }
+          };
+
+          const handleLogout = () => {
+            setHasEntered(false);
+            setRole('student');
+            setLoggedInUser("");
+            setLoggedInName("");
           };
 
           useEffect(() => {
@@ -527,14 +595,14 @@
                 </div>
               )}
               {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay tareas publicadas aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} />)}
+              {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} />)}
             </div>
           );
 
           const renderReviews = () => {
             if (draftReview) {
               return (
-                <div className="space-y-6">
+                <div className="space-y-6 pb-20 md:pb-0">
                   <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><Edit3 className="text-[#AD3333]" /> Edición de Diapositivas</h2>
                   <div className={`${glassCard} flex flex-col gap-8`}>
                     <div className="bg-white/30 backdrop-blur-sm p-6 rounded-3xl border border-white/60 shadow-sm">
@@ -586,8 +654,9 @@
             }
 
             const activeSlide = activeReview?.slides[currentSlide];
+
             return (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-20 md:pb-0">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm">Repasos</h2>
                 {role === 'teacher' && !activeReview && (
                   <form onSubmit={handleGenerateReview} className={`${glassCard} mb-8 flex flex-col gap-4`}>
@@ -657,29 +726,31 @@
           };
 
           const renderSyllabus = () => (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><CalendarEmoji className="text-[#AD3333]" /> Contenidos programáticos</h2>
+            <div className="space-y-6 pb-20 md:pb-0">
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2"><CalendarEmoji className="text-[#AD3333]" /> Contenidos programáticos</h2>
               {role === 'teacher' && (
                 <form onSubmit={(e) => {
                   e.preventDefault();
-                  const week = Number(e.target.week.value); const topic = e.target.topic.value; const material = e.target.material.value;
-                  if(topic) { addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), { week, topic, material }); e.target.reset(); }
-                }} className={`${glassCard} mb-8 flex flex-wrap gap-4 items-end`}>
-                  <div className="flex-1 min-w-[100px]"><label className="text-xs font-bold text-gray-700 ml-2">Semana</label><input type="number" name="week" placeholder="1" className={glassInput} required /></div>
-                  <div className="flex-[3] min-w-[200px]"><label className="text-xs font-bold text-gray-700 ml-2">Tema</label><input name="topic" placeholder="Ej. Present Simple" className={glassInput} required /></div>
-                  <div className="flex-[2] min-w-[150px]"><label className="text-xs font-bold text-gray-700 ml-2">Material (Enlace)</label><input name="material" placeholder="URL" className={glassInput} /></div>
-                  <button type="submit" className={redButton}><Plus size={20}/> Añadir</button>
+                  addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), { week: Number(e.target.week.value), topic: e.target.topic.value, material: e.target.material.value });
+                  e.target.reset();
+                }} className={`${glassCard} flex flex-wrap gap-4 items-end`}>
+                  <input type="number" name="week" placeholder="Semana" className={`${glassInput} w-24`} required />
+                  <input name="topic" placeholder="Tema..." className={`${glassInput} flex-1`} required />
+                  <button type="submit" className={redButton}>Añadir</button>
                 </form>
               )}
-              <div className={`${glassCard} overflow-hidden p-0`}>
-                <table className="w-full text-left border-collapse">
-                  <thead><tr className="bg-white/40 border-b border-white/50"><th className="p-4 font-bold text-gray-800">Semana</th><th className="p-4 font-bold text-gray-800">Tema</th><th className="p-4 font-bold text-gray-800">Documentos</th>{role === 'teacher' && <th className="p-4"></th>}</tr></thead>
+              <div className={`${glassCard} overflow-x-auto p-0`}>
+                <table className="w-full text-left">
+                  <thead className="bg-white/40 border-b border-white/50">
+                    <tr><th className="p-4 font-bold">Semana</th><th className="p-4 font-bold">Tema</th><th className="p-4 font-bold">Material</th>{role === 'teacher' && <th></th>}</tr>
+                  </thead>
                   <tbody>
-                    {syllabus.length === 0 ? <tr><td colSpan="4" className="p-4 text-gray-600 text-center font-medium">No hay contenidos en el calendario.</td></tr> : syllabus.map((item) => (
-                      <tr key={item.id} className="border-b border-white/20 hover:bg-white/40">
-                        <td className="p-4 font-extrabold text-[#AD3333]">Semana {item.week}</td><td className="p-4 text-gray-900 font-medium">{item.topic}</td>
-                        <td className="p-4">{item.material ? <a href={item.material} target="_blank" className="flex items-center gap-1 text-blue-700 font-bold hover:underline"><FileText size={16} /> Ver PDF</a> : <span className="text-gray-400">-</span>}</td>
-                        {role === 'teacher' && <td className="p-4 text-right"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))} className="text-gray-500 hover:text-red-600"><Trash2 size={18} /></button></td>}
+                    {syllabus.map(item => (
+                      <tr key={item.id} className="border-b border-white/20">
+                        <td className="p-4 font-bold text-[#AD3333]">S{item.week}</td>
+                        <td className="p-4 text-sm">{item.topic}</td>
+                        <td className="p-4">{item.material ? <a href={item.material} className="text-blue-600 underline text-xs font-bold">Ver PDF</a> : '-'}</td>
+                        {role === 'teacher' && <td className="p-4"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))}><Trash2 size={14}/></button></td>}
                       </tr>
                     ))}
                   </tbody>
@@ -726,6 +797,75 @@
             </div>
           );
 
+          // PANTALLA INICIAL (ACCESO)
+          if (!hasEntered) {
+              return (
+                  <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${isDarkMode ? 'from-gray-900 via-slate-900 to-black' : 'from-red-50/80 via-gray-100/90 to-blue-50/80'} transition-colors duration-500 relative overflow-hidden ${isDarkMode ? 'dark-mode' : ''}`}>
+                      <style>{`
+                        .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
+                        .dark-mode .text-gray-700 { color: #d1d5db !important; }
+                        .dark-mode [class*="bg-white/20"] { background-color: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+                        .dark-mode [class*="bg-white/30"] { background-color: rgba(0, 0, 0, 0.5) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
+                        .dark-mode [class*="border-white/"] { border-color: rgba(255, 255, 255, 0.2) !important; }
+                        /* Asegurar que el texto y los puntos de la contraseña sean blancos en modo oscuro */
+                        .dark-mode input { color: #ffffff !important; }
+                        .dark-mode input::placeholder { color: #9ca3af !important; }
+                      `}</style>
+                      
+                      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/20 rounded-full blur-[100px] pointer-events-none" />
+                      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-400/20 rounded-full blur-[120px] pointer-events-none" />
+                      
+                      <div className={`${glassCard} max-w-md w-full mx-4 flex flex-col items-center gap-8 relative z-10 animate-in fade-in zoom-in duration-500`}>
+                          <div className="w-20 h-20 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-[#AD3333]/40 border border-white/20">UP</div>
+                          
+                          <div className="text-center">
+                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH</h1>
+                              <p className="text-sm font-bold text-[#AD3333]">Universidad de Pamplona</p>
+                          </div>
+
+                          <div className="w-full space-y-4">
+                              <h2 className="text-xl font-bold text-center text-gray-700 mb-4">Accede</h2>
+                              
+                              <button 
+                                  onClick={() => setLoginType('teacher')}
+                                  className="w-full bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 border border-white/20"
+                              >
+                                  Soy docente
+                              </button>
+                              
+                              <button 
+                                  onClick={() => setLoginType('student')}
+                                  className="w-full bg-blue-600/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/30 hover:shadow-[0_0_25px_rgba(37,99,235,0.8)] hover:bg-blue-700 transition-all duration-300 border border-white/20"
+                              >
+                                  Soy estudiante
+                              </button>
+                          </div>
+                      </div>
+
+                      {/* Modal Único de Inicio de Sesión */}
+                      {loginType !== null && (
+                          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 transition-all">
+                            <form onSubmit={handleLogin} className={`${glassCard} max-w-sm w-full flex flex-col gap-5 relative animate-in fade-in zoom-in duration-200`}>
+                              <button type="button" onClick={() => {setLoginType(null); setLoginError("");}} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors"><X size={24}/></button>
+                              <h3 className="text-2xl font-bold text-center text-gray-800 mb-2 drop-shadow-sm">
+                                {loginType === 'teacher' ? 'Acceso Docente' : 'Acceso Estudiante'}
+                              </h3>
+                              <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input name="username" placeholder="Tu usuario" className={glassInput} required /></div>
+                              <div><label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label><input name="password" type="password" placeholder="••••••••" className={glassInput} required /></div>
+                              {loginError && <p className="text-[#AD3333] text-sm text-center font-bold bg-white/50 py-2 rounded-lg">{loginError}</p>}
+                              
+                              <div className="flex gap-3 mt-2">
+                                  <button type="button" onClick={() => {setLoginType(null); setLoginError("");}} className={`${outlineButton} flex-1`}>Volver</button>
+                                  <button type="submit" className={`${redButton} flex-1`}>Ingresar</button>
+                              </div>
+                            </form>
+                          </div>
+                      )}
+                  </div>
+              );
+          }
+
+          // RENDERIZADO PRINCIPAL DE LA PLATAFORMA (Una vez se accede)
           return (
             <div className={`min-h-screen bg-gradient-to-br ${isDarkMode ? 'from-gray-900 via-slate-900 to-black' : 'from-red-50/80 via-gray-100/90 to-red-100/80'} font-sans relative overflow-hidden transition-colors duration-500 ${isDarkMode ? 'dark-mode' : ''}`}>
               <style>{`
@@ -750,6 +890,10 @@
                 .dark-mode [class*="text-green-700"] { color: #34d399 !important; }
                 .dark-mode [class*="bg-indigo-50/"] { background-color: rgba(49, 46, 129, 0.5) !important; border-color: rgba(129, 140, 248, 0.3) !important; }
                 .dark-mode [class*="text-indigo-800"] { color: #818cf8 !important; }
+
+                /* Forzar texto e inputs blancos en modo oscuro */
+                .dark-mode input, .dark-mode textarea { color: #ffffff !important; }
+                .dark-mode input::placeholder, .dark-mode textarea::placeholder { color: #9ca3af !important; }
                 
                 /* Margen extra para que la barra inferior en celular no tape el contenido final */
                 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
@@ -764,39 +908,32 @@
                     <button type="button" onClick={() => setShowSugModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
                     <h3 className="text-2xl font-bold text-center text-gray-800 drop-shadow-sm flex items-center justify-center gap-2"><Mail className="text-[#AD3333]"/> Enviar Sugerencia</h3>
                     <p className="text-xs text-center text-gray-600 mb-2">Buzón de sugerencias para mejorar las clases.</p>
-                    <input value={sugName} onChange={e => setSugName(e.target.value)} placeholder="Tu nombre completo" className={glassInput} required />
                     <textarea value={sugText} onChange={e => setSugText(e.target.value)} placeholder="Escribe tu idea para mejorar la clase..." className={`${glassInput} h-32 resize-none`} required />
                     <button type="submit" disabled={isSugLoading} className={`${redButton} w-full mt-2 disabled:opacity-50`}>{isSugLoading ? 'Enviando...' : 'Enviar'}</button>
                   </form>
                 </div>
               )}
 
-              {showLogin && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm p-4 transition-all">
-                  <form onSubmit={handleLogin} className={`${glassCard} max-w-sm w-full flex flex-col gap-5 relative animate-in fade-in zoom-in duration-200`}>
-                    <button type="button" onClick={() => setShowLogin(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
-                    <h3 className="text-2xl font-bold text-center text-gray-800 mb-2 drop-shadow-sm">Acceso</h3>
-                    <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input name="username" placeholder="Pon tu usuario" className={glassInput} required /></div>
-                    <div><label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label><input name="password" type="password" placeholder="••••••••" className={glassInput} required /></div>
-                    {loginError && <p className="text-[#AD3333] text-sm text-center font-bold bg-white/50 py-2 rounded-lg">{loginError}</p>}
-                    <button type="submit" className={`${redButton} w-full`}>Ingresar</button>
-                  </form>
-                </div>
-              )}
-
-              {/* BARRA SUPERIOR (Se mantiene el texto para PC, se ocultan botones en celular) */}
-              <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-4 md:px-6 py-4 flex justify-between items-center shadow-sm">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => role === 'teacher' ? setRole('student') : setShowLogin(true)} className="w-11 h-11 min-w-[44px] bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg shadow-[#AD3333]/40 hover:scale-105 transition-transform border border-white/20" title={role === 'teacher' ? "Cerrar sesión" : "Acceso Docente"}>UP</button>
-                  <div>
-                    {/* MODIFICACIÓN: Cambio de título a English TECH */}
-                    <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH</h1>
-                    <p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p>
+              {/* BARRA SUPERIOR */}
+              <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-4 md:px-6 py-4 flex justify-between items-start md:items-center shadow-sm">
+                
+                {/* Logo, Título y Botón Salir */}
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 min-w-[44px] bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg shadow-[#AD3333]/40 border border-white/20">UP</div>
+                    <div>
+                      <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH</h1>
+                      <p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p>
+                    </div>
                   </div>
+                  {/* Botón de Cerrar Sesión movido debajo de UP */}
+                  <button onClick={handleLogout} className="flex items-center gap-1 text-xs text-red-600/80 hover:text-red-600 font-bold transition-all ml-1 mt-1">
+                    <LogOutIcon size={12} /> Volver / Cerrar sesión
+                  </button>
                 </div>
 
-                <div className="flex gap-2 items-center">
-                  {/* MENÚ DE ESCRITORIO: Oculto en móviles (hidden md:flex) */}
+                <div className="flex gap-2 items-center mt-2 md:mt-0">
+                  {/* MENÚ DE ESCRITORIO */}
                   <div className="hidden md:flex gap-2 items-center">
                     <button onClick={() => setActiveTab('tasks')} className={`${activeTab === 'tasks' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Asignaciones</button>
                     <button onClick={() => setActiveTab('reviews')} className={`${activeTab === 'reviews' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800 hover:text-gray-900 flex items-center gap-1`}>Repasos</button>
@@ -805,7 +942,7 @@
                     <div className="w-px h-6 bg-gray-400 mx-2"></div>
                   </div>
                   
-                  {/* Botones siempre visibles (Sol/Luna y Sugerencias/Buzón) */}
+                  {/* Botones siempre visibles */}
                   <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-full bg-white/40 hover:bg-white/60 text-gray-800 transition-all shadow-sm border border-white/50" title="Alternar Modo Oscuro">
                     {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                   </button>
@@ -820,7 +957,7 @@
                 </div>
               </nav>
 
-              {/* CONTENIDO PRINCIPAL (Con espacio extra abajo solo en celulares pb-24) */}
+              {/* CONTENIDO PRINCIPAL */}
               <main className="max-w-5xl mx-auto p-4 md:p-8 pb-28 md:pb-8 relative z-10">
                 {activeTab === 'tasks' && renderTasks()}
                 {activeTab === 'reviews' && renderReviews()}
@@ -829,7 +966,7 @@
                 {activeTab === 'inbox' && role === 'teacher' && renderInbox()}
               </main>
 
-              {/* BARRA INFERIOR (Solo visible en celulares - md:hidden) */}
+              {/* BARRA INFERIOR (Celulares) */}
               <nav className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex justify-around items-center pt-3 pb-safe md:hidden z-50">
                 <button onClick={() => setActiveTab('tasks')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-16 h-16 ${activeTab === 'tasks' ? 'bg-gray-800 text-white scale-105 shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>
                   <NavNotebook size={24} />
