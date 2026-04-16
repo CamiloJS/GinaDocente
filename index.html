@@ -256,32 +256,27 @@
 
           // --- FUNCIÓN IA (DIRECTA Y ARREGLADA) ---
           const callGemini = async (promptText) => {
-    setIsAiLoading(true); // Opcional: si usas este estado de carga
-    try {
-        // En lugar de llamar a Google, llamas a TU propio archivo oculto en Vercel
-        const res = await fetch('/api/gemini', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ promptText: promptText }) 
-        });
-        
-        if (!res.ok) {
-            showMessage(`❌ Error del servidor (${res.status}). Revisa los logs de Vercel.`);
-            return ""; 
-        }
-        
-        const data = await res.json();
-        
-        // Vercel te devuelve la respuesta que a su vez le dio Gemini
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        
-    } catch (error) {
-        showMessage("❌ Error de red: No se pudo conectar con el backend en Vercel.");
-        return "";
-    } finally {
-        setIsAiLoading(false);
-    }
-};
+            // Ponemos la API Key directo aquí para saltarnos el problema de Vercel.
+            const apiKey = "AQ.Ab8RN6LnoLF-SgMo_wV__Fp1YXbbTVMamioPBWhz1yZfJJdndA";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: promptText }] }] };
+
+            try {
+              const res = await fetch(url, { 
+                method: 'POST', 
+                body: JSON.stringify(payload), 
+                headers: { 'Content-Type': 'application/json' } 
+              });
+              
+              if (!res.ok) {
+                if (res.status === 400 || res.status === 403) {
+                  showMessage("❌ Error: La llave de Gemini es incorrecta o está vencida. Lee el chat para solucionarlo.");
+                } else {
+                  showMessage(`❌ Error de Google (${res.status}). Intenta de nuevo.`);
+                }
+                return ""; 
+              }
+              
               const data = await res.json();
               return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             } catch (error) {
