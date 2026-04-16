@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
   // Solo aceptamos POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const data = await geminiRes.json();
     
-    // LA MAGIA ESTÁ AQUÍ: Si Google dice que hay error (400, 403, etc), le pasamos ese mismo error a tu página.
+    // Si Google rechaza la petición, mandamos el error al frontend
     if (!geminiRes.ok) {
       return res.status(geminiRes.status).json(data);
     }
@@ -35,4 +35,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: 'Error interno en el servidor de Vercel: ' + error.message });
   }
-}
+};
