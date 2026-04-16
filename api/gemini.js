@@ -13,11 +13,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Tomamos el mensaje (prompt) que envió tu página
     const { promptText } = req.body;
 
-    // Preparamos la llamada a Gemini
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    // CAMBIO CLAVE: Usamos el modelo 'gemini-1.5-flash' que es el público y más estable.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: promptText }] }] };
 
     const geminiRes = await fetch(url, {
@@ -27,13 +26,14 @@ export default async function handler(req, res) {
     });
 
     if (!geminiRes.ok) {
+      const errorData = await geminiRes.text();
+      console.error("Detalle del error de Gemini:", errorData);
       throw new Error(`Error de Gemini: ${geminiRes.status}`);
     }
 
     const data = await geminiRes.json();
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Le devolvemos la respuesta a tu página web
     return res.status(200).json({ text: resultText });
 
   } catch (error) {
