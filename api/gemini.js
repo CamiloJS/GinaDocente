@@ -1,15 +1,14 @@
-// Este archivo vive oculto en Vercel y es el único que conoce tu llave secreta.
 export default async function handler(req, res) {
-  // Solo aceptamos peticiones POST
+  // Solo aceptamos peticiones POST desde tu frontend
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Obtenemos la llave secreta de la "caja fuerte" de Vercel que acabas de configurar
+  // Obtenemos la llave secreta directamente de Vercel (NUNCA de GitHub)
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Falta la API Key en el servidor' });
+    return res.status(500).json({ error: 'Falta la API Key en el servidor de Vercel' });
   }
 
   try {
@@ -25,20 +24,12 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    if (!geminiRes.ok) {
-      const errorData = await geminiRes.text();
-      console.error("Detalle del error de Gemini:", errorData);
-      // Le pasamos el error exacto a la página para saber qué pasó
-      return res.status(geminiRes.status).json({ error: `Error de Gemini: ${geminiRes.status}` });
-    }
-
     const data = await geminiRes.json();
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    return res.status(200).json({ text: resultText });
-
+    
+    // Le enviamos la respuesta de Google de vuelta a tu frontend
+    return res.status(200).json(data);
+    
   } catch (error) {
-    console.error("Error en el servidor:", error);
-    return res.status(500).json({ error: 'Error de red en el servidor' });
+    return res.status(500).json({ error: 'Error al procesar la solicitud en Vercel' });
   }
 }
