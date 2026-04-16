@@ -1,38 +1,26 @@
-module.exports = async function (req, res) {
-  // Solo aceptamos POST
+export default async function handler(req, res) {
+  // Aseguramos que sea una petición POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Obtenemos la llave de Vercel
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Falta la API Key en las variables de entorno de Vercel' });
-  }
+  // Recibimos el texto (fíjese que usamos promptText, igual que en su HTML)
+  const { promptText } = req.body;
+  const apiKey = process.env.GEMINI_API_KEY; // Su llave guardada en Vercel
 
   try {
-    const { promptText } = req.body;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const payload = { contents: [{ parts: [{ text: promptText }] }] };
-
-    const geminiRes = await fetch(url, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }]
+      })
     });
 
-    const data = await geminiRes.json();
-    
-    // Si Google rechaza la petición, mandamos el error al frontend
-    if (!geminiRes.ok) {
-      return res.status(geminiRes.status).json(data);
-    }
-    
-    return res.status(200).json(data);
+    const data = await response.json();
+    res.status(200).json(data);
     
   } catch (error) {
-    return res.status(500).json({ error: 'Error interno en el servidor de Vercel: ' + error.message });
+    res.status(500).json({ error: 'Error comunicándose con Gemini' });
   }
-};
+}
