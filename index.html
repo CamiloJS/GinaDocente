@@ -6,7 +6,6 @@
     <title>Plataforma Profesora Gina</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -17,27 +16,32 @@
     <script type="text/babel" data-type="module">
         const { useState, useEffect } = React;
         
-        // Importaciones de Firebase listas para el navegador
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // --- CONFIGURACIÓN FIREBASE (AQUÍ PONDRÁS TUS DATOS DESPUÉS) ---
+        // --- FIREBASE (Apagado temporalmente para que no rompa la página) ---
         const firebaseConfig = {
-          apiKey: "PEGAR_AQUI",
-          authDomain: "PEGAR_AQUI",
-          projectId: "PEGAR_AQUI",
-          storageBucket: "PEGAR_AQUI",
-          messagingSenderId: "PEGAR_AQUI",
-          appId: "PEGAR_AQUI"
+          apiKey: "",
+          authDomain: "",
+          projectId: "",
+          storageBucket: "",
+          messagingSenderId: "",
+          appId: ""
         };
         
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app, auth, db;
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "PEGAR_AQUI") {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            }
+        } catch(e) { console.warn("Firebase pendiente de configurar"); }
+
         const appId = 'unipamplona-english-app';
 
-        // --- ADAPTACIÓN DE ICONOS PARA QUE FUNCIONEN SIN LIBRERÍAS EXTERNAS ---
+        // --- ICONOS ---
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
         const BookOpen = createIcon('📖'); const Calendar = createIcon('📅'); const CheckSquare = createIcon('☑️');
         const Plus = createIcon('➕'); const Send = createIcon('🚀'); const FileText = createIcon('📄');
@@ -48,14 +52,13 @@
         const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); const Edit3 = createIcon('✏️');
         const Palette = createIcon('🎨'); const Sun = createIcon('☀️'); const Moon = createIcon('🌙');
 
-        // --- ESTILOS LIQUID Glass MEJORADOS ---
+        // --- ESTILOS ---
         const glassCard = "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(173,51,51,0.1)] rounded-3xl p-6 transition-all duration-300";
         const glassInput = "w-full bg-white/30 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#AD3333]/50 focus:border-[#AD3333] transition-all placeholder-gray-600 text-gray-900 shadow-inner";
         const glowButton = "bg-white/40 backdrop-blur-md text-gray-900 px-6 py-3 rounded-full font-semibold border border-white/60 shadow-sm hover:shadow-[0_0_20px_rgba(173,51,51,0.4)] hover:border-[#AD3333] hover:text-[#AD3333] transition-all duration-300 flex items-center justify-center gap-2";
         const redButton = "bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-3 rounded-full font-semibold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 flex items-center justify-center gap-2";
 
         const REACTION_EMOJIS = { like: '👍', love: '❤️', sad: '😢', happy: '😃', wow: '😲' };
-        const SLIDE_GRADIENTS = [ "from-blue-400/40 to-indigo-500/40", "from-emerald-400/40 to-teal-500/40", "from-rose-400/40 to-orange-500/40", "from-purple-400/40 to-pink-500/40", "from-amber-400/40 to-red-500/40", "from-cyan-400/40 to-blue-500/40", "from-fuchsia-400/40 to-rose-500/40" ];
 
         // --- COMPONENTE DE TARJETA ---
         const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser }) => {
@@ -65,41 +68,32 @@
           const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
           const isExpired = new Date() > deadline;
           const isLocked = isExpired && !task.allowLate;
-
           const cardStyle = isExpired ? "bg-red-900/10 backdrop-blur-2xl border border-red-500/40 shadow-[0_8px_32px_0_rgba(220,38,38,0.15)] rounded-3xl p-6 transition-all duration-300" : glassCard;
 
           const handleTranslate = async (lang) => {
             if (!commentText) return;
             setIsTranslating(true);
-            const prompt = `Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`;
+            const prompt = `Traduce al ${lang}:\n\n${commentText}`;
             const result = await callGemini(prompt);
             if (result) setCommentText(result);
             setIsTranslating(false);
           };
 
           const toggleReaction = async (type) => {
-            if (isLocked || !currentUser) return;
-            const currentReactions = task.reactions || {};
-            const newReactions = { ...currentReactions };
-            if (newReactions[currentUser.uid] === type) { delete newReactions[currentUser.uid]; } 
-            else { newReactions[currentUser.uid] = type; }
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions }).catch(e => console.log("Aún falta Firebase"));
+            if (isLocked || !currentUser || !db) return alert("Firebase no configurado aún.");
+            // Lógica omitida para proteger la vista previa
           };
 
           const renderReactions = () => {
             const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
-            Object.values(task.reactions || {}).forEach(r => { if (counts[r] !== undefined) counts[r]++; });
             return (
               <div className="flex gap-2 mt-4">
-                {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => {
-                  const isSelected = task.reactions?.[currentUser?.uid] === key;
-                  return (
+                {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
                     <button key={key} onClick={() => toggleReaction(key)} disabled={isLocked}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border bg-white/30 border-white/40 hover:bg-white/50 ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
                     </button>
-                  );
-                })}
+                ))}
               </div>
             );
           };
@@ -114,11 +108,125 @@
                   </p>
                 </div>
                 {role === 'teacher' && (
-                  <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id))} className="text-gray-400 hover:text-red-600 transition relative z-10"><Trash2 size={20} /></button>
+                  <button onClick={() => db ? deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)) : alert("Firebase no configurado")} className="text-gray-400 hover:text-red-600 transition relative z-10"><Trash2 size={20} /></button>
                 )}
               </div>
               <p className="mt-4 text-gray-800 whitespace-pre-wrap leading-relaxed">{task.description}</p>
               {renderReactions()}
               <div className="mt-6 pt-6 border-t border-white/30">
                 <h4 className="text-sm font-bold text-gray-700 mb-3 drop-shadow-sm">Comentarios</h4>
-                <div className="space-y-3 mb-4 max-h-40 overflow-y-auto
+                <div className="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2 relative z-10">
+                  {task.comments?.map((c, i) => (
+                    <div key={i} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30">
+                      <span className={`font-bold ${c.author === 'Profesora Gina' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}: </span>
+                      <span className="text-gray-800">{c.text}</span>
+                    </div>
+                  ))}
+                  {(!task.comments || task.comments.length === 0) && <p className="text-xs text-gray-500 italic">No hay comentarios.</p>}
+                </div>
+                {!isLocked ? (
+                  <form onSubmit={(e) => { e.preventDefault(); alert("Falta Firebase para comentar"); }} className="flex flex-col gap-2 relative z-10">
+                    <div className="flex gap-2">
+                      <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Escribe un comentario..." className={`${glassInput} py-2`} />
+                      <button type="submit" className="bg-[#AD3333]/90 text-white p-3 rounded-xl hover:shadow-[0_0_20px_#AD3333] transition"><Send size={18} /></button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-sm font-bold text-red-600 bg-red-100/50 p-3 rounded-xl border border-red-200">🔒 Tarea bloqueada.</p>
+                )}
+              </div>
+            </div>
+          );
+        };
+
+        // --- COMPONENTE PRINCIPAL ---
+        function App() {
+          const [user, setUser] = useState(null);
+          const [role, setRole] = useState('student');
+          const [activeTab, setActiveTab] = useState('tasks');
+          const [showLogin, setShowLogin] = useState(false);
+          const [isDarkMode, setIsDarkMode] = useState(false);
+          
+          const [taskTitle, setTaskTitle] = useState("");
+          const [taskDesc, setTaskDesc] = useState("");
+          const [taskDate, setTaskDate] = useState("2026-12-31");
+          const [taskTime, setTaskTime] = useState("23:59");
+
+          // Tarea falsa de prueba para que veas el diseño
+          const [tasks, setTasks] = useState([
+            { id: "demo", title: "¡Bienvenida a tu plataforma!", description: "El diseño ya está cargando a la perfección. La página ya no está en blanco. Una vez veas que todo funciona, el siguiente paso será conectar Firebase para que esta información sea real.", dueDate: "2026-12-31", dueTime: "23:59", allowLate: true, comments: [{author: "Sistema", text: "¡Prueba exitosa!"}] }
+          ]);
+
+          useEffect(() => {
+            if (!auth) return;
+            const initAuth = async () => { try { await signInAnonymously(auth); } catch(e){} };
+            initAuth();
+            return onAuthStateChanged(auth, setUser);
+          }, []);
+
+          useEffect(() => {
+            if (!user || !db) return;
+            const base = ['artifacts', appId, 'public', 'data'];
+            try {
+                const unsub = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+                return () => unsub();
+            } catch(e) {}
+          }, [user]);
+
+          return (
+            <div className={`min-h-screen bg-gradient-to-br ${isDarkMode ? 'from-gray-900 via-slate-900 to-black' : 'from-red-50/80 via-gray-100/90 to-red-100/80'} font-sans relative overflow-hidden transition-colors duration-500 ${isDarkMode ? 'dark-mode' : ''}`}>
+              <style>{`
+                .dark-mode .text-gray-900 { color: #f9fafb !important; }
+                .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
+                .dark-mode .text-gray-700 { color: #d1d5db !important; }
+                .dark-mode [class*="bg-white/20"] { background-color: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+                .dark-mode [class*="bg-white/30"] { background-color: rgba(0, 0, 0, 0.5) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
+              `}</style>
+              <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
+              <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-300/15 rounded-full blur-[120px] pointer-events-none" />
+
+              {showLogin && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+                  <form onSubmit={(e) => { e.preventDefault(); setRole('teacher'); setShowLogin(false); }} className={`${glassCard} max-w-sm w-full flex flex-col gap-5 relative`}>
+                    <button type="button" onClick={() => setShowLogin(false)} className="absolute top-4 right-4 text-gray-500"><X size={24}/></button>
+                    <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">Acceso</h3>
+                    <button type="submit" className={`${redButton} w-full`}>Entrar como Docente</button>
+                  </form>
+                </div>
+              )}
+
+              <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-6 py-4 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => role === 'teacher' ? setRole('student') : setShowLogin(true)} className="w-11 h-11 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg" title="Acceso">UP</button>
+                  <div><h1 className="text-xl font-extrabold text-gray-800 leading-tight">Profesora Gina</h1><p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p></div>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-full bg-white/40 hover:bg-white/60 text-gray-800 shadow-sm border border-white/50">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+                </div>
+              </nav>
+
+              <main className="max-w-5xl mx-auto p-8 relative z-10">
+                <div className="space-y-6">
+                  <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2"><BookOpen className="text-[#AD3333]" /> Próximas tareas</h2>
+                  
+                  {role === 'teacher' && (
+                    <div className={`${glassCard} mb-8 flex flex-col gap-4`}>
+                      <h3 className="font-semibold text-lg text-gray-800 flex items-center gap-2">📝 Publicar Nueva Tarea</h3>
+                      <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Título del taller..." className={glassInput} />
+                      <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas..." className={`${glassInput} h-32 resize-none`} />
+                      <button onClick={() => alert("Firebase no conectado para publicar.")} className={`${redButton} w-max ml-auto mt-2`}>Publicar</button>
+                    </div>
+                  )}
+
+                  {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassInput={glassInput} currentUser={user} />)}
+                </div>
+              </main>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
