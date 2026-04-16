@@ -1,20 +1,19 @@
 export default async function handler(req, res) {
-  // Solo aceptamos peticiones POST desde tu frontend
+  // Solo aceptamos POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  // Obtenemos la llave secreta directamente de Vercel (NUNCA de GitHub)
+  // Obtenemos la llave de Vercel
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Falta la API Key en el servidor de Vercel' });
+    return res.status(500).json({ error: 'Falta la API Key en las variables de entorno de Vercel' });
   }
 
   try {
     const { promptText } = req.body;
 
-    // Conexión oficial al modelo de Gemini usando tu llave secreta
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: promptText }] }] };
 
@@ -26,10 +25,14 @@ export default async function handler(req, res) {
 
     const data = await geminiRes.json();
     
-    // Le enviamos la respuesta de Google de vuelta a tu frontend
+    // LA MAGIA ESTÁ AQUÍ: Si Google dice que hay error (400, 403, etc), le pasamos ese mismo error a tu página.
+    if (!geminiRes.ok) {
+      return res.status(geminiRes.status).json(data);
+    }
+    
     return res.status(200).json(data);
     
   } catch (error) {
-    return res.status(500).json({ error: 'Error al procesar la solicitud en Vercel' });
+    return res.status(500).json({ error: 'Error interno en el servidor de Vercel: ' + error.message });
   }
 }
