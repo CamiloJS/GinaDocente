@@ -286,9 +286,11 @@
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${task.type === 'post' ? 'bg-blue-100 text-blue-700' : 'bg-[#AD3333]/20 text-[#AD3333]'}`}>
-                          {task.type === 'post' ? 'Publicación' : 'Tarea'}
-                      </span>
+                      {task.type !== 'post' && (
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-[#AD3333]/20 text-[#AD3333]">
+                              Tarea
+                          </span>
+                      )}
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
@@ -467,6 +469,7 @@
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
           const [showPassword, setShowPassword] = useState(false);
+          const [savedAccounts, setSavedAccounts] = useState([]); // NUEVO: Cuentas guardadas
           
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
@@ -534,6 +537,12 @@
           const [suggestions, setSuggestions] = useState([]);
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
+
+          // Cargar cuentas guardadas al iniciar
+          useEffect(() => {
+              const accs = JSON.parse(localStorage.getItem('englishTech_savedAccounts') || '[]');
+              setSavedAccounts(accs);
+          }, []);
 
           const callGemini = async (promptText) => {
             try {
@@ -656,22 +665,58 @@
 
             try {
                 await signInWithEmailAndPassword(auth, targetEmail, password);
+                
+                // GUARDAR CUENTA PARA ACCESO CON UN CLIC
+                const newAcc = { username: cleanUser, password: password, name: targetName, role: expectedRole, email: targetEmail };
+                const accs = JSON.parse(localStorage.getItem('englishTech_savedAccounts') || '[]');
+                const filtered = accs.filter(a => a.username !== cleanUser); // Evitar duplicados
+                const updatedAccs = [newAcc, ...filtered];
+                localStorage.setItem('englishTech_savedAccounts', JSON.stringify(updatedAccs));
+                setSavedAccounts(updatedAccs);
+
                 setLoginError("");
+                setActiveTab('tasks');
             } catch (error) {
                 setLoginError("Contraseña incorrecta.");
             }
           };
 
+          const handleQuickLogin = async (acc) => {
+              try {
+                  setLoginType(acc.role); // Para dar feedback visual
+                  await signInWithEmailAndPassword(auth, acc.email, acc.password);
+                  setActiveTab('tasks');
+              } catch(e) {
+                  setLoginError("La sesión expiró o la contraseña cambió. Ingresa manualmente.");
+                  setLoginType(acc.role);
+              }
+          };
+
+          const removeSavedAccount = (username) => {
+              const filtered = savedAccounts.filter(a => a.username !== username);
+              localStorage.setItem('englishTech_savedAccounts', JSON.stringify(filtered));
+              setSavedAccounts(filtered);
+          };
+
           const handleAiTranslate = async (lang) => {
             if (!taskDesc && !taskTitle) return showMessage("Escribe algo para traducir primero.");
             setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-            const prompt = `Traduce al ${lang}:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
+            
+            const prompt = `Traduce el siguiente título y descripción al ${lang}. Devuelve ÚNICAMENTE un objeto JSON válido con este formato exacto: {"title": "título traducido", "description": "descripción traducida"}\n\nTítulo original: "${taskTitle}"\nDescripción original: "${taskDesc}"`;
+            
             const result = await callGemini(prompt);
             if (!result) { setIsAiLoading(false); return; }
-            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
-            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
-            if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); setTaskDesc(descMatch[1].trim()); } else { setTaskDesc(result); }
-            setHasAiModified(true); setIsAiLoading(false);
+            
+            try {
+                const jsonStr = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
+                const parsed = JSON.parse(jsonStr);
+                if (parsed.title) setTaskTitle(parsed.title);
+                if (parsed.description) setTaskDesc(parsed.description);
+                setHasAiModified(true);
+            } catch(e) {
+                showMessage("Hubo un error al procesar la traducción. Intenta de nuevo.");
+            }
+            setIsAiLoading(false);
           };
 
           const handleLogout = async () => {
@@ -735,6 +780,7 @@
                         setLoggedInName(data.role === 'teacher' ? 'La profe' : data.fullName || data.name);
                         setHasEntered(true);
                         setLoginType(null);
+                        setActiveTab('tasks');
                     }
                 }
             });
@@ -1137,40 +1183,75 @@
                       <style>{`
                         .dark-mode .text-gray-800 { color: #f3f4f6 !important; }
                         .dark-mode .text-gray-700 { color: #d1d5db !important; }
+                        .dark-mode .text-gray-600 { color: #9ca3af !important; }
                         .dark-mode [class*="bg-white/20"] { background-color: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
                         .dark-mode [class*="bg-white/30"] { background-color: rgba(0, 0, 0, 0.5) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
+                        .dark-mode [class*="bg-white/40"] { background-color: rgba(0, 0, 0, 0.6) !important; border-color: rgba(255, 255, 255, 0.2) !important; }
                         .dark-mode [class*="border-white/"] { border-color: rgba(255, 255, 255, 0.2) !important; }
                         .dark-mode input { color: #ffffff !important; }
                         .dark-mode input::placeholder { color: #9ca3af !important; }
                       `}</style>
                       
+                      {/* BOTÓN MODO NOCTURNO EN EL LOGIN */}
+                      <button onClick={() => setIsDarkMode(!isDarkMode)} className="absolute top-4 right-4 md:top-6 md:right-6 p-3 rounded-full bg-white/40 hover:bg-white/60 text-gray-800 transition-all shadow-sm border border-white/50 z-50" title="Alternar Modo Oscuro">
+                          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                      </button>
+
                       <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/20 rounded-full blur-[100px] pointer-events-none" />
                       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-400/20 rounded-full blur-[120px] pointer-events-none" />
                       
-                      <div className={`${glassCard} max-w-md w-full mx-4 flex flex-col items-center gap-8 relative z-10 animate-in fade-in zoom-in duration-500`}>
-                          <div className="w-20 h-20 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-[#AD3333]/40 border border-white/20">UP</div>
+                      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 px-4 animate-in fade-in zoom-in duration-500 py-12">
                           
-                          <div className="text-center">
-                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH</h1>
-                              <p className="text-sm font-bold text-[#AD3333]">Universidad de Pamplona</p>
-                          </div>
+                          {/* PANEL DE CUENTAS GUARDADAS (Estilo Facebook) */}
+                          {savedAccounts.length > 0 && (
+                              <div className={`${glassCard} w-full md:w-1/2 max-w-md flex flex-col gap-4`}>
+                                  <h2 className="text-xl font-bold text-gray-800 text-center">Vuelve a acceder</h2>
+                                  <p className="text-sm text-gray-600 text-center mb-2">Haz clic en tu cuenta o accede manualmente.</p>
+                                  <div className="flex flex-wrap justify-center gap-4 max-h-64 overflow-y-auto p-2">
+                                      {savedAccounts.map(acc => (
+                                          <div key={acc.username} className="relative group">
+                                              <button onClick={() => handleQuickLogin(acc)} className="bg-white/40 hover:bg-white/60 border border-white/60 shadow-md rounded-2xl p-4 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 w-28 h-32">
+                                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-sm ${acc.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+                                                      {acc.role === 'teacher' ? 'G' : acc.name.charAt(0)}
+                                                  </div>
+                                                  <span className="text-xs font-bold text-gray-800 text-center leading-tight line-clamp-2">
+                                                      {acc.role === 'teacher' ? 'Gina' : acc.name}
+                                                  </span>
+                                              </button>
+                                              <button onClick={(e) => { e.stopPropagation(); removeSavedAccount(acc.username); }} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                                  <X size={12}/>
+                                              </button>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
 
-                          <div className="w-full space-y-4">
-                              <h2 className="text-xl font-bold text-center text-gray-700 mb-4">Accede</h2>
+                          <div className={`${glassCard} max-w-md w-full flex flex-col items-center gap-8`}>
+                              <div className="w-20 h-20 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-[#AD3333]/40 border border-white/20">UP</div>
                               
-                              <button 
-                                  onClick={() => setLoginType('teacher')}
-                                  className="w-full bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 border border-white/20"
-                              >
-                                  Soy docente
-                              </button>
-                              
-                              <button 
-                                  onClick={() => setLoginType('student')}
-                                  className="w-full bg-blue-600/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/30 hover:shadow-[0_0_25px_rgba(37,99,235,0.8)] hover:bg-blue-700 transition-all duration-300 border border-white/20"
-                              >
-                                  Soy estudiante
-                              </button>
+                              <div className="text-center">
+                                  <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH</h1>
+                                  <p className="text-sm font-bold text-[#AD3333]">Universidad de Pamplona</p>
+                              </div>
+
+                              <div className="w-full space-y-4">
+                                  <h2 className="text-xl font-bold text-center text-gray-700 mb-4">Acceder</h2>
+                                  
+                                  <button 
+                                      onClick={() => setLoginType('teacher')}
+                                      className="w-full bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 border border-white/20"
+                                  >
+                                      Soy docente
+                                  </button>
+                                  
+                                  <button 
+                                      onClick={() => setLoginType('student')}
+                                      className="w-full bg-blue-600/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl font-bold shadow-lg shadow-blue-600/30 hover:shadow-[0_0_25px_rgba(37,99,235,0.8)] hover:bg-blue-700 transition-all duration-300 border border-white/20"
+                                  >
+                                      Soy estudiante
+                                  </button>
+                              </div>
                           </div>
                       </div>
 
@@ -1317,14 +1398,14 @@
                           <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border border-white/60 shadow-2xl`}>
                               <div className="flex justify-between items-center mb-3 border-b border-gray-300/30 pb-3">
                                   <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                      <CuteBotIcon size={24} className="text-gray-700" /> Asistente de Clase
+                                      <CuteBotIcon size={24} className="text-gray-700" /> GinAI
                                   </h3>
                                   <button onClick={() => setIsChatOpen(false)} className="text-gray-500 hover:text-gray-800 bg-white/40 p-1.5 rounded-full transition-colors"><X size={16}/></button>
                               </div>
                               
                               <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
                                   <div className="bg-blue-100 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm">
-                                      ¡Hola! 👋 Soy el asistente virtual. ¿Tienes alguna pregunta sobre el cronograma o las fechas de la clase?
+                                      Hola, soy el asistente de la profesora Gina, estoy aquí para resolver tus dudas sobre las materias que estás viendo con ella.
                                   </div>
                                   {chatHistory.map((m, i) => (
                                       <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
@@ -1355,9 +1436,9 @@
                       
                       <button 
                           onClick={() => setIsChatOpen(!isChatOpen)} 
-                          className="w-16 h-16 rounded-full bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 transition-transform focus:outline-none text-gray-700"
+                          className="w-20 h-20 rounded-full bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 transition-transform focus:outline-none text-gray-700"
                       >
-                          <CuteBotIcon size={32} />
+                          <CuteBotIcon size={40} />
                       </button>
                   </div>
               )}
@@ -1391,4 +1472,6 @@
     </script>
 </body>
 </html>
+
+
 
