@@ -609,14 +609,21 @@
           const [activeTab, setActiveTab] = useState('tasks');
           const [loginError, setLoginError] = useState("");
           
-          const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)') ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
           const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: "", onConfirm: null });
 
           useEffect(() => {
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const mediaQuery = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+            if (!mediaQuery) return;
             const handleChange = (e) => setIsDarkMode(e.matches);
-            mediaQuery.addEventListener('change', handleChange);
-            return () => mediaQuery.removeEventListener('change', handleChange);
+            
+            if (mediaQuery.addEventListener) {
+                mediaQuery.addEventListener('change', handleChange);
+                return () => mediaQuery.removeEventListener('change', handleChange);
+            } else if (mediaQuery.addListener) {
+                mediaQuery.addListener(handleChange);
+                return () => mediaQuery.removeListener(handleChange);
+            }
           }, []);
 
           const [showSugModal, setShowSugModal] = useState(false);
@@ -693,7 +700,7 @@
 
           const notificationSound = useRef(typeof Audio !== "undefined" ? new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3') : null);
 
-          const myChatId = role === 'teacher' ? 'teacher' : loggedInUser.replace('@', '');
+          const myChatId = role === 'teacher' ? 'teacher' : (loggedInUser ? loggedInUser.replace('@', '') : '');
 
           const [tasks, setTasks] = useState([]);
           const [syllabus, setSyllabus] = useState([]);
@@ -967,7 +974,7 @@
           }, [userMappings]); 
 
           useEffect(() => {
-            if (!user) return;
+            if (!user || !myChatId) return; // FIX: Prevenir que la vista móvil se ponga en blanco si no se ha cargado el user id aún
             const base = ['artifacts', appId, 'public', 'data'];
             const uTasks = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uSyllabus = onSnapshot(collection(db, ...base, 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
@@ -999,7 +1006,7 @@
             });
 
             return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); };
-          }, [user]);
+          }, [user, myChatId]); // FIX: Agregar dependencia
 
           useEffect(() => {
               if (isChatAppOpen && myChatId) {
@@ -2202,9 +2209,9 @@
                                       )}
 
                                       <input 
-                                        value={chatAppInput} onChange={(e) => setChatAppInput(e.target.value)} 
-                                        placeholder="Escribe un mensaje..." 
-                                        className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
+                                          value={chatAppInput} onChange={(e) => setChatAppInput(e.target.value)} 
+                                          placeholder="Escribe un mensaje..." 
+                                          className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
                                       />
                                       
                                       <button type="submit" className="p-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-xl transition-all flex items-center justify-center">
