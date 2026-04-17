@@ -46,6 +46,7 @@
         const UserIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
         const UsersGroupIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const ArrowLeftIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+        const TeacherIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>; // NUEVO ÍCONO DE PROFESORA
 
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
@@ -140,6 +141,8 @@
           "from-blue-400/40 to-indigo-500/40", "from-emerald-400/40 to-teal-500/40", "from-rose-400/40 to-orange-500/40",
           "from-purple-400/40 to-pink-500/40", "from-amber-400/40 to-red-500/40", "from-cyan-400/40 to-blue-500/40"
         ];
+
+        const TEACHER_NAME = "Gina Marcela Quintana Delgado"; // NOMBRE DEFINITIVO DE LA PROFESORA
 
         const FALLBACK_MAP = {
             'ginadocente': { email: 'ginamarcelaquintana19@gmail.com', name: 'La profe', role: 'teacher' },
@@ -273,7 +276,7 @@
 
             const newComment = { 
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
-                author: role === 'teacher' ? 'Profesora' : loggedInName, 
+                author: role === 'teacher' ? TEACHER_NAME : loggedInName, 
                 text: commentText.trim(),
                 imageUrl: commentImageUrl.trim(), // GUARDAR IMAGEN (link o base64)
                 isDeleted: false,
@@ -297,7 +300,7 @@
             Object.values(task.reactions || {}).forEach(r => { 
                 const rType = typeof r === 'object' ? r.type : r;
                 let rName = typeof r === 'object' ? r.name : 'Un usuario';
-                if (rName === 'Profesora') rName = 'La profe';
+                if (rName === 'Profesora' || rName === 'La profe') rName = TEACHER_NAME;
 
                 if (counts[rType] !== undefined) { 
                     counts[rType]++; 
@@ -394,7 +397,7 @@
                           <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scroll-smooth">
                             {task.comments?.map((c, i) => {
                               const cid = c.id || `old-${i}`; 
-                              const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === 'Profesora' || c.author === 'La profe'));
+                              const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe'));
                               const isEditing = editingCommentId === cid;
                               
                               if (c.isDeleted) {
@@ -427,7 +430,7 @@
                                   <div key={cid} className={`p-4 rounded-2xl text-sm border shadow-sm group/comment transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/80' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
-                                            <span className={`font-bold text-base ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-200' : 'text-gray-800')}`}>{c.author}</span>
+                                            <span className={`font-bold text-base ${c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-200' : 'text-gray-800')}`}>{c.author}</span>
                                             {c.isEdited && !isEditing && (
                                                 <div className="relative inline-block">
                                                     <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-500 italic transition-colors mt-0.5">(Editado)</button>
@@ -482,7 +485,7 @@
                                         {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
                                             const emoji = typeof rData === 'object' ? rData.emoji : rData;
                                             let name = typeof rData === 'object' ? rData.name : 'Un usuario';
-                                            if (name === 'Profesora') name = 'La profe';
+                                            if (name === 'Profesora' || name === 'La profe') name = TEACHER_NAME;
                                             
                                             const existing = acc.find(item => item.emoji === emoji);
                                             if (existing) { existing.count++; existing.names.push(name); } 
@@ -677,6 +680,7 @@
 
           // --- ESTADOS DE MENSAJERÍA DIRECTA Y GRUPOS ---
           const [isChatAppOpen, setIsChatAppOpen] = useState(false);
+          const [hasUnreadChat, setHasUnreadChat] = useState(false); // ESTADO PARA LA NOTIFICACIÓN
           const [activeChat, setActiveChat] = useState(null); // { id, name, type: 'dm'|'group' }
           const [chatMessages, setChatMessages] = useState([]);
           const [chatGroups, setChatGroups] = useState([]);
@@ -955,7 +959,7 @@
                         const data = userMappings[foundKey] || FALLBACK_MAP[foundKey];
                         setRole(data.role);
                         setLoggedInUser(data.role === 'teacher' ? 'GinaDocente' : `@${foundKey}`);
-                        setLoggedInName(data.role === 'teacher' ? 'La profe' : data.fullName || data.name);
+                        setLoggedInName(data.role === 'teacher' ? TEACHER_NAME : data.fullName || data.name);
                         setHasEntered(true);
                         setLoginType(null);
                     }
@@ -978,8 +982,11 @@
             const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
             
             const uGroups = onSnapshot(collection(db, ...base, 'chatGroups'), s => setChatGroups(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            const uUnread = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), d => {
+                if (d.exists() && d.data().hasUnread) setHasUnreadChat(true);
+            });
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); };
+            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); };
           }, [user]);
 
           // --- LISTENER DE MENSAJES DEL CHAT ACTIVO ---
@@ -1001,12 +1008,19 @@
 
           // --- GENERAR LISTA DE USUARIOS ---
           const allChatUsers = [
-              { id: 'teacher', name: 'Profesora', role: 'teacher' },
+              { id: 'teacher', name: TEACHER_NAME, role: 'teacher' },
               ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role })),
               ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ id, name: data.name, role: data.role }))
           ].filter(u => u.id !== myChatId); // Excluirme a mí mismo
 
           const myGroups = chatGroups.filter(g => g.members?.includes(myChatId));
+
+          // --- ABRIR LA APP DE CHATS Y LIMPIAR NOTIFICACIÓN ---
+          const openChatApp = () => {
+              setIsChatAppOpen(true);
+              setHasUnreadChat(false);
+              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), { hasUnread: false });
+          };
 
           // --- FUNCIÓN PARA ENVIAR MENSAJE EN EL CHAT ACTIVO ---
           const handleSendAppMessage = async (e) => {
@@ -1018,7 +1032,7 @@
                   return;
               }
 
-              const authorName = role === 'teacher' ? 'Profesora' : loggedInName;
+              const authorName = role === 'teacher' ? TEACHER_NAME : loggedInName;
 
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages'), {
                   text: chatAppInput.trim(),
@@ -1029,6 +1043,18 @@
                   createdAt: Date.now()
               });
 
+              // DISPARAR NOTIFICACIÓN A LOS RECEPTORES
+              let targetIds = [];
+              if (activeChat.type === 'group') {
+                  const group = chatGroups.find(g => `group_${g.id}` === activeChat.id);
+                  if (group) targetIds = group.members.filter(id => id !== myChatId);
+              } else {
+                  targetIds = [activeChat.id.replace('dm_', '').replace(myChatId, '').replace('_', '')];
+              }
+              targetIds.forEach(tId => {
+                  if(tId) setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', tId), { hasUnread: true, timestamp: Date.now() });
+              });
+
               setChatAppInput("");
               setChatAppImageUrl("");
               setShowChatAppAttachmentMenu(false);
@@ -1036,7 +1062,6 @@
               setShowChatAppEmojiPicker(false);
           };
 
-          // --- FUNCIÓN PARA CREAR GRUPO ---
           const handleCreateGroup = async (e) => {
               e.preventDefault();
               if (!newGroupName.trim() || newGroupMembers.length === 0) {
@@ -1814,11 +1839,14 @@
               {hasEntered && (
                   <div className="fixed bottom-24 md:bottom-6 left-4 md:left-6 z-[90]">
                       <button
-                          onClick={() => setIsChatAppOpen(true)}
-                          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:scale-110 transition-all duration-300 ${isDarkMode ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'}`}
+                          onClick={openChatApp}
+                          className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:scale-110 transition-all duration-300 ${isDarkMode ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'}`}
                           title="Mensajes Directos"
                       >
                           <MessageCircle size={28} />
+                          {hasUnreadChat && (
+                              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse shadow-md"></span>
+                          )}
                       </button>
                   </div>
               )}
@@ -1862,9 +1890,9 @@
                                           {allChatUsers.map(u => {
                                               const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
                                               return (
-                                                  <button key={u.id} onClick={() => setActiveChat({ id: chatId, name: u.name, type: 'dm' })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                                                          {u.role === 'teacher' ? <FileText size={20}/> : <UserIcon size={20}/>}
+                                                  <button key={u.id} onClick={() => setActiveChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                          {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
                                                       <div className="text-left"><p className={`font-bold text-base ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p><p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p></div>
                                                   </button>
@@ -1914,8 +1942,8 @@
                               <div className={`flex items-center p-4 md:p-6 border-b shadow-sm shrink-0 gap-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                                   <button onClick={() => setActiveChat(null)} className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}><ArrowLeftIcon size={24} /></button>
                                   <div className="flex items-center gap-3">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.name === 'Profesora' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
-                                          {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.name === 'Profesora' ? <FileText size={20}/> : <UserIcon size={20}/>)}
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
+                                          {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
                                       </div>
                                       <h2 className={`text-xl font-extrabold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
                                   </div>
@@ -1926,7 +1954,7 @@
                                   {chatMessages.length === 0 && <p className="text-center text-gray-500 italic mt-10">Envía un mensaje para iniciar la conversación.</p>}
                                   {chatMessages.map(m => {
                                       const isMe = m.authorId === myChatId;
-                                      const isTeacher = m.author === 'Profesora';
+                                      const isTeacher = m.author === TEACHER_NAME;
                                       return (
                                           <div key={m.id} className={`flex flex-col max-w-[85%] md:max-w-[60%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                                               {!isMe && activeChat.type === 'group' && <span className={`text-[11px] font-bold mb-1 px-1 ${isTeacher ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>{m.author}</span>}
@@ -2054,4 +2082,3 @@
     </script>
 </body>
 </html>
-
