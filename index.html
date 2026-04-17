@@ -18,7 +18,7 @@
         // --- IMPORTACIONES FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // Íconos de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
@@ -670,6 +670,8 @@
           // --- ESTADOS DE MENSAJERÍA DIRECTA Y GRUPOS ---
           const [isChatAppOpen, setIsChatAppOpen] = useState(false);
           const [hasUnreadChat, setHasUnreadChat] = useState(false);
+          const [unreadChats, setUnreadChats] = useState({}); // NUEVO ESTADO PARA PUNTOS ROJOS INDIVIDUALES
+          const [lastMessages, setLastMessages] = useState({}); // NUEVO ESTADO PARA VISTAS PREVIAS
           const [activeChat, setActiveChat] = useState(null); 
           const [chatMessages, setChatMessages] = useState([]);
           const [chatGroups, setChatGroups] = useState([]);
@@ -688,6 +690,8 @@
           const [fullScreenImage, setFullScreenImage] = useState(null);
           const [editingAppMessageId, setEditingAppMessageId] = useState(null);
           const [editAppMessageText, setEditAppMessageText] = useState("");
+
+          const notificationSound = useRef(typeof Audio !== "undefined" ? new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3') : null);
 
           const myChatId = role === 'teacher' ? 'teacher' : loggedInUser.replace('@', '');
 
@@ -976,11 +980,25 @@
             const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
             
             const uGroups = onSnapshot(collection(db, ...base, 'chatGroups'), s => setChatGroups(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            
             const uUnread = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), d => {
-                if (d.exists() && d.data().hasUnread) setHasUnreadChat(true);
+                if (d.exists()) {
+                    const data = d.data();
+                    if (data.hasUnread && !hasUnreadChat) {
+                        notificationSound.current?.play().catch(e => console.log('Auto-play evitado'));
+                    }
+                    setHasUnreadChat(!!data.hasUnread);
+                    setUnreadChats(data.chats || {});
+                }
             });
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); };
+            const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
+                const msgs = {};
+                s.docs.forEach(d => msgs[d.id] = d.data());
+                setLastMessages(msgs);
+            });
+
+            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); };
           }, [user]);
 
           useEffect(() => {
@@ -1017,11 +1035,20 @@
           const filteredUsers = allChatUsers.filter(u => u.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
           const filteredGroups = myGroups.filter(g => g.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
 
+          const handleOpenChat = (chat) => {
+              setActiveChat(chat);
+              if (unreadChats[chat.id]) {
+                  const alertRef = doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId);
+                  updateDoc(alertRef, { [`chats.${chat.id}`]: false }).then(() => {
+                      const stillUnread = Object.entries(unreadChats).some(([id, isUnread]) => isUnread && id !== chat.id);
+                      if (!stillUnread) updateDoc(alertRef, { hasUnread: false }).catch(()=>{});
+                  }).catch(()=>{});
+              }
+          };
+
           const openChatApp = () => {
               setIsChatAppOpen(true);
               setChatSearchTerm(""); 
-              setHasUnreadChat(false);
-              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), { hasUnread: false }, { merge: true });
           };
 
           const handleDeleteAppMessage = async (msgId) => {
@@ -1061,6 +1088,8 @@
               }
 
               const authorName = role === 'teacher' ? TEACHER_NAME : loggedInName;
+              const msgPreviewText = chatAppInput.trim() || (chatAppImageUrl ? '📷 Imagen' : '');
+              const previewName = role === 'teacher' ? 'Profesora' : loggedInName.split(' ')[0];
 
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages'), {
                   text: chatAppInput.trim(),
@@ -1071,6 +1100,13 @@
                   createdAt: Date.now()
               });
 
+              // ACTUALIZAR ÚLTIMO MENSAJE
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'lastMessages', activeChat.id), {
+                  text: msgPreviewText,
+                  author: previewName,
+                  createdAt: Date.now()
+              });
+
               let targetIds = [];
               if (activeChat.type === 'group') {
                   const group = chatGroups.find(g => `group_${g.id}` === activeChat.id);
@@ -1078,8 +1114,16 @@
               } else {
                   targetIds = [activeChat.id.replace('dm_', '').replace(myChatId, '').replace('_', '')];
               }
-              targetIds.forEach(tId => {
-                  if(tId) setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', tId), { hasUnread: true, timestamp: Date.now() }, { merge: true });
+              targetIds.forEach(async tId => {
+                  if(tId) {
+                      const alertRef = doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', tId);
+                      const alertSnap = await getDoc(alertRef);
+                      if (alertSnap.exists()) {
+                          await updateDoc(alertRef, { hasUnread: true, timestamp: Date.now(), [`chats.${activeChat.id}`]: true });
+                      } else {
+                          await setDoc(alertRef, { hasUnread: true, timestamp: Date.now(), chats: { [activeChat.id]: true } });
+                      }
+                  }
               });
 
               setChatAppInput("");
@@ -1675,9 +1719,22 @@
                 
                 @keyframes breathe-scale {
                     0%   { transform: scale(1); }
-                    50%  { transform: scale(1.1); }
+                    50%  { transform: scale(1.05); }
                     100% { transform: scale(1); }
                 }
+
+                @keyframes pulse-unread-dark {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+                    50% { box-shadow: 0 0 20px 8px rgba(255, 255, 255, 0.3); }
+                }
+
+                @keyframes pulse-unread-light {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+                    50% { box-shadow: 0 0 20px 8px rgba(59, 130, 246, 0.3); }
+                }
+
+                .unread-pulse-dark { animation: pulse-unread-dark 2s infinite !important; }
+                .unread-pulse-light { animation: pulse-unread-light 2s infinite !important; }
                 
                 @keyframes spin-glow {
                     0%   { transform: rotate(0deg); }
@@ -1846,7 +1903,7 @@
               </nav>
 
               {role === 'student' && hasEntered && (
-                  <div className="fixed bottom-48 md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
+                  <div className="fixed bottom-[130px] md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
                       {isChatOpen && (
                           <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border border-white/60 shadow-2xl`}>
                               <div className="flex justify-between items-center mb-3 border-b border-gray-300/30 pb-3">
@@ -1898,15 +1955,15 @@
 
               {/* BOTÓN Y MODAL DE CHAT DIRECTO Y GRUPOS */}
               {hasEntered && (
-                  <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[90]">
+                  <div className="fixed bottom-12 md:bottom-8 right-4 md:right-6 z-[90]">
                       <button
                           onClick={openChatApp}
-                          className={`chat-btn-animated w-20 h-20 rounded-full flex items-center justify-center focus:outline-none`}
+                          className={`chat-btn-animated w-16 h-16 rounded-full flex items-center justify-center focus:outline-none ${hasUnreadChat ? (isDarkMode ? 'unread-pulse-dark' : 'unread-pulse-light') : ''}`}
                           title="Mensajes Directos"
                       >
-                          <MessageCircle size={36} />
+                          <MessageCircle size={28} />
                           {hasUnreadChat && (
-                              <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 border-2 border-white rounded-full animate-pulse shadow-md z-20"></span>
+                              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 border-2 border-white rounded-full shadow-md z-20"></span>
                           )}
                       </button>
                   </div>
@@ -1950,12 +2007,27 @@
                                       </div>
                                       <div className="space-y-2">
                                           {filteredGroups.length === 0 && <p className="text-sm italic text-gray-500">No se encontraron grupos.</p>}
-                                          {filteredGroups.map(g => (
-                                              <button key={g.id} onClick={() => setActiveChat({ id: `group_${g.id}`, name: g.name, type: 'group' })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white"><UsersGroupIcon size={20}/></div>
-                                                  <div className="text-left"><p className={`font-bold text-base ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{g.name}</p><p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{g.members.length} miembros</p></div>
-                                              </button>
-                                          ))}
+                                          {filteredGroups.map(g => {
+                                              const chatId = `group_${g.id}`;
+                                              const lastMsg = lastMessages[chatId];
+                                              const isUnread = unreadChats[chatId];
+                                              return (
+                                                  <button key={g.id} onClick={() => handleOpenChat({ id: chatId, name: g.name, type: 'group' })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white shrink-0"><UsersGroupIcon size={20}/></div>
+                                                      <div className="text-left flex-1 overflow-hidden">
+                                                          <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{g.name}</p>
+                                                          {lastMsg ? (
+                                                              <p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-500' : 'text-gray-500')}`}>
+                                                                  {lastMsg.author}: {lastMsg.text}
+                                                              </p>
+                                                          ) : (
+                                                              <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{g.members.length} miembros</p>
+                                                          )}
+                                                      </div>
+                                                      {isUnread && <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm ml-2 shrink-0"></div>}
+                                                  </button>
+                                              );
+                                          })}
                                       </div>
                                   </div>
                                   
@@ -1966,12 +2038,24 @@
                                           {filteredUsers.length === 0 && <p className="text-sm italic text-gray-500">No se encontraron contactos.</p>}
                                           {filteredUsers.map(u => {
                                               const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
+                                              const lastMsg = lastMessages[chatId];
+                                              const isUnread = unreadChats[chatId];
                                               return (
-                                                  <button key={u.id} onClick={() => setActiveChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                  <button key={u.id} onClick={() => handleOpenChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0 ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
                                                           {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
-                                                      <div className="text-left"><p className={`font-bold text-base ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p><p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p></div>
+                                                      <div className="text-left flex-1 overflow-hidden">
+                                                          <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
+                                                          {lastMsg ? (
+                                                              <p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-500' : 'text-gray-500')}`}>
+                                                                  {lastMsg.text}
+                                                              </p>
+                                                          ) : (
+                                                              <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+                                                          )}
+                                                      </div>
+                                                      {isUnread && <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm ml-2 shrink-0"></div>}
                                                   </button>
                                               );
                                           })}
@@ -2196,3 +2280,4 @@
     </script>
 </body>
 </html>
+
