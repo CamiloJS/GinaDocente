@@ -28,7 +28,7 @@
         const Clock = createIcon('⏰'); const Lock = createIcon('🔒'); const Mail = createIcon('📥'); 
         const AlertTriangle = createIcon('⚠️'); const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); 
         const UsersIcon = createIcon('👥');
-        const FileText = createIcon('📄');
+        const FileText = createIcon('📄'); const CheckCircle2 = createIcon('☑️');
         
         // Íconos SVG
         const Trash2 = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
@@ -163,6 +163,12 @@
         const FALLBACK_MAP = {
             'ginadocente': { email: 'ginamarcelaquintana19@gmail.com', name: 'La profe', role: 'teacher' },
             'camilopruebas': { email: 'edwincamilojaimes1@gmail.com', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
+        };
+
+        const formatTime = (seconds) => {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
         };
 
         const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode, confirmAction }) => {
@@ -606,7 +612,7 @@
               , document.body)}
 
               {fullScreenImage && ReactDOM.createPortal(
-                  <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setFullScreenImage(null)}>
+                  <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setFullScreenImage(null)}>
                       <button className="absolute top-4 md:top-8 right-4 md:right-8 text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all shadow-lg"><X size={28}/></button>
                       <img src={fullScreenImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
                   </div>
@@ -671,6 +677,15 @@
           const [prevTaskDesc, setPrevTaskDesc] = useState("");
           const [hasAiModified, setHasAiModified] = useState(false);
 
+          // --- ESTADOS DE EVALUACIONES ---
+          const [isCreatingEval, setIsCreatingEval] = useState(false);
+          const [evalFormData, setEvalFormData] = useState({ title: "", description: "", dueDate: getToday(), dueTime: "23:59", timeLimit: 30, questions: [] });
+          const [activeTakingEval, setActiveTakingEval] = useState(null);
+          const [studentAnswers, setStudentAnswers] = useState({});
+          const [timeRemaining, setTimeRemaining] = useState(0);
+          const [viewingResultsFor, setViewingResultsFor] = useState(null);
+          const [editingGrade, setEditingGrade] = useState({ id: null, score: '' });
+
           const [reviewTopic, setReviewTopic] = useState("");
           const [reviewCount, setReviewCount] = useState(3);
           const [isReviewLoading, setIsReviewLoading] = useState(false);
@@ -697,8 +712,8 @@
           // --- ESTADOS DE MENSAJERÍA DIRECTA Y GRUPOS ---
           const [isChatAppOpen, setIsChatAppOpen] = useState(false);
           const [hasUnreadChat, setHasUnreadChat] = useState(false);
-          const [unreadChats, setUnreadChats] = useState({}); // NUEVO ESTADO PARA PUNTOS ROJOS INDIVIDUALES
-          const [lastMessages, setLastMessages] = useState({}); // NUEVO ESTADO PARA VISTAS PREVIAS
+          const [unreadChats, setUnreadChats] = useState({});
+          const [lastMessages, setLastMessages] = useState({});
           const [activeChat, setActiveChat] = useState(null); 
           const [chatMessages, setChatMessages] = useState([]);
           const [chatGroups, setChatGroups] = useState([]);
@@ -711,7 +726,7 @@
           const [showChatAppAttachmentMenu, setShowChatAppAttachmentMenu] = useState(false);
           const [showChatAppImageInput, setShowChatAppImageInput] = useState(false);
           const [showChatAppEmojiPicker, setShowChatAppEmojiPicker] = useState(false);
-          const [chatSearchTerm, setChatSearchTerm] = useState(""); // NUEVO ESTADO DEL BUSCADOR
+          const [chatSearchTerm, setChatSearchTerm] = useState("");
           const chatMessagesEndRef = useRef(null);
 
           const [fullScreenImage, setFullScreenImage] = useState(null);
@@ -763,6 +778,17 @@
               return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             } catch (error) { return ""; }
           };
+
+          // Temporizador para Evaluaciones
+          useEffect(() => {
+              let interval;
+              if (activeTakingEval && timeRemaining > 0) {
+                  interval = setInterval(() => setTimeRemaining(prev => prev - 1), 1000);
+              } else if (activeTakingEval && timeRemaining === 0) {
+                  submitEvaluation(true);
+              }
+              return () => clearInterval(interval);
+          }, [activeTakingEval, timeRemaining]);
 
           const handleGenerateReview = async (e) => {
             e.preventDefault();
@@ -1001,7 +1027,7 @@
             const base = ['artifacts', appId, 'public', 'data'];
             const uTasks = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uSyllabus = onSnapshot(collection(db, ...base, 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
-            const uEvals = onSnapshot(collection(db, ...base, 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+            const uEvals = onSnapshot(collection(db, ...base, 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uGrades = onSnapshot(collection(db, ...base, 'grades'), s => setGrades(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uSug = onSnapshot(collection(db, ...base, 'suggestions'), s => setSuggestions(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uAlerts = onSnapshot(collection(db, ...base, 'alerts'), s => setAlerts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
@@ -1221,6 +1247,72 @@
                   showMessage("Hubo un error al procesar tu imagen.");
                   setIsAiLoading(false);
               }
+          };
+
+          const handleSaveEval = async (e) => {
+              e.preventDefault();
+              if(evalFormData.questions.length === 0) return showMessage("Añade al menos 1 pregunta.");
+              
+              let valid = true;
+              evalFormData.questions.forEach((q, i) => {
+                  if(q.type === 'multiple') {
+                      if(q.options.length < 2) { showMessage(`Pregunta ${i+1}: Mínimo 2 opciones.`); valid = false; }
+                      if(q.options.filter(o=>o.isCorrect).length === 0) { showMessage(`Pregunta ${i+1}: Marca al menos 1 opción correcta.`); valid = false; }
+                  } else {
+                      if(!q.correctAnswer.trim()) { showMessage(`Pregunta ${i+1}: Escribe la respuesta esperada.`); valid = false; }
+                  }
+              });
+              if(!valid) return;
+
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'evaluations'), {
+                  ...evalFormData,
+                  createdAt: Date.now(),
+                  createdBy: myChatId
+              });
+              setIsCreatingEval(false);
+              setEvalFormData({ title: "", description: "", dueDate: getToday(), dueTime: "23:59", timeLimit: 30, questions: [] });
+              showMessage("✅ Evaluación creada exitosamente.");
+          };
+
+          const calculateScore = (evalData, answers) => {
+              let correct = 0;
+              evalData.questions.forEach((q, i) => {
+                  const ans = answers[i];
+                  if (q.type === 'multiple') {
+                      const correctIndices = q.options.map((opt, idx) => opt.isCorrect ? idx : -1).filter(idx => idx !== -1);
+                      const selectedIndices = ans || [];
+                      if (correctIndices.length === selectedIndices.length && correctIndices.every(idx => selectedIndices.includes(idx))) {
+                          correct++;
+                      }
+                  } else {
+                      if (ans && ans.trim().toLowerCase() === (q.correctAnswer || '').trim().toLowerCase()) correct++;
+                  }
+              });
+              return (correct / evalData.questions.length) * 5.0;
+          };
+
+          const submitEvaluation = async (autoSubmit = false) => {
+              if(!activeTakingEval) return;
+              const score = calculateScore(activeTakingEval, studentAnswers);
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'grades'), {
+                  evaluationId: activeTakingEval.id,
+                  studentId: user.uid,
+                  studentName: loggedInName,
+                  score: parseFloat(score.toFixed(1)),
+                  answers: studentAnswers,
+                  submittedAt: Date.now()
+              });
+              setActiveTakingEval(null);
+              setStudentAnswers({});
+              showMessage(autoSubmit ? "⏳ Tiempo agotado. Evaluación enviada automáticamente." : "✅ Evaluación completada y enviada.");
+          };
+
+          const saveEditedGrade = async (gradeId) => {
+              const newScore = parseFloat(editingGrade.score);
+              if(isNaN(newScore) || newScore < 0 || newScore > 5) return showMessage("Nota inválida (debe ser entre 0.0 y 5.0)");
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'grades', gradeId), { score: newScore });
+              setEditingGrade({id: null, score: ''});
+              showMessage("✅ Nota actualizada.");
           };
 
           const renderTasks = () => (
@@ -1578,12 +1670,291 @@
              </div>
           );
 
-          const renderEvaluations = () => (
-            <div className="space-y-6 max-w-2xl mx-auto">
-              <h2 className="text-4xl font-extrabold text-gray-800 mb-6 text-center drop-shadow-md">Evaluaciones ya realizadas 📝</h2>
-              <div className={glassCard}><p className="text-center text-gray-700 font-medium">Aún nada por aquí...</p></div>
-            </div>
-          );
+          const renderEvaluations = () => {
+              if (activeTakingEval) {
+                  return (
+                      <div className="max-w-4xl mx-auto space-y-6 pb-20 md:pb-0">
+                          <div className={`${glassCard} flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-[80px] z-40`}>
+                              <div>
+                                  <h2 className={`text-2xl font-extrabold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeTakingEval.title}</h2>
+                                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{activeTakingEval.description}</p>
+                              </div>
+                              <div className="bg-red-100/90 backdrop-blur-md text-red-700 px-6 py-3 rounded-2xl font-black font-mono text-2xl flex items-center gap-3 shadow-lg border border-red-200 shrink-0">
+                                  <Clock size={24}/> {formatTime(timeRemaining)}
+                              </div>
+                          </div>
+
+                          <div className="space-y-6">
+                              {activeTakingEval.questions.map((q, qIndex) => (
+                                  <div key={qIndex} className={`${glassCard} transition-all`}>
+                                      <h3 className={`text-lg font-bold mb-4 flex gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                          <span className="text-blue-500">{qIndex + 1}.</span> {q.text}
+                                      </h3>
+                                      
+                                      {q.type === 'multiple' ? (
+                                          <div className="space-y-3">
+                                              {q.options.map((opt, oIndex) => {
+                                                  const isSelected = (studentAnswers[qIndex] || []).includes(oIndex);
+                                                  return (
+                                                      <label key={oIndex} className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer border transition-all ${isSelected ? 'bg-blue-500/10 border-blue-400 shadow-sm' : (isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/40 border-white/60 hover:bg-white/60')}`}>
+                                                          <input 
+                                                              type="checkbox" 
+                                                              checked={isSelected}
+                                                              onChange={(e) => {
+                                                                  const currentAns = studentAnswers[qIndex] || [];
+                                                                  if (e.target.checked) {
+                                                                      setStudentAnswers({...studentAnswers, [qIndex]: [...currentAns, oIndex]});
+                                                                  } else {
+                                                                      setStudentAnswers({...studentAnswers, [qIndex]: currentAns.filter(idx => idx !== oIndex)});
+                                                                  }
+                                                              }} 
+                                                              className="w-5 h-5 accent-blue-600 rounded" 
+                                                          />
+                                                          <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{opt.text}</span>
+                                                      </label>
+                                                  );
+                                              })}
+                                          </div>
+                                      ) : (
+                                          <input 
+                                              type="text" 
+                                              value={studentAnswers[qIndex] || ""} 
+                                              onChange={(e) => setStudentAnswers({...studentAnswers, [qIndex]: e.target.value})}
+                                              placeholder="Escribe tu respuesta aquí..." 
+                                              className={`${glassInput} text-lg`} 
+                                          />
+                                      )}
+                                  </div>
+                              ))}
+                          </div>
+                          
+                          <div className="flex justify-end pt-4 pb-8">
+                              <button onClick={() => confirmAction("¿Estás seguro de enviar la evaluación? No podrás modificarla después.", () => submitEvaluation(false))} className={`${redButton} px-10 py-4 text-lg w-full md:w-auto`}><Send size={20}/> Terminar y Enviar</button>
+                          </div>
+                      </div>
+                  );
+              }
+
+              if (viewingResultsFor) {
+                  const evalGrades = grades.filter(g => g.evaluationId === viewingResultsFor.id);
+                  return (
+                      <div className="space-y-6 max-w-4xl mx-auto pb-20 md:pb-0">
+                          <div className="flex items-center justify-between mb-6">
+                              <h2 className={`text-3xl font-bold flex items-center gap-2 drop-shadow-sm ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                                  <button onClick={() => setViewingResultsFor(null)} className="mr-2 p-2 hover:bg-white/20 rounded-full transition-colors"><ArrowLeftIcon size={24}/></button>
+                                  Resultados
+                              </h2>
+                              <span className="bg-white/40 px-4 py-2 rounded-xl font-bold text-sm border border-white/50">{viewingResultsFor.title}</span>
+                          </div>
+
+                          <div className={`${glassCard} overflow-x-auto p-0`}>
+                              <table className="w-full text-left">
+                                  <thead className={`border-b ${isDarkMode ? 'bg-gray-800/50 border-gray-700 text-gray-300' : 'bg-white/40 border-white/50 text-gray-800'}`}>
+                                      <tr>
+                                          <th className="p-4 font-bold">Estudiante</th>
+                                          <th className="p-4 font-bold text-center">Nota (0.0 - 5.0)</th>
+                                          <th className="p-4 font-bold">Fecha de Entrega</th>
+                                          <th className="p-4 font-bold text-center">Acciones</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      {evalGrades.length === 0 ? <tr><td colSpan="4" className="p-8 text-gray-500 text-center font-medium italic">Ningún estudiante ha presentado esta prueba aún.</td></tr> : evalGrades.map(grade => (
+                                          <tr key={grade.id} className={`border-b last:border-0 ${isDarkMode ? 'border-gray-700/50' : 'border-white/20'}`}>
+                                              <td className="p-4 font-bold text-blue-500">{grade.studentName}</td>
+                                              <td className="p-4 text-center">
+                                                  {editingGrade.id === grade.id ? (
+                                                      <div className="flex justify-center items-center gap-2">
+                                                          <input type="number" step="0.1" min="0" max="5" value={editingGrade.score} onChange={(e) => setEditingGrade({...editingGrade, score: e.target.value})} className={`${glassInput} w-20 py-1 text-center font-bold`} autoFocus />
+                                                          <button onClick={() => saveEditedGrade(grade.id)} className="text-green-500 hover:text-green-700"><CheckCircle2 size={20}/></button>
+                                                          <button onClick={() => setEditingGrade({id: null, score: ''})} className="text-red-500 hover:text-red-700"><X size={20}/></button>
+                                                      </div>
+                                                  ) : (
+                                                      <span className={`font-black text-lg ${grade.score >= 3.0 ? 'text-green-600' : 'text-red-600'}`}>{grade.score.toFixed(1)}</span>
+                                                  )}
+                                              </td>
+                                              <td className="p-4 text-sm text-gray-500">{new Date(grade.submittedAt).toLocaleString()}</td>
+                                              <td className="p-4 text-center">
+                                                  {!editingGrade.id && <button onClick={() => setEditingGrade({id: grade.id, score: grade.score})} className="text-gray-500 hover:text-blue-600 transition-colors" title="Modificar Nota"><Edit3 size={18}/></button>}
+                                              </td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  );
+              }
+
+              if (isCreatingEval) {
+                  return (
+                      <div className="space-y-6 max-w-3xl mx-auto pb-20 md:pb-0">
+                          <div className="flex items-center gap-4 mb-6">
+                              <button onClick={() => setIsCreatingEval(false)} className={`p-2 hover:bg-white/20 rounded-full transition-colors ${isDarkMode ? 'text-white' : 'text-gray-800'}`}><ArrowLeftIcon size={24}/></button>
+                              <h2 className={`text-3xl font-bold drop-shadow-sm ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Crear Nueva Evaluación</h2>
+                          </div>
+                          
+                          <form onSubmit={handleSaveEval} className="space-y-6">
+                              <div className={`${glassCard} space-y-4`}>
+                                  <h3 className={`font-bold border-b pb-2 ${isDarkMode ? 'text-gray-200 border-gray-700' : 'text-gray-700 border-white/50'}`}>Configuración General</h3>
+                                  <div><label className="text-xs font-bold text-gray-500 ml-1">Título de la Evaluación</label><input value={evalFormData.title} onChange={e => setEvalFormData({...evalFormData, title: e.target.value})} placeholder="Ej: Quiz de Verbos Irregulares..." className={glassInput} required /></div>
+                                  <div><label className="text-xs font-bold text-gray-500 ml-1">Descripción / Instrucciones</label><textarea value={evalFormData.description} onChange={e => setEvalFormData({...evalFormData, description: e.target.value})} placeholder="Instrucciones para los estudiantes..." className={`${glassInput} h-24 resize-none`} required /></div>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <div><label className="text-xs font-bold text-gray-500 ml-1">Fecha Límite</label><input type="date" value={evalFormData.dueDate} onChange={e => setEvalFormData({...evalFormData, dueDate: e.target.value})} className={glassInput} required /></div>
+                                      <div><label className="text-xs font-bold text-gray-500 ml-1">Hora Límite</label><input type="time" value={evalFormData.dueTime} onChange={e => setEvalFormData({...evalFormData, dueTime: e.target.value})} className={glassInput} required /></div>
+                                      <div><label className="text-xs font-bold text-gray-500 ml-1">Tiempo (minutos)</label><input type="number" min="1" max="180" value={evalFormData.timeLimit} onChange={e => setEvalFormData({...evalFormData, timeLimit: parseInt(e.target.value)})} className={glassInput} required /></div>
+                                  </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                  <div className="flex justify-between items-center px-2">
+                                      <h3 className={`font-bold text-xl ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Preguntas ({evalFormData.questions.length}/20)</h3>
+                                  </div>
+
+                                  {evalFormData.questions.map((q, qIndex) => (
+                                      <div key={qIndex} className={`${glassCard} !p-5 relative animate-in fade-in slide-in-from-bottom-2`}>
+                                          <div className="absolute top-4 right-4">
+                                              <button type="button" onClick={() => {
+                                                  const newQ = [...evalFormData.questions]; newQ.splice(qIndex, 1);
+                                                  setEvalFormData({...evalFormData, questions: newQ});
+                                              }} className="text-gray-400 hover:text-red-500 transition-colors" title="Eliminar pregunta"><Trash2 size={18}/></button>
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-3 mb-4 pr-8">
+                                              <span className="w-8 h-8 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center shrink-0">{qIndex + 1}</span>
+                                              <select value={q.type} onChange={(e) => {
+                                                  const newQ = [...evalFormData.questions]; newQ[qIndex].type = e.target.value; setEvalFormData({...evalFormData, questions: newQ});
+                                              }} className={`${glassInput} !py-2 w-auto font-bold text-blue-600 cursor-pointer`}>
+                                                  <option value="multiple">Selección Múltiple</option>
+                                                  <option value="text">Escribir Respuesta</option>
+                                              </select>
+                                          </div>
+                                          
+                                          <input value={q.text} onChange={(e) => {
+                                              const newQ = [...evalFormData.questions]; newQ[qIndex].text = e.target.value; setEvalFormData({...evalFormData, questions: newQ});
+                                          }} placeholder="Escribe la pregunta..." className={`${glassInput} mb-4 font-medium text-lg`} required />
+
+                                          {q.type === 'multiple' ? (
+                                              <div className={`space-y-2 pl-4 md:pl-11 border-l-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                                                  <p className="text-xs font-bold text-gray-500 mb-2">Añade hasta 4 opciones y marca la(s) correcta(s).</p>
+                                                  {q.options.map((opt, oIndex) => (
+                                                      <div key={oIndex} className="flex gap-3 items-center group">
+                                                          <input type="checkbox" checked={opt.isCorrect} onChange={(e) => {
+                                                              const newQ = [...evalFormData.questions]; newQ[qIndex].options[oIndex].isCorrect = e.target.checked; setEvalFormData({...evalFormData, questions: newQ});
+                                                          }} className="w-5 h-5 accent-green-500 cursor-pointer" title="Marcar como correcta" />
+                                                          <input value={opt.text} onChange={(e) => {
+                                                              const newQ = [...evalFormData.questions]; newQ[qIndex].options[oIndex].text = e.target.value; setEvalFormData({...evalFormData, questions: newQ});
+                                                          }} placeholder={`Opción ${oIndex + 1}`} className={`${glassInput} !py-2 flex-1 ${opt.isCorrect ? 'border-green-400 bg-green-500/10' : ''}`} required />
+                                                          <button type="button" onClick={() => {
+                                                              if(q.options.length <= 2) return showMessage("Mínimo 2 opciones.");
+                                                              const newQ = [...evalFormData.questions]; newQ[qIndex].options.splice(oIndex, 1); setEvalFormData({...evalFormData, questions: newQ});
+                                                          }} className="text-gray-400 hover:text-red-500 transition-colors p-2" title="Eliminar opción"><X size={16}/></button>
+                                                      </div>
+                                                  ))}
+                                                  {q.options.length < 4 && (
+                                                      <button type="button" onClick={() => {
+                                                          const newQ = [...evalFormData.questions]; newQ[qIndex].options.push({text: '', isCorrect: false}); setEvalFormData({...evalFormData, questions: newQ});
+                                                      }} className="text-sm font-bold text-blue-500 hover:text-blue-600 mt-2 flex items-center gap-1"><Plus size={14}/> Añadir otra opción</button>
+                                                  )}
+                                              </div>
+                                          ) : (
+                                              <div className={`pl-4 md:pl-11 border-l-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                                                  <p className="text-xs font-bold text-gray-500 mb-2">Escribe la respuesta exacta esperada (no distingue mayúsculas/minúsculas).</p>
+                                                  <input value={q.correctAnswer} onChange={(e) => {
+                                                      const newQ = [...evalFormData.questions]; newQ[qIndex].correctAnswer = e.target.value; setEvalFormData({...evalFormData, questions: newQ});
+                                                  }} placeholder="Ej: went" className={`${glassInput} border-green-400 bg-green-500/10`} required />
+                                              </div>
+                                          )}
+                                      </div>
+                                  ))}
+
+                                  {evalFormData.questions.length < 20 && (
+                                      <button type="button" onClick={() => {
+                                          setEvalFormData({...evalFormData, questions: [...evalFormData.questions, { type: 'multiple', text: '', options: [{text: '', isCorrect: false}, {text: '', isCorrect: false}], correctAnswer: '' }]});
+                                      }} className={`w-full py-4 border-2 border-dashed rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors ${isDarkMode ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-500' : 'border-gray-400 text-gray-600 hover:border-blue-600 hover:text-blue-600'}`}>
+                                          <Plus size={20} /> Añadir Pregunta
+                                      </button>
+                                  )}
+                              </div>
+
+                              <div className="flex justify-end pt-6 border-t border-white/20">
+                                  <button type="submit" className={`${redButton} px-10 py-4 text-lg w-full md:w-auto shadow-xl`}><CheckCircle2 size={20}/> Guardar Evaluación</button>
+                              </div>
+                          </form>
+                      </div>
+                  );
+              }
+
+              // Vista de Lista (Por defecto)
+              return (
+                <div className="space-y-6 max-w-5xl mx-auto pb-20 md:pb-0">
+                  <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 drop-shadow-sm"><FileText className="text-[#AD3333]" /> Evaluaciones</h2>
+                      {role === 'teacher' && (
+                          <button onClick={() => setIsCreatingEval(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-bold px-4 py-2.5 rounded-full hover:scale-105 transition flex items-center gap-2 text-sm"><Plus size={16}/> Crear</button>
+                      )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {evaluations.length === 0 ? <p className="text-gray-600 italic px-4 col-span-full">No hay evaluaciones programadas.</p> : null}
+                      
+                      {evaluations.map(ev => {
+                          const deadline = new Date(`${ev.dueDate}T${ev.dueTime || '23:59'}`);
+                          const isExpired = new Date() > deadline;
+                          const studentGrade = role === 'student' ? grades.find(g => g.evaluationId === ev.id && g.studentId === user.uid) : null;
+                          const isDone = !!studentGrade;
+
+                          return (
+                              <div key={ev.id} className={`${glassCard} flex flex-col hover:bg-white/30 transition-colors group relative overflow-hidden`}>
+                                  {isExpired && <div className="absolute top-4 right-[-30px] bg-red-600 text-white text-[10px] font-black px-10 py-1 rotate-45 shadow-md">CERRADO</div>}
+                                  {isDone && <div className="absolute top-4 right-[-30px] bg-green-600 text-white text-[10px] font-black px-10 py-1 rotate-45 shadow-md">ENVIADO</div>}
+                                  
+                                  <h3 className="text-xl font-bold text-gray-900 mb-2 pr-10">{ev.title}</h3>
+                                  <p className="text-sm text-gray-700 mb-4 line-clamp-2">{ev.description}</p>
+                                  
+                                  <div className="mt-auto space-y-2 bg-white/40 p-3 rounded-xl border border-white/50">
+                                      <p className={`text-xs font-bold flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}><CalendarEmoji size={14}/> Cierre: {ev.dueDate} a las {ev.dueTime}</p>
+                                      <p className="text-xs font-bold flex items-center gap-1 text-gray-600"><Clock size={14}/> Tiempo: {ev.timeLimit} minutos</p>
+                                      <p className="text-xs font-bold flex items-center gap-1 text-blue-600"><CheckCheck size={14}/> Preguntas: {ev.questions?.length || 0}</p>
+                                  </div>
+
+                                  <div className="mt-4 pt-4 border-t border-white/30 flex justify-between items-center">
+                                      {role === 'teacher' ? (
+                                          <>
+                                              <div className="flex gap-2">
+                                                  <button onClick={() => confirmAction("¿Borrar evaluación? También se borrarán las notas de los estudiantes.", async () => {
+                                                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'evaluations', ev.id));
+                                                      showMessage("Evaluación eliminada.");
+                                                  })} className="text-gray-400 hover:text-red-600 p-2"><Trash2 size={18}/></button>
+                                              </div>
+                                              <button onClick={() => setViewingResultsFor(ev)} className="bg-white/80 hover:bg-white text-blue-700 font-bold py-2 px-4 rounded-xl shadow-sm border border-blue-200 transition-all text-sm">Ver Resultados</button>
+                                          </>
+                                      ) : (
+                                          isDone ? (
+                                              <div className="w-full flex justify-between items-center">
+                                                  <span className="text-sm font-bold text-gray-600">Tu calificación:</span>
+                                                  <span className={`text-xl font-black ${studentGrade.score >= 3.0 ? 'text-green-600' : 'text-red-600'}`}>{studentGrade.score.toFixed(1)} <span className="text-sm text-gray-400">/ 5.0</span></span>
+                                              </div>
+                                          ) : isExpired ? (
+                                              <button disabled className="w-full bg-gray-300 text-gray-500 font-bold py-3 rounded-xl cursor-not-allowed">Evaluación Cerrada</button>
+                                          ) : (
+                                              <button onClick={() => {
+                                                  confirmAction(`Tienes ${ev.timeLimit} minutos para completarla y no podrás pausar. ¿Empezar ahora?`, () => {
+                                                      setActiveTakingEval(ev);
+                                                      setTimeRemaining(ev.timeLimit * 60);
+                                                      setStudentAnswers({});
+                                                  });
+                                              }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all">Empezar Prueba</button>
+                                          )
+                                      )}
+                                  </div>
+                              </div>
+                          );
+                      })}
+                  </div>
+                </div>
+              );
+          };
 
           const renderInbox = () => (
             <div className="space-y-8">
@@ -2378,5 +2749,3 @@
     </script>
 </body>
 </html>
-
-
