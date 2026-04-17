@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Plataforma English TECH</title>
+    <title>English TECH 2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -578,14 +578,12 @@
             setIsSugLoading(false);
           };
 
-          // --- SISTEMA DE LOGIN INVISIBLE ---
           const handleLogin = async (e) => {
             e.preventDefault();
             const rawUser = e.target.username.value.trim(); 
             const password = e.target.password.value;
             const cleanUser = rawUser.toLowerCase().replace('@', '');
             
-            // Primero consultamos si el usuario existe en nuestra BD oculta (o en el fallback)
             let targetEmail = "";
             let expectedRole = "";
             let targetName = "";
@@ -609,10 +607,8 @@
             }
 
             try {
-                // Validación final en Firebase Auth
                 await signInWithEmailAndPassword(auth, targetEmail, password);
                 setLoginError("");
-                // Los estados se actualizarán en onAuthStateChanged
             } catch (error) {
                 setLoginError("Contraseña incorrecta.");
             }
@@ -672,7 +668,6 @@
 
           // --- ESTADOS DE AUTENTICACIÓN ---
           useEffect(() => {
-            // Leer el directorio completo de mappings desde Firestore sin necesidad de estar logueado para que funcione el login
             const uMappings = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'userMappings'), s => {
                 const maps = {};
                 s.docs.forEach(d => { maps[d.id] = d.data(); });
@@ -682,7 +677,6 @@
             const unsubscribe = onAuthStateChanged(auth, (u) => {
                 setUser(u);
                 if (u && u.email) {
-                    // Buscar el usuario en los mappings o en el fallback
                     let foundKey = Object.keys(userMappings).find(k => userMappings[k].email === u.email);
                     if (!foundKey) foundKey = Object.keys(FALLBACK_MAP).find(k => FALLBACK_MAP[k].email === u.email);
 
@@ -697,7 +691,7 @@
                 }
             });
             return () => { unsubscribe(); uMappings(); };
-          }, [userMappings]); // Dependencia necesaria para actualizar cuando userMappings cargue
+          }, [userMappings]); 
 
           useEffect(() => {
             if (!user) return;
@@ -1098,7 +1092,7 @@
                           <div className="w-20 h-20 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-[#AD3333]/40 border border-white/20">UP</div>
                           
                           <div className="text-center">
-                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH</h1>
+                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH 2.0 ✨</h1>
                               <p className="text-sm font-bold text-[#AD3333]">Universidad de Pamplona</p>
                           </div>
 
@@ -1189,7 +1183,7 @@
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 min-w-[44px] bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg shadow-[#AD3333]/40 border border-white/20">UP</div>
                     <div>
-                      <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH</h1>
+                      <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH 2.0 ✨</h1>
                       <p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p>
                     </div>
                   </div>
@@ -1317,4 +1311,3 @@
     </script>
 </body>
 </html>
-
