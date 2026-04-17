@@ -759,14 +759,19 @@
               setIsChatLoading(false);
           };
 
-          // --- ESTADOS DE AUTENTICACIÓN ---
+          // --- ESTADOS DE AUTENTICACIÓN Y MAPEOS ---
+          // 1. Escuchar los mapeos de usuarios (se registra solo una vez para evitar bucles)
           useEffect(() => {
             const uMappings = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'userMappings'), s => {
                 const maps = {};
                 s.docs.forEach(d => { maps[d.id] = d.data(); });
                 setUserMappings(maps);
             });
+            return () => uMappings();
+          }, []);
 
+          // 2. Escuchar la autenticación del usuario
+          useEffect(() => {
             const unsubscribe = onAuthStateChanged(auth, (u) => {
                 setUser(u);
                 if (u && u.email) {
@@ -780,11 +785,11 @@
                         setLoggedInName(data.role === 'teacher' ? 'La profe' : data.fullName || data.name);
                         setHasEntered(true);
                         setLoginType(null);
-                        setActiveTab('tasks');
+                        // ¡El bug estaba aquí! Eliminamos setActiveTab('tasks') de este bloque en segundo plano
                     }
                 }
             });
-            return () => { unsubscribe(); uMappings(); };
+            return () => unsubscribe();
           }, [userMappings]); 
 
           useEffect(() => {
@@ -1314,6 +1319,60 @@
                 .dark-mode input, .dark-mode textarea { color: #ffffff !important; }
                 .dark-mode input::placeholder, .dark-mode textarea::placeholder { color: #9ca3af !important; }
                 
+                /* ANIMACIÓN DE RESPIRACIÓN Y ARCOIRIS EN CÍRCULOS (LIQUID GLASS) */
+                @keyframes breathe-scale {
+                    0%   { transform: scale(1); }
+                    50%  { transform: scale(1.1); }
+                    100% { transform: scale(1); }
+                }
+                
+                @keyframes spin-glow {
+                    0%   { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+
+                .bot-idle-animated {
+                    position: relative;
+                    /* Efecto Liquid Glass (Transparente + Desenfocado + Brillos internos) */
+                    background: rgba(255, 255, 255, 0.15) !important;
+                    backdrop-filter: blur(12px) saturate(150%);
+                    -webkit-backdrop-filter: blur(12px) saturate(150%);
+                    border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
+                    box-shadow: inset 0 4px 15px rgba(255, 255, 255, 0.6), 
+                                inset 0 -4px 15px rgba(0, 0, 0, 0.1) !important;
+                    
+                    /* Ícono completamente blanco */
+                    color: #ffffff !important;
+                    
+                    /* Animación lenta (8s) */
+                    animation: breathe-scale 8s ease-in-out infinite !important;
+                    transition: none !important;
+                    z-index: 10;
+                }
+
+                .dark-mode .bot-idle-animated {
+                    background: rgba(20, 20, 30, 0.25) !important;
+                    border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+                    box-shadow: inset 0 4px 15px rgba(255, 255, 255, 0.2), 
+                                inset 0 -4px 15px rgba(0, 0, 0, 0.3) !important;
+                }
+
+                /* Resplandor circular que gira por los bordes (Colores Unipamplona) */
+                .bot-idle-animated::before {
+                    content: '';
+                    position: absolute;
+                    /* Hace que la luz sobresalga de los límites del botón */
+                    top: -6px; left: -6px; right: -6px; bottom: -6px;
+                    border-radius: 50%;
+                    /* Gradiente cónico con los colores: Rojo (#AD3333), Vinotinto (#6b1d1d) y Naranja-Rojo (#e64a19) */
+                    background: conic-gradient(from 0deg, #AD3333, #6b1d1d, #e64a19, #AD3333);
+                    filter: blur(14px);
+                    z-index: -1;
+                    opacity: 0.85;
+                    /* Gira suavemente a la misma velocidad que respira */
+                    animation: spin-glow 8s linear infinite;
+                }
+
                 /* Margen extra para que la barra inferior en celular no tape el contenido final */
                 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
               `}</style>
@@ -1436,7 +1495,7 @@
                       
                       <button 
                           onClick={() => setIsChatOpen(!isChatOpen)} 
-                          className="w-20 h-20 rounded-full bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 transition-transform focus:outline-none text-gray-700"
+                          className={`w-20 h-20 rounded-full flex items-center justify-center focus:outline-none ${!isChatOpen ? 'bot-idle-animated' : 'transition-all duration-300 bg-white/40 border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] text-gray-700 hover:scale-110 hover:bg-white/60 backdrop-blur-2xl'}`}
                       >
                           <CuteBotIcon size={40} />
                       </button>
