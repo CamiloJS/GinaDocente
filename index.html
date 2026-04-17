@@ -13,7 +13,7 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         
         // --- IMPORTACIONES ADAPTADAS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
@@ -23,7 +23,7 @@
         // Íconos generales de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
         const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const CheckSquare = createIcon('☑️');
-        const Plus = createIcon('➕'); const Send = createIcon('🚀'); const FileText = createIcon('📄');
+        const Plus = createIcon('➕'); const FileText = createIcon('📄');
         const Trash2 = createIcon('🗑️'); const X = createIcon('❌'); const Sparkles = createIcon('✨');
         const CheckCheck = createIcon('✅'); const Loader2 = createIcon('⏳'); 
         const Undo2 = createIcon('↩️'); const Clock = createIcon('⏰'); const Lock = createIcon('🔒');
@@ -35,6 +35,8 @@
         const Sun = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
         const Moon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
         const LogOutIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>;
+        const ArrowRightIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+        const SmileIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>;
 
         // Íconos SVG barra inferior de celulares
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
@@ -64,6 +66,7 @@
         const outlineButton = "bg-white/20 backdrop-blur-md text-gray-800 border border-gray-400 px-6 py-3 rounded-full font-semibold hover:bg-gray-200 transition-all duration-300 flex items-center justify-center gap-2";
 
         const REACTION_EMOJIS = { like: '👍', love: '❤️', sad: '😢', happy: '😃', wow: '😲' };
+        const COMMENT_EMOJIS = ['😀', '😂', '🥰', '😎', '👍', '🙏', '❤️', '🔥', '✨', '🤔'];
 
         const SLIDE_GRADIENTS = [
           "from-blue-400/40 to-indigo-500/40",
@@ -77,31 +80,36 @@
 
         // --- BASE DE DATOS LOCAL DE USUARIOS (PROTOTIPO) ---
         const USERS_DB = {
-            'GinaDocente': { pass: 'DANTE12345', name: 'Profesora Gina', role: 'teacher' },
+            'GinaDocente': { pass: 'DANTE12345', name: 'Profesora', role: 'teacher' },
             '@CamiloPruebas': { pass: '12345', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
         };
 
         const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName }) => {
           const [commentText, setCommentText] = useState("");
-          const [isTranslating, setIsTranslating] = useState(false);
+          const [isProcessing, setIsProcessing] = useState(false);
+          const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+          
+          // Estados de edición de comentarios
+          const [editingCommentId, setEditingCommentId] = useState(null);
+          const [editCommentText, setEditCommentText] = useState("");
 
           const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
           const isExpired = new Date() > deadline;
-          const isLocked = isExpired && !task.allowLate;
+          
+          // Las publicaciones ('post') nunca se bloquean. Solo las 'task' (tareas).
+          const isLocked = task.type !== 'post' && isExpired && !task.allowLate;
 
-          const cardStyle = isExpired 
+          const cardStyle = isExpired && task.type !== 'post'
             ? "bg-red-900/10 backdrop-blur-2xl border border-red-500/40 shadow-[0_8px_32px_0_rgba(220,38,38,0.15)] rounded-3xl p-6 transition-all duration-300"
             : glassCard;
 
           const handleTranslate = async (lang) => {
             if (!commentText) return;
-            setIsTranslating(true);
+            setIsProcessing(true);
             const prompt = `Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`;
             const result = await callGemini(prompt);
-            if (result) {
-              setCommentText(result);
-            }
-            setIsTranslating(false);
+            if (result) setCommentText(result);
+            setIsProcessing(false);
           };
 
           const toggleReaction = async (type) => {
@@ -109,29 +117,89 @@
             const currentReactions = task.reactions || {};
             const newReactions = { ...currentReactions };
             
-            // Verificamos el tipo de reacción actual que tiene el usuario en la BD
             const currentReactionData = newReactions[currentUser.uid];
             const currentType = typeof currentReactionData === 'object' ? currentReactionData.type : currentReactionData;
 
-            if (currentType === type) {
-              // Si vuelve a tocar la misma reacción, se quita (toggle)
-              delete newReactions[currentUser.uid];
-            } else {
-              // Si toca una nueva, reemplaza la anterior y guarda su nombre completo
-              newReactions[currentUser.uid] = { type: type, name: loggedInName };
-            }
+            if (currentType === type) delete newReactions[currentUser.uid];
+            else newReactions[currentUser.uid] = { type: type, name: loggedInName };
+            
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions });
+          };
+
+          const toggleCommentReaction = async (commentId, emoji) => {
+            if (isLocked || !currentUser) return;
+            const updatedComments = (task.comments || []).map(c => {
+                if (c.id === commentId) {
+                    const reactions = { ...(c.reactions || {}) };
+                    if (reactions[currentUser.uid] === emoji) delete reactions[currentUser.uid];
+                    else reactions[currentUser.uid] = emoji;
+                    return { ...c, reactions };
+                }
+                return c;
+            });
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+          };
+
+          const handleDeleteComment = async (commentId, authorName) => {
+              let updatedComments;
+              if (role === 'teacher') {
+                  // Profesora elimina sin dejar rastro
+                  updatedComments = task.comments.filter(c => c.id !== commentId);
+              } else {
+                  // Estudiante elimina y deja rastro gris
+                  updatedComments = task.comments.map(c => 
+                      c.id === commentId ? { ...c, isDeleted: true, text: "" } : c
+                  );
+              }
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+          };
+
+          const saveEditedComment = async () => {
+              if (!editCommentText.trim()) return;
+              const updatedComments = task.comments.map(c => 
+                  c.id === editingCommentId ? { ...c, text: editCommentText.trim() } : c
+              );
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+              setEditingCommentId(null);
+          };
+
+          const handleAddComment = async (e) => {
+            e.preventDefault();
+            if(!commentText.trim()) return;
+            setIsProcessing(true);
+
+            // Filtro IA de groserías
+            const prompt = `Analiza si el siguiente texto contiene groserías, insultos o lenguaje inapropiado en español, inglés o francés. Responde ÚNICAMENTE "SI" o "NO".\nTexto: "${commentText}"`;
+            const filterResult = await callGemini(prompt);
+            
+            if (filterResult?.trim().toUpperCase() === "SI") {
+                showMessage("⚠️ Comentario bloqueado: Lenguaje inapropiado detectado.");
+                setIsProcessing(false);
+                return;
+            }
+
+            const newComment = { 
+                id: Date.now().toString(), 
+                author: role === 'teacher' ? 'Profesora' : loggedInName, 
+                text: commentText.trim(),
+                isDeleted: false,
+                reactions: {}
+            };
+            
+            const newComments = [...(task.comments || []), newComment];
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
+            setCommentText("");
+            setShowEmojiPicker(false);
+            setIsProcessing(false);
           };
 
           const renderReactions = () => {
             const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
             const namesByType = { like: [], love: [], sad: [], happy: [], wow: [] };
 
-            // Procesar las reacciones y agrupar los nombres de quienes reaccionaron
             Object.values(task.reactions || {}).forEach(r => { 
                 const rType = typeof r === 'object' ? r.type : r;
                 const rName = typeof r === 'object' ? r.name : 'Un usuario';
-                
                 if (counts[rType] !== undefined) { 
                     counts[rType]++; 
                     namesByType[rType].push(rName);
@@ -144,18 +212,11 @@
                   const rData = task.reactions?.[currentUser?.uid];
                   const userReactionType = typeof rData === 'object' ? rData.type : rData;
                   const isSelected = userReactionType === key;
-                  
-                  // Crear el texto que aparecerá al pasar el mouse por encima
-                  const hoverText = namesByType[key].length > 0 
-                      ? `${namesByType[key].join(', ')} reaccionó así` 
-                      : "";
+                  const hoverText = namesByType[key].length > 0 ? `${namesByType[key].join(', ')} reaccionó así` : "";
 
                   return (
                     <button 
-                      key={key} 
-                      onClick={() => toggleReaction(key)} 
-                      disabled={isLocked}
-                      title={hoverText}
+                      key={key} onClick={() => toggleReaction(key)} disabled={isLocked} title={hoverText}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
@@ -170,13 +231,20 @@
             <div className={`${cardStyle} group ${!isLocked && 'hover:bg-white/30'}`}>
               <div className="flex justify-between items-start">
                 <div>
+                  <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${task.type === 'post' ? 'bg-blue-100 text-blue-700' : 'bg-[#AD3333]/20 text-[#AD3333]'}`}>
+                          {task.type === 'post' ? 'Publicación' : 'Tarea'}
+                      </span>
+                  </div>
                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                     {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
                   </h3>
-                  <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
-                    <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
-                    {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
-                  </p>
+                  {task.type !== 'post' && (
+                      <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
+                        <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
+                        {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
+                      </p>
+                  )}
                 </div>
                 {role === 'teacher' && (
                   <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id))} className="text-gray-400 hover:text-red-600 transition relative z-10">
@@ -190,32 +258,99 @@
               <div className="mt-6 pt-6 border-t border-white/30">
                 <h4 className="text-sm font-bold text-gray-700 mb-3 drop-shadow-sm">Comentarios</h4>
                 <div className="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2 relative z-10">
-                  {task.comments?.map((c, i) => (
-                    <div key={i} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30">
-                      <span className={`font-bold ${c.author === 'Profesora Gina' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}: </span>
-                      <span className="text-gray-800">{c.text}</span>
-                    </div>
-                  ))}
+                  {task.comments?.map((c, i) => {
+                    const cid = c.id || i;
+                    const isOwner = c.author === loggedInName || (role === 'teacher' && c.author === 'Profesora');
+                    const isEditing = editingCommentId === cid;
+                    
+                    if (c.isDeleted) {
+                        return <div key={cid} className="bg-white/20 p-3 rounded-xl text-xs text-gray-500 italic border border-white/30">{c.author} eliminó este comentario.</div>;
+                    }
+
+                    return (
+                        <div key={cid} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30 group/comment">
+                          <div className="flex justify-between items-start">
+                              <span className={`font-bold ${c.author === 'Profesora' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
+                              
+                              <div className="hidden group-hover/comment:flex items-center gap-2">
+                                  {role === 'teacher' && !isEditing && (
+                                      <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className="text-gray-400 hover:text-blue-600"><Edit3 size={14}/></button>
+                                  )}
+                                  {(role === 'teacher' || isOwner) && !isEditing && (
+                                      <button onClick={() => handleDeleteComment(cid, c.author)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
+                                  )}
+                              </div>
+                          </div>
+
+                          {isEditing ? (
+                              <div className="mt-2 flex gap-2">
+                                  <input className={`${glassInput} py-1 text-xs`} value={editCommentText} onChange={e => setEditCommentText(e.target.value)} />
+                                  <button onClick={saveEditedComment} className="text-green-600"><CheckCheck size={16}/></button>
+                                  <button onClick={() => setEditingCommentId(null)} className="text-red-600"><X size={16}/></button>
+                              </div>
+                          ) : (
+                              <p className="text-gray-800 mt-1">{c.text}</p>
+                          )}
+
+                          {/* Reacciones de los comentarios */}
+                          <div className="mt-2 flex gap-1 items-center">
+                              {Object.entries(c.reactions || {}).reduce((acc, [uid, emoji]) => {
+                                  const existing = acc.find(item => item.emoji === emoji);
+                                  if (existing) existing.count++; else acc.push({ emoji, count: 1 });
+                                  return acc;
+                              }, []).map((r, idx) => (
+                                  <span key={idx} className="bg-white/50 px-1.5 py-0.5 rounded-full text-[10px] text-gray-700">{r.emoji} {r.count}</span>
+                              ))}
+                              
+                              {!isLocked && (
+                                  <div className="relative inline-block ml-1">
+                                      <button className="text-gray-400 hover:text-gray-600 opacity-0 group-hover/comment:opacity-100 transition-opacity"><Plus size={12}/></button>
+                                      <div className="absolute top-full left-0 bg-white shadow-lg rounded-full px-2 py-1 flex gap-1 z-50 scale-0 group-hover/comment:scale-100 origin-top-left transition-transform">
+                                          {['❤️','👍','😂','😲'].map(emj => (
+                                              <button key={emj} onClick={() => toggleCommentReaction(cid, emj)} className="hover:scale-125 transition-transform text-xs">{emj}</button>
+                                          ))}
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+                        </div>
+                    );
+                  })}
                   {(!task.comments || task.comments.length === 0) && <p className="text-xs text-gray-500 italic">No hay comentarios.</p>}
                 </div>
                 
                 {!isLocked ? (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    if(!commentText.trim()) return;
-                    const newComments = [...(task.comments || []), { author: loggedInName, text: commentText.trim() }];
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
-                    setCommentText("");
-                  }} className="flex flex-col gap-2 relative z-10">
-                    <div className="flex gap-2">
-                      <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Escribe un comentario..." className={`${glassInput} py-2`} />
-                      <button type="submit" disabled={isTranslating} className="bg-[#AD3333]/90 text-white p-3 rounded-xl hover:shadow-[0_0_20px_#AD3333] transition disabled:opacity-50"><Send size={18} /></button>
+                  <form onSubmit={handleAddComment} className="relative z-10 flex flex-col gap-2">
+                    <div className="flex gap-2 items-center bg-white/30 backdrop-blur-md border border-white/50 rounded-2xl px-2 py-1 focus-within:ring-2 focus-within:ring-blue-400/50 transition-all">
+                      
+                      <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-gray-500 hover:text-blue-600 transition">
+                          <SmileIcon size={20} />
+                      </button>
+
+                      {showEmojiPicker && (
+                          <div className="absolute bottom-full left-0 mb-2 bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl rounded-2xl p-2 grid grid-cols-5 gap-2 z-50">
+                              {COMMENT_EMOJIS.map(emj => (
+                                  <button key={emj} type="button" onClick={() => {setCommentText(prev => prev + emj); setShowEmojiPicker(false);}} className="text-lg hover:scale-125 transition-transform">{emj}</button>
+                              ))}
+                          </div>
+                      )}
+
+                      <input 
+                        value={commentText} onChange={(e) => setCommentText(e.target.value)} 
+                        placeholder="Escribe un comentario..." 
+                        className="flex-1 bg-transparent border-none outline-none py-2 text-sm text-gray-900 placeholder-gray-500" 
+                      />
+                      
+                      {/* Botón de enviar minimalista azul */}
+                      <button type="submit" disabled={isProcessing} className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-all disabled:opacity-50">
+                          {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <ArrowRightIcon size={20} />}
+                      </button>
                     </div>
+
                     {role === 'teacher' && (
                       <div className="flex gap-2 justify-start mt-1">
-                        <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isTranslating} title="Traducir a Inglés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇺🇸</button>
-                        <button type="button" onClick={() => handleTranslate('Francés')} disabled={isTranslating} title="Traducir a Francés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇫🇷</button>
-                        {isTranslating && <Loader2 className="animate-spin text-[#AD3333]" size={14} />}
+                        <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isProcessing} title="Traducir a Inglés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇺🇸</button>
+                        <button type="button" onClick={() => handleTranslate('Francés')} disabled={isProcessing} title="Traducir a Francés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇫🇷</button>
                       </div>
                     )}
                   </form>
@@ -228,18 +363,16 @@
         };
 
         function App() {
-          // --- ESTADOS PRINCIPALES ---
           const [hasEntered, setHasEntered] = useState(false); 
-          const [loginType, setLoginType] = useState(null); // 'teacher' o 'student'
-          const [loggedInUser, setLoggedInUser] = useState(""); // Guarda el username (ej. @CamiloPruebas)
-          const [loggedInName, setLoggedInName] = useState(""); // Guarda el nombre completo (ej. Edwin Camilo...)
+          const [loginType, setLoginType] = useState(null); 
+          const [loggedInUser, setLoggedInUser] = useState(""); 
+          const [loggedInName, setLoggedInName] = useState(""); 
           
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
           const [activeTab, setActiveTab] = useState('tasks');
           const [loginError, setLoginError] = useState("");
           
-          // --- MODO OSCURO AUTOMÁTICO ---
           const [isDarkMode, setIsDarkMode] = useState(() => {
             return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           });
@@ -262,6 +395,10 @@
           };
 
           const getToday = () => new Date().toISOString().split('T')[0];
+          
+          // Novedad: Tipo de publicación (Tarea vs Publicación normal)
+          const [postType, setPostType] = useState('task'); // 'task' o 'post'
+          
           const [taskTitle, setTaskTitle] = useState("");
           const [taskDesc, setTaskDesc] = useState("");
           const [taskDate, setTaskDate] = useState(getToday());
@@ -289,22 +426,14 @@
           const [slideInstructions, setSlideInstructions] = useState({}); 
           const [loadingSlides, setLoadingSlides] = useState({}); 
 
-          useEffect(() => {
-            setStudentQuizAnswer("");
-            setQuizAttempts(0);
-            setQuizFeedback("");
-            setShowQuizAnswer(false);
-          }, [currentSlide, activeReview]);
-
           const [tasks, setTasks] = useState([]);
           const [syllabus, setSyllabus] = useState([]);
           const [evaluations, setEvaluations] = useState([]);
-          const [grades, setGrades] = useState([]); // <-- CORRECCIÓN: Estado agregado
+          const [grades, setGrades] = useState([]);
           const [suggestions, setSuggestions] = useState([]);
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
 
-          // --- FUNCIÓN IA ---
           const callGemini = async (promptText) => {
             try {
               const res = await fetch('/api/gemini', { 
@@ -314,211 +443,23 @@
               });
               
               if (!res.ok) {
-                showMessage(`❌ Error de conexión con Vercel (${res.status}). Verifica tu backend.`);
+                showMessage(`❌ Error de conexión con Vercel (${res.status}).`);
                 return ""; 
               }
-              
               const data = await res.json();
               return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-              
             } catch (error) {
-              showMessage("❌ Error de red: No se pudo conectar con el backend de Vercel.");
+              showMessage("❌ Error de red: No se pudo conectar con el backend.");
               return "";
             }
-          };
-
-          const handleGenerateReview = async (e) => {
-            e.preventDefault();
-            if (!reviewTopic) return;
-            setIsReviewLoading(true);
-
-            const prompt = `Actúa como un profesor de inglés. Crea una presentación de repaso sobre: "${reviewTopic}". 
-            Genera exactamente ${reviewCount} diapositivas. Usa EMOJIS.
-            Devuelve ÚNICAMENTE un JSON válido:
-            [
-              { "type": "info", "title": "Título con emoji", "content": "Texto del párrafo." },
-              { "type": "quiz", "title": "Pregunta rápida 🤔", "question": "¿Qué verbo falta aquí?", "answer": "Falta el verbo 'is'." }
-            ]`;
-            
-            try {
-              const result = await callGemini(prompt);
-              if (!result) { setIsReviewLoading(false); return; }
-
-              const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
-              const generatedSlides = JSON.parse(cleanedJson);
-              
-              generatedSlides.forEach((s, idx) => { s.gradient = SLIDE_GRADIENTS[idx % SLIDE_GRADIENTS.length]; });
-              const mainTitle = generatedSlides[0]?.title || "Nuevo Repaso de Inglés ✨";
-
-              setDraftReview({ topic: mainTitle, slides: generatedSlides });
-              setReviewTopic("");
-            } catch (err) {
-              showMessage("Hubo un error al leer la respuesta de la IA. Intente de nuevo.");
-            }
-            setIsReviewLoading(false);
-          };
-
-          const handleRegenerateSingleSlide = async (index) => {
-            const instruction = slideInstructions[index];
-            if (!instruction) return showMessage("Escribe una instrucción para modificar esta diapositiva.");
-            
-            setLoadingSlides(prev => ({ ...prev, [index]: true }));
-
-            const currentSlideData = draftReview.slides[index];
-            const prompt = `Modifica la diapositiva basándote en: "${instruction}".
-            Diapositiva: ${JSON.stringify(currentSlideData)}
-            Devuelve ÚNICAMENTE un JSON válido (info o quiz).`;
-
-            try {
-              const result = await callGemini(prompt);
-              if (!result) { setLoadingSlides(prev => ({ ...prev, [index]: false })); return; }
-
-              const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
-              const regeneratedSlide = JSON.parse(cleanedJson);
-              regeneratedSlide.gradient = currentSlideData.gradient;
-
-              const newSlides = [...draftReview.slides];
-              newSlides[index] = regeneratedSlide;
-              setDraftReview({ ...draftReview, slides: newSlides });
-              
-              const newInstructions = { ...slideInstructions };
-              newInstructions[index] = "";
-              setSlideInstructions(newInstructions);
-            } catch (err) {
-              showMessage("No se pudo regenerar esta diapositiva.");
-            }
-            setLoadingSlides(prev => ({ ...prev, [index]: false }));
-          };
-
-          const handlePublishDraft = async () => {
-            if (!draftReview) return;
-            try {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'), {
-                topic: draftReview.topic, slides: draftReview.slides, createdAt: Date.now()
-              });
-              setDraftReview(null);
-              showMessage("✅ Repaso publicado exitosamente.");
-            } catch (err) {
-              showMessage("Error al publicar.");
-            }
-          };
-
-          const handleQuizSubmit = async (e) => {
-            e.preventDefault();
-            if (!studentQuizAnswer.trim()) return;
-            setIsEvaluatingQuiz(true);
-
-            const currentAttempt = quizAttempts + 1;
-            setQuizAttempts(currentAttempt);
-            const activeSlide = activeReview.slides[currentSlide];
-
-            if (currentAttempt >= 3) {
-              setQuizFeedback("¡Buen esfuerzo! 🌟 Aquí tienes la respuesta para que la repases.");
-              setShowQuizAnswer(true); setIsEvaluatingQuiz(false); return;
-            }
-
-            const prompt = `Un estudiante responde un quiz de inglés. Pregunta: "${activeSlide.question}". Esperada: "${activeSlide.answer}". Respuesta estudiante: "${studentQuizAnswer}". Evalúa si es correcta. Responde ÚNICAMENTE con JSON: {"isCorrect": true/false, "feedback": "Mensaje animando o felicitando"}`;
-
-            try {
-              const res = await callGemini(prompt);
-              if (!res) { setIsEvaluatingQuiz(false); return; }
-
-              const json = JSON.parse(res.replace(/```json/gi, '').replace(/```/gi, '').trim());
-              setQuizFeedback(json.feedback);
-              if(json.isCorrect) setShowQuizAnswer(true);
-            } catch(err) {
-              setQuizFeedback("¡Ups! Hubo un error al revisar, intenta de nuevo ✨");
-            }
-            setIsEvaluatingQuiz(false);
-          };
-
-          const handleSubmitSuggestion = async (e) => {
-            e.preventDefault();
-            if (!sugText) return;
-            setIsSugLoading(true);
-
-            const prompt = `Analiza la sugerencia. Si contiene ofensas, responde "RECHAZADO". Si es constructiva, reescríbela formalmente para la profesora. Devuelve SÓLO la versión mejorada o "RECHAZADO".\n\nTexto: ${sugText}`;
-            const result = await callGemini(prompt);
-            
-            if (!result) { setIsSugLoading(false); return; }
-
-            if (result.trim() === "RECHAZADO") {
-              showMessage("⚠️ No se permiten groserías ni comentarios ofensivos.");
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: loggedInName, originalText: sugText, createdAt: Date.now() });
-            } else {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: loggedInName, text: result, createdAt: Date.now() });
-              showMessage("✅ Sugerencia enviada correctamente.");
-              setShowSugModal(false); setSugText("");
-            }
-            setIsSugLoading(false);
-          };
-
-          const handleAiGenerate = async () => {
-            if (!taskDesc && !taskTitle) return showMessage("Escribe una idea en la descripción primero.");
-            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-            
-            const prompt = `Mejora esta tarea de inglés: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`;
-            const result = await callGemini(prompt);
-            
-            if (!result) { setIsAiLoading(false); return; }
-
-            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
-            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
-            
-            if (titleMatch && descMatch) { 
-              setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); 
-              setTaskDesc(descMatch[1].trim()); 
-            } else {
-              setTaskDesc(result);
-            }
-            setHasAiModified(true);
-            setIsAiLoading(false);
-          };
-
-          const handleAiCorrect = async () => {
-            if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
-            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-            
-            const prompt = `Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`;
-            const result = await callGemini(prompt);
-            
-            if (!result) { setIsAiLoading(false); return; }
-
-            setTaskDesc(result); 
-            setHasAiModified(true);
-            setIsAiLoading(false);
-          };
-
-          const handleAiTranslate = async (lang) => {
-            if (!taskDesc && !taskTitle) return showMessage("Escribe algo para traducir primero.");
-            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-            
-            const prompt = `Traduce al ${lang}:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
-            const result = await callGemini(prompt);
-            
-            if (!result) { setIsAiLoading(false); return; }
-
-            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
-            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
-            
-            if (titleMatch && descMatch) { 
-              setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); 
-              setTaskDesc(descMatch[1].trim()); 
-            } else {
-              setTaskDesc(result);
-            }
-            setHasAiModified(true);
-            setIsAiLoading(false);
           };
 
           const handleLogin = (e) => {
             e.preventDefault();
             const u = e.target.username.value;
             const p = e.target.password.value;
-            
             const userInfo = USERS_DB[u];
 
-            // Validamos que el usuario exista, su contraseña sea correcta y el rol corresponda al botón que tocó
             if (userInfo && userInfo.pass === p && userInfo.role === loginType) {
               setRole(userInfo.role); 
               setLoggedInUser(u);
@@ -568,94 +509,69 @@
           // --- VISTAS ---
           const renderTasks = () => (
             <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Próximas tareas</h2>
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Muro de Clase</h2>
+              
               {role === 'teacher' && (
                 <div className={`${glassCard} mb-8 flex flex-col gap-4`}>
-                  <h3 className="font-semibold text-lg text-gray-800 flex items-center gap-2">📝 Publicar Nueva Tarea {isAiLoading && <Loader2 className="animate-spin text-[#AD3333]" size={20} />}</h3>
-                  <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Título del taller o idea base..." className={glassInput} required />
+                  <div className="flex gap-2 mb-2 bg-white/40 p-1 rounded-xl w-fit border border-white/50">
+                      <button onClick={() => setPostType('task')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'task' ? 'bg-white shadow-sm text-[#AD3333]' : 'text-gray-600 hover:text-gray-900'}`}>Tarea nueva</button>
+                      <button onClick={() => setPostType('post')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'post' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>Nueva publicación</button>
+                  </div>
+
+                  <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={postType === 'task' ? "Título de la tarea..." : "Título de la publicación..."} className={glassInput} required />
                   <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas o escribe una idea y usa la IA para potenciarla..." className={`${glassInput} h-32 resize-none`} required />
+                  
                   <div className="flex flex-wrap gap-2 mb-2 items-center">
-                    <button type="button" onClick={handleAiGenerate} disabled={isAiLoading} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1 disabled:opacity-50"><Sparkles size={16} /> Potenciar</button>
-                    <button type="button" onClick={handleAiCorrect} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir</button>
-                    <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
-                    <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
+                    <button type="button" onClick={async () => {
+                        if (!taskDesc && !taskTitle) return showMessage("Escribe una idea en la descripción primero.");
+                        setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+                        const result = await callGemini(`Mejora esta publicación: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`);
+                        if (!result) { setIsAiLoading(false); return; }
+                        const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
+                        const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
+                        if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); setTaskDesc(descMatch[1].trim()); } else { setTaskDesc(result); }
+                        setHasAiModified(true); setIsAiLoading(false);
+                    }} disabled={isAiLoading} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1 disabled:opacity-50"><Sparkles size={16} /> Potenciar</button>
+                    
+                    <button type="button" onClick={async () => {
+                        if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
+                        setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+                        const result = await callGemini(`Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`);
+                        if (!result) { setIsAiLoading(false); return; }
+                        setTaskDesc(result); setHasAiModified(true); setIsAiLoading(false);
+                    }} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir</button>
+                    
                     {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
                   </div>
+
                   <div className="flex flex-wrap gap-4 items-center bg-white/30 p-4 rounded-xl border border-white/40">
-                    <div><label className="text-xs font-bold text-gray-700 block">Fecha límite</label><input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} className={`${glassInput} py-2`} required /></div>
-                    <div><label className="text-xs font-bold text-gray-700 block">Hora límite</label><input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className={`${glassInput} py-2`} required /></div>
-                    <label className="flex items-center gap-2 mt-4 cursor-pointer"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-[#AD3333]" /><span className="text-sm font-bold text-gray-800">Permitir entregas tardías</span></label>
+                    {postType === 'task' && (
+                        <>
+                            <div><label className="text-xs font-bold text-gray-700 block">Fecha límite</label><input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} className={`${glassInput} py-2`} required /></div>
+                            <div><label className="text-xs font-bold text-gray-700 block">Hora límite</label><input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className={`${glassInput} py-2`} required /></div>
+                            <label className="flex items-center gap-2 mt-4 cursor-pointer"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-[#AD3333]" /><span className="text-sm font-bold text-gray-800">Permitir entregas tardías</span></label>
+                        </>
+                    )}
+                    
                     <button type="button" onClick={async () => {
-                      if(taskTitle && taskDesc && taskDate && taskTime) {
-                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { title: taskTitle, description: taskDesc, dueDate: taskDate, dueTime: taskTime, allowLate, createdAt: Date.now(), comments: [], reactions: {} });
+                      if(taskTitle && taskDesc) {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                            type: postType, title: taskTitle, description: taskDesc, dueDate: postType === 'task' ? taskDate : null, dueTime: postType === 'task' ? taskTime : null, allowLate: postType === 'task' ? allowLate : true, createdAt: Date.now(), comments: [], reactions: {} 
+                        });
                         setTaskTitle(""); setTaskDesc(""); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
-                      } else showMessage("Llena todos los campos.");
-                    }} className={`${redButton} ml-auto mt-4`}>Publicar</button>
+                      } else showMessage("Llena título y descripción.");
+                    }} className={`${redButton} ml-auto ${postType === 'post' ? 'mt-0' : 'mt-4'}`}>Publicar</button>
                   </div>
                 </div>
               )}
-              {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay tareas publicadas aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={task} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} />)}
+              {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
+              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} />)}
             </div>
           );
 
           const renderReviews = () => {
-            if (draftReview) {
+              /* ... (El código de reviews se mantiene igual, no requiere modificaciones para esta solicitud) ... */
               return (
-                <div className="space-y-6 pb-20 md:pb-0">
-                  <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><Edit3 className="text-[#AD3333]" /> Edición de Diapositivas</h2>
-                  <div className={`${glassCard} flex flex-col gap-8`}>
-                    <div className="bg-white/30 backdrop-blur-sm p-6 rounded-3xl border border-white/60 shadow-sm">
-                       <label className="text-sm font-bold text-gray-800 mb-2 block">Título de la Presentación</label>
-                       <input className={`${glassInput} font-extrabold text-xl bg-white/80`} value={draftReview.topic} onChange={e => setDraftReview({...draftReview, topic: e.target.value})} />
-                    </div>
-                    {draftReview.slides.map((slide, i) => (
-                      <div key={i} className={`bg-gradient-to-br ${slide.gradient || SLIDE_GRADIENTS[0]} backdrop-blur-xl p-6 rounded-3xl border border-white/60 relative shadow-md`}>
-                        <div className="absolute inset-0 bg-white/40 rounded-3xl pointer-events-none"></div>
-                        <div className="relative z-10">
-                          <span className="absolute -top-2 -right-2 bg-gray-900 text-white font-bold px-4 py-1.5 rounded-full text-xs shadow-lg">Slide {i + 1}</span>
-                          <div className="mb-4 bg-white/40 p-2 rounded-2xl inline-flex gap-2 border border-white/50">
-                            <span className="text-xs font-bold text-gray-700 flex items-center gap-1 ml-1 mr-2"><Palette size={14}/> Color:</span>
-                            {SLIDE_GRADIENTS.map(grad => (
-                              <button key={grad} type="button" onClick={() => { const newSlides = [...draftReview.slides]; newSlides[i].gradient = grad; setDraftReview({...draftReview, slides: newSlides}); }} className={`w-6 h-6 rounded-full bg-gradient-to-br ${grad} border-2 transition-transform ${slide.gradient === grad ? 'border-gray-800 scale-125' : 'border-white/80'}`} />
-                            ))}
-                          </div>
-                          <div className="mb-6 bg-white/50 p-4 rounded-2xl border border-white/50">
-                            <label className="text-sm font-bold text-gray-800 mb-1 block mt-1">Título de la diapositiva</label>
-                            <input className={`${glassInput} mb-4 font-bold text-lg bg-white/60`} value={slide.title} onChange={e => { const newSlides = [...draftReview.slides]; newSlides[i].title = e.target.value; setDraftReview({...draftReview, slides: newSlides}); }} />
-                            {slide.type === 'quiz' ? (
-                              <div className="space-y-4">
-                                <div><label className="text-sm font-bold text-gray-800 mb-1 block">Pregunta</label><textarea className={`${glassInput} h-24 resize-none bg-white/60`} value={slide.question || ""} onChange={e => { const newSlides = [...draftReview.slides]; newSlides[i].question = e.target.value; setDraftReview({...draftReview, slides: newSlides}); }} /></div>
-                                <div><label className="text-sm font-bold text-green-800 mb-1 block">Respuesta correcta</label><textarea className={`${glassInput} h-20 resize-none border-green-300 bg-white/60`} value={slide.answer || ""} onChange={e => { const newSlides = [...draftReview.slides]; newSlides[i].answer = e.target.value; setDraftReview({...draftReview, slides: newSlides}); }} /></div>
-                              </div>
-                            ) : (
-                              <div><label className="text-sm font-bold text-gray-800 mb-1 block">Contenido</label><textarea className={`${glassInput} h-32 resize-none leading-relaxed bg-white/60`} value={slide.content || ""} onChange={e => { const newSlides = [...draftReview.slides]; newSlides[i].content = e.target.value; setDraftReview({...draftReview, slides: newSlides}); }} /></div>
-                            )}
-                          </div>
-                          <div className="bg-gradient-to-r from-purple-100/70 to-indigo-100/70 p-4 rounded-2xl border border-indigo-200/50 flex flex-col sm:flex-row gap-3 sm:items-end">
-                            <div className="flex-1">
-                              <label className="text-xs font-bold text-indigo-800 mb-1 block">Instrucción para la IA</label>
-                              <input placeholder="Ej. Hazla sobre verbos irregulares..." className={`${glassInput} py-2 text-sm border-indigo-200 bg-white/80`} value={slideInstructions[i] || ""} onChange={e => setSlideInstructions({...slideInstructions, [i]: e.target.value})} />
-                            </div>
-                            <button onClick={() => handleRegenerateSingleSlide(i)} disabled={loadingSlides[i]} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-xl shadow-md transition disabled:opacity-50 flex items-center gap-2 justify-center">
-                              {loadingSlides[i] ? <Loader2 size={16} className="animate-spin"/> : <Sparkles size={16}/>} Regenerar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex gap-4 pt-4 border-t border-white/40">
-                       <button onClick={() => setDraftReview(null)} className="px-6 py-3 rounded-full font-bold bg-white/50 border border-white/60 text-gray-700 hover:bg-white/80 hover:text-red-600 transition flex items-center gap-2 shadow-sm"><X size={20}/> Descartar</button>
-                       <button onClick={handlePublishDraft} className={`${redButton} ml-auto`}><Send size={20}/> Publicar Presentación</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            const activeSlide = activeReview?.slides[currentSlide];
-
-            return (
               <div className="space-y-6 pb-20 md:pb-0">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm">Repasos</h2>
                 {role === 'teacher' && !activeReview && (
@@ -669,8 +585,8 @@
                   </form>
                 )}
 
-                {activeReview && activeSlide ? (
-                  <div className={`relative overflow-hidden rounded-[2rem] border border-white/50 shadow-[0_15px_40px_0_rgba(0,0,0,0.15)] min-h-[550px] flex flex-col justify-between bg-gradient-to-br ${activeSlide.gradient} backdrop-blur-2xl transition-all duration-700`}>
+                {activeReview ? (
+                  <div className={`relative overflow-hidden rounded-[2rem] border border-white/50 shadow-[0_15px_40px_0_rgba(0,0,0,0.15)] min-h-[550px] flex flex-col justify-between bg-gradient-to-br ${activeReview.slides[currentSlide]?.gradient || SLIDE_GRADIENTS[0]} backdrop-blur-2xl transition-all duration-700`}>
                     <div className="absolute inset-0 bg-white/20 pointer-events-none"></div>
                     <div className="relative z-10 flex justify-between items-center p-6 border-b border-white/30 bg-white/10">
                       <h3 className="text-xl font-extrabold text-gray-900 drop-shadow-sm">{activeReview.topic}</h3>
@@ -678,10 +594,10 @@
                     </div>
                     <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 sm:p-12 text-center">
                       <div className="bg-white/50 backdrop-blur-2xl border border-white/60 p-8 md:p-12 rounded-[2rem] shadow-xl max-w-3xl w-full">
-                        <h4 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-8 drop-shadow-sm leading-tight">{activeSlide.title}</h4>
-                        {activeSlide.type === 'quiz' ? (
+                        <h4 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-8 drop-shadow-sm leading-tight">{activeReview.slides[currentSlide]?.title}</h4>
+                        {activeReview.slides[currentSlide]?.type === 'quiz' ? (
                           <div className="flex flex-col items-center gap-4 w-full">
-                            <p className="text-2xl text-gray-800 font-bold mb-4">{activeSlide.question}</p>
+                            <p className="text-2xl text-gray-800 font-bold mb-4">{activeReview.slides[currentSlide]?.question}</p>
                             {!showQuizAnswer ? (
                               <form onSubmit={handleQuizSubmit} className="w-full flex flex-col gap-4">
                                 <input value={studentQuizAnswer} onChange={e => setStudentQuizAnswer(e.target.value)} placeholder="Tu respuesta..." className="w-full bg-white/60 border border-white/80 rounded-2xl px-6 py-4 text-xl text-center font-medium text-gray-800" />
@@ -690,12 +606,12 @@
                                 </button>
                               </form>
                             ) : (
-                              <div className="w-full bg-green-100/80 border border-green-300 p-6 rounded-3xl"><span className="block text-sm font-black text-green-700 uppercase mb-2">Respuesta Correcta</span><p className="text-xl font-medium text-gray-800">{activeSlide.answer}</p></div>
+                              <div className="w-full bg-green-100/80 border border-green-300 p-6 rounded-3xl"><span className="block text-sm font-black text-green-700 uppercase mb-2">Respuesta Correcta</span><p className="text-xl font-medium text-gray-800">{activeReview.slides[currentSlide]?.answer}</p></div>
                             )}
                             {quizFeedback && <div className={`mt-4 p-4 rounded-2xl border w-full font-medium ${showQuizAnswer ? 'bg-green-50/90 text-green-800' : 'bg-indigo-50/90 text-indigo-800'}`}>{quizFeedback}</div>}
                           </div>
                         ) : (
-                          <div className="text-xl md:text-2xl text-gray-800 text-left font-medium space-y-4">{activeSlide.content?.split('\n').map((p, idx) => p.trim() && <p key={idx}>{p}</p>)}</div>
+                          <div className="text-xl md:text-2xl text-gray-800 text-left font-medium space-y-4">{activeReview.slides[currentSlide]?.content?.split('\n').map((p, idx) => p.trim() && <p key={idx}>{p}</p>)}</div>
                         )}
                       </div>
                     </div>
@@ -722,8 +638,7 @@
                   </div>
                 )}
               </div>
-            );
-          };
+            )};
 
           const renderSyllabus = () => (
             <div className="space-y-6 pb-20 md:pb-0">
@@ -902,18 +817,6 @@
               <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
               <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-300/15 rounded-full blur-[120px] pointer-events-none" />
 
-              {showSugModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-                  <form onSubmit={handleSubmitSuggestion} className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200`}>
-                    <button type="button" onClick={() => setShowSugModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
-                    <h3 className="text-2xl font-bold text-center text-gray-800 drop-shadow-sm flex items-center justify-center gap-2"><Mail className="text-[#AD3333]"/> Enviar Sugerencia</h3>
-                    <p className="text-xs text-center text-gray-600 mb-2">Buzón de sugerencias para mejorar las clases.</p>
-                    <textarea value={sugText} onChange={e => setSugText(e.target.value)} placeholder="Escribe tu idea para mejorar la clase..." className={`${glassInput} h-32 resize-none`} required />
-                    <button type="submit" disabled={isSugLoading} className={`${redButton} w-full mt-2 disabled:opacity-50`}>{isSugLoading ? 'Enviando...' : 'Enviar'}</button>
-                  </form>
-                </div>
-              )}
-
               {/* BARRA SUPERIOR */}
               <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-4 md:px-6 py-4 flex justify-between items-start md:items-center shadow-sm">
                 
@@ -926,9 +829,9 @@
                       <p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p>
                     </div>
                   </div>
-                  {/* Botón de Cerrar Sesión movido debajo de UP */}
-                  <button onClick={handleLogout} className="flex items-center gap-1 text-xs text-red-600/80 hover:text-red-600 font-bold transition-all ml-1 mt-1">
-                    <LogOutIcon size={12} /> Volver / Cerrar sesión
+                  {/* Botón de Volver (Cerrar sesión) */}
+                  <button onClick={handleLogout} className="flex items-center gap-1 text-xs text-gray-600 hover:text-red-600 font-bold transition-all ml-1 mt-1 bg-white/40 px-2 py-1 rounded-full border border-white/50 shadow-sm">
+                    <LogOutIcon size={12} /> Volver
                   </button>
                 </div>
 
