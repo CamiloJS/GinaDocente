@@ -538,6 +538,20 @@
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
 
+          // --- HELPERS PARA PESTAÑAS ACTIVAS ---
+          const getTabClass = (tabName) => {
+              return activeTab === tabName ? 'nav-active-tab' : 'hover:bg-white/40 font-medium text-gray-800';
+          };
+
+          const getMobileTabClass = (tabName) => {
+              if (activeTab === tabName) {
+                  return isDarkMode
+                      ? 'bg-[#6b1d1d] text-white scale-110 shadow-[0_4px_15px_rgba(107,29,29,0.5)] border border-white/20'
+                      : 'bg-[#e64a19] text-white scale-110 shadow-[0_4px_15px_rgba(230,74,25,0.4)] border border-white/40';
+              }
+              return isDarkMode ? 'text-gray-400 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100';
+          };
+
           // Cargar cuentas guardadas al iniciar
           useEffect(() => {
               const accs = JSON.parse(localStorage.getItem('englishTech_savedAccounts') || '[]');
@@ -1357,20 +1371,41 @@
                                 inset 0 -4px 15px rgba(0, 0, 0, 0.3) !important;
                 }
 
-                /* Resplandor circular que gira por los bordes (Colores Unipamplona) */
+                /* Resplandor circular que gira por los bordes (Modo Diurno - Rojos vivos y vibrantes) */
                 .bot-idle-animated::before {
                     content: '';
                     position: absolute;
                     /* Hace que la luz sobresalga de los límites del botón */
                     top: -6px; left: -6px; right: -6px; bottom: -6px;
                     border-radius: 50%;
-                    /* Gradiente cónico con los colores: Rojo (#AD3333), Vinotinto (#6b1d1d) y Naranja-Rojo (#e64a19) */
-                    background: conic-gradient(from 0deg, #AD3333, #6b1d1d, #e64a19, #AD3333);
+                    /* Gradiente cónico con rojos y naranjas vivos para un contraste perfecto en fondo claro */
+                    background: conic-gradient(from 0deg, #ff4d4d, #ff8533, #ff3333, #ff8533, #ff4d4d);
                     filter: blur(14px);
                     z-index: -1;
-                    opacity: 0.85;
+                    opacity: 0.95;
                     /* Gira suavemente a la misma velocidad que respira */
                     animation: spin-glow 8s linear infinite;
+                }
+
+                /* Resplandor circular (Modo Oscuro - Colores Unipamplona fuertes) */
+                .dark-mode .bot-idle-animated::before {
+                    background: conic-gradient(from 0deg, #AD3333, #6b1d1d, #e64a19, #AD3333);
+                    opacity: 0.85;
+                }
+
+                /* ESTILO PARA LA PESTAÑA ACTIVA (Colores sólidos y elegantes) */
+                .nav-active-tab {
+                    background-color: #e64a19 !important; /* Naranja tirando a rojo */
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+                    box-shadow: 0 4px 15px rgba(230, 74, 25, 0.4), inset 0 2px 5px rgba(255, 255, 255, 0.3) !important;
+                    transition: all 0.3s ease;
+                }
+                .dark-mode .nav-active-tab {
+                    background-color: #6b1d1d !important; /* Vinotinto */
+                    border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+                    box-shadow: 0 4px 15px rgba(107, 29, 29, 0.5), inset 0 2px 5px rgba(255, 255, 255, 0.1) !important;
                 }
 
                 /* Margen extra para que la barra inferior en celular no tape el contenido final */
@@ -1401,11 +1436,11 @@
                 <div className="flex gap-2 items-center mt-2 md:mt-0">
                   {/* MENÚ DE ESCRITORIO */}
                   <div className="hidden md:flex gap-2 items-center">
-                    <button onClick={() => setActiveTab('tasks')} className={`${activeTab === 'tasks' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Asignaciones</button>
-                    <button onClick={() => setActiveTab('reviews')} className={`${activeTab === 'reviews' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800 hover:text-gray-900 flex items-center gap-1`}>Repasos</button>
-                    <button onClick={() => setActiveTab('syllabus')} className={`${activeTab === 'syllabus' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Contenidos programáticos</button>
-                    <button onClick={() => setActiveTab('evaluations')} className={`${activeTab === 'evaluations' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Evaluaciones</button>
-                    {role === 'teacher' && <button onClick={() => setActiveTab('directory')} className={`${activeTab === 'directory' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Directorio</button>}
+                    <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 rounded-full transition-all text-sm ${getTabClass('tasks')}`}>Asignaciones</button>
+                    <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full transition-all text-sm flex items-center gap-1 ${getTabClass('reviews')}`}>Repasos</button>
+                    <button onClick={() => setActiveTab('syllabus')} className={`px-4 py-2 rounded-full transition-all text-sm ${getTabClass('syllabus')}`}>Contenidos programáticos</button>
+                    <button onClick={() => setActiveTab('evaluations')} className={`px-4 py-2 rounded-full transition-all text-sm ${getTabClass('evaluations')}`}>Evaluaciones</button>
+                    {role === 'teacher' && <button onClick={() => setActiveTab('directory')} className={`px-4 py-2 rounded-full transition-all text-sm ${getTabClass('directory')}`}>Directorio</button>}
                     <div className="w-px h-6 bg-gray-400 mx-2"></div>
                   </div>
                   
@@ -1417,7 +1452,7 @@
                   {role === 'student' ? (
                     <button onClick={() => setShowSugModal(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-bold px-3 py-2 rounded-full hover:scale-105 transition flex items-center gap-1 text-sm"><Mail size={16}/><span className="hidden sm:inline">Sugerencias</span></button>
                   ) : (
-                    <button onClick={() => setActiveTab('inbox')} className={`${activeTab === 'inbox' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'bg-white/60 hover:bg-white/80 font-bold text-gray-800'} px-3 py-2 rounded-full transition flex items-center gap-1 text-sm`}>
+                    <button onClick={() => setActiveTab('inbox')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-1 text-sm ${getTabClass('inbox')}`}>
                       <Mail size={16}/><span className="hidden sm:inline">Buzón</span> {alerts.length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
                     </button>
                   )}
@@ -1435,17 +1470,17 @@
               </main>
 
               {/* BARRA INFERIOR (Celulares) */}
-              <nav className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex justify-around items-center pt-3 pb-safe md:hidden z-50">
-                <button onClick={() => setActiveTab('tasks')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-16 h-16 ${activeTab === 'tasks' ? 'bg-gray-800 text-white scale-105 shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <nav className={`fixed bottom-0 left-0 w-full backdrop-blur-xl border-t flex justify-around items-center pt-3 pb-safe md:hidden z-50 transition-colors duration-500 ${isDarkMode ? 'bg-gray-900/80 border-gray-800 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : 'bg-white/90 border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]'}`}>
+                <button onClick={() => setActiveTab('tasks')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-14 h-14 mb-2 ${getMobileTabClass('tasks')}`}>
                   <NavNotebook size={24} />
                 </button>
-                <button onClick={() => setActiveTab('reviews')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-16 h-16 ${activeTab === 'reviews' ? 'bg-[#AD3333] text-white scale-105 shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>
+                <button onClick={() => setActiveTab('reviews')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-14 h-14 mb-2 ${getMobileTabClass('reviews')}`}>
                   <NavSlides size={24} />
                 </button>
-                <button onClick={() => setActiveTab('syllabus')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-16 h-16 ${activeTab === 'syllabus' ? 'bg-gray-800 text-white scale-105 shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>
+                <button onClick={() => setActiveTab('syllabus')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-14 h-14 mb-2 ${getMobileTabClass('syllabus')}`}>
                   <NavCalendar size={24} />
                 </button>
-                <button onClick={() => setActiveTab('evaluations')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-16 h-16 ${activeTab === 'evaluations' ? 'bg-gray-800 text-white scale-105 shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>
+                <button onClick={() => setActiveTab('evaluations')} className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all w-14 h-14 mb-2 ${getMobileTabClass('evaluations')}`}>
                   <NavFile size={24} />
                 </button>
               </nav>
@@ -1531,6 +1566,4 @@
     </script>
 </body>
 </html>
-
-
 
