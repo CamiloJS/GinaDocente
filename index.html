@@ -63,7 +63,48 @@
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
         const secondaryAuth = getAuth(secondaryApp);
 
-        const appId = 'unipamplona-english-app';
+        // --- FIX DEL BUG DEL BOTÓN DE PUBLICAR ---
+        // Usamos la variable de entorno dinámica para evitar bloqueos de permisos en Firestore
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'unipamplona-english-app';
+
+        // --- NUEVO: LISTA DE GROSERÍAS Y FILTRO AUTOMÁTICO ESTÁTICO (REEMPLAZA A LA IA) ---
+        const BAD_WORDS = [
+            // Comunes
+            'puta', 'putas', 'puto', 'putos', 'mierda', 'mierdas', 'pendejo', 'pendejos', 'pendeja', 'pendejas', 
+            'idiota', 'idiotas', 'estupido', 'estupidos', 'estupida', 'estupidas', 'imbecil', 'imbeciles', 
+            'maricon', 'maricones', 'marica', 'maricas', 'zorra', 'zorras', 'culo', 'culos', 'coño', 'joder', 
+            'gilipollas', 'pendejadas', 'guevon', 'huevon', 'guevones', 'huevones', 'mariconada', 'putazo', 
+            'vagabunda', 'bagabunda', 'vagabundas', 'basura', 'perra', 'perras',
+            // Colombia
+            'malparido', 'malparidos', 'malparida', 'gonorrea', 'gonorreas', 'hijueputa', 'hijueputas', 
+            'hijuputa', 'carechimba', 'pirobo', 'pirobos', 'cacorro', 'bazuquero', 'sapo', 'sapa', 'picha',
+            // México
+            'chingar', 'chingue', 'chinga', 'chingada', 'chingazo', 'chingaderas', 'pinche', 'pinches', 
+            'cabron', 'cabrones', 'cabrona', 'culero', 'culeros', 'culera', 'verga', 'vergas', 'pito', 
+            'panocha', 'joto', 'jotos', 'puñetas', 'putiza', 'mamada', 'vergazos', 'putear', 'chupala',
+            // Otras combinaciones comunes
+            'mamaguevo', 'mamabicho', 'comemierda'
+        ];
+
+        const containsBadWords = (text) => {
+            // 1. Minúsculas y quitar tildes
+            let normalizedText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            // 2. Traducir "leetspeak" (números/símbolos usados como letras)
+            // Ej: p3rr4 -> perra, m13rd4 -> mierda
+            const leetMap = { '4': 'a', '@': 'a', '3': 'e', '1': 'i', '!': 'i', '0': 'o', '5': 's', '7': 't', '8': 'b', '$': 's' };
+            normalizedText = normalizedText.replace(/[4@31!0578$]/g, m => leetMap[m] || m);
+
+            // 3. Revisar contra el diccionario
+            return BAD_WORDS.some(word => {
+                const normalizedWord = word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                // Crear regex que permita repetición de letras (ej: "perra" -> "p+e+r+r+a+")
+                // Esto bloquea intentos de evasión como "peeeeerrrrraaaaa"
+                const regexStr = normalizedWord.split('').map(char => `${char}+`).join('');
+                const regex = new RegExp(`\\b${regexStr}\\b`, 'i');
+                return regex.test(normalizedText);
+            });
+        };
 
         const glassCard = "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(173,51,51,0.1)] rounded-3xl p-6 transition-all duration-300";
         const glassInput = "w-full bg-white/30 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#AD3333]/50 focus:border-[#AD3333] transition-all placeholder-gray-600 text-gray-900 shadow-inner";
@@ -182,10 +223,8 @@
             if(!commentText.trim()) return;
             setIsProcessing(true);
 
-            const prompt = `Analiza si el siguiente texto contiene groserías, insultos o lenguaje inapropiado en español, inglés o francés. Responde ÚNICAMENTE "SI" o "NO".\nTexto: "${commentText}"`;
-            const filterResult = await callGemini(prompt);
-            
-            if (filterResult?.trim().toUpperCase().includes("SI")) {
+            // --- REEMPLAZO DEL FILTRO CON IA POR FILTRO ESTÁTICO DE PALABRAS ---
+            if (containsBadWords(commentText)) {
                 showMessage("⚠️ Comentario bloqueado: Lenguaje inapropiado detectado.");
                 setIsProcessing(false);
                 return;
@@ -446,6 +485,7 @@
           const [showSugModal, setShowSugModal] = useState(false);
           const [sugText, setSugText] = useState("");
           const [isSugLoading, setIsSugLoading] = useState(false);
+          const [revealedItems, setRevealedItems] = useState({}); // Nuevo estado para la censura
           
           const [toastMessage, setToastMessage] = useState("");
           const showMessage = (msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(""), 5000); };
@@ -569,16 +609,19 @@
             e.preventDefault();
             if (!sugText) return;
             setIsSugLoading(true);
-            const prompt = `Analiza la sugerencia. Si contiene ofensas, responde "RECHAZADO". Si es constructiva, reescríbela formalmente para la profesora. Devuelve SÓLO la versión mejorada o "RECHAZADO".\n\nTexto: ${sugText}`;
-            const result = await callGemini(prompt);
-            if (!result) { setIsSugLoading(false); return; }
 
-            if (result.trim() === "RECHAZADO") {
-              showMessage("⚠️ Comentario bloqueado.");
+            // --- REEMPLAZO DEL FILTRO CON IA POR FILTRO ESTÁTICO DE PALABRAS ---
+            if (containsBadWords(sugText)) {
+              showMessage("Contenido inapropiado, se le será notificado a la profesora.");
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: loggedInName, originalText: sugText, createdAt: Date.now() });
+              setShowSugModal(false); 
+              setSugText("");
             } else {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: loggedInName, text: result, createdAt: Date.now() });
-              showMessage("✅ Sugerencia enviada."); setShowSugModal(false); setSugText("");
+              // Ahora simplemente envía el texto original sin pasarlo por la IA
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: loggedInName, text: sugText.trim(), createdAt: Date.now() });
+              showMessage("✅ Sugerencia enviada."); 
+              setShowSugModal(false); 
+              setSugText("");
             }
             setIsSugLoading(false);
           };
@@ -1065,7 +1108,18 @@
                     {alerts.length === 0 ? <p className="text-sm text-gray-500">Sin incidentes.</p> : alerts.map(a => (
                       <div key={a.id} className="bg-red-50 p-4 rounded-xl border border-red-200 relative group">
                         <p className="font-bold text-red-800 text-sm mb-1">Estudiante: {a.studentName}</p>
-                        <p className="text-red-900 font-medium italic">" {a.originalText} "</p>
+                        <div className="flex items-start gap-2">
+                          <p className="text-red-900 font-medium italic flex-1">
+                            {revealedItems[a.id] ? `" ${a.originalText} "` : `" [CONTENIDO CENSURADO] "`}
+                          </p>
+                          <button 
+                            onClick={() => setRevealedItems(prev => ({...prev, [a.id]: !prev[a.id]}))} 
+                            className="shrink-0 p-1.5 rounded-full bg-white text-black border border-black hover:bg-gray-200 shadow-sm transition-all flex items-center justify-center" 
+                            title={revealedItems[a.id] ? "Ocultar" : "Mostrar"}
+                          >
+                            {revealedItems[a.id] ? <EyeOff size={16}/> : <Eye size={16}/>}
+                          </button>
+                        </div>
                         <p className="text-xs text-red-400 mt-2">{new Date(a.createdAt).toLocaleString()}</p>
                         <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alerts', a.id))} className="absolute top-2 right-2 p-1.5 bg-white text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
                       </div>
@@ -1308,6 +1362,21 @@
                   </div>
               )}
 
+              {/* MODAL DEL BUZÓN DE SUGERENCIAS */}
+              {showSugModal && (
+                  <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                      <div className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200`}>
+                          <button onClick={() => setShowSugModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors"><X size={20}/></button>
+                          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Mail className="text-[#AD3333]"/> Buzón de sugerencias</h3>
+                          <p className="text-sm text-gray-600">Deja tu sugerencia o retroalimentación de las clases de lo que te gustaría ver más (o menos) en clase!</p>
+                          <form onSubmit={handleSubmitSuggestion} className="flex flex-col gap-3">
+                              <textarea value={sugText} onChange={e => setSugText(e.target.value)} placeholder="Escribe tu sugerencia aquí..." className={`${glassInput} h-32 resize-none`} required />
+                              <button type="submit" disabled={isSugLoading} className={redButton}>{isSugLoading ? <Loader2 className="animate-spin" size={20}/> : 'Enviar'}</button>
+                          </form>
+                      </div>
+                  </div>
+              )}
+
               {toastMessage && (
                 <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/95 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl z-[200] font-medium text-sm text-center border border-gray-700 whitespace-nowrap">
                   {toastMessage}
@@ -1322,7 +1391,4 @@
     </script>
 </body>
 </html>
-
-
-
 
