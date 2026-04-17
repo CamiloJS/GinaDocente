@@ -42,6 +42,10 @@
         const ImageIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
         const Send = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
         const UploadCloud = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="16 16 12 12 8 16"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>;
+        const MessageCircle = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>;
+        const UserIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const UsersGroupIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+        const ArrowLeftIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
 
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
@@ -142,7 +146,7 @@
             'camilopruebas': { email: 'edwincamilojaimes1@gmail.com', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
         };
 
-        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode }) => {
+        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode, confirmAction }) => {
           const [commentText, setCommentText] = useState("");
           const [commentImageUrl, setCommentImageUrl] = useState("");
           const [showCommentImageInput, setShowCommentImageInput] = useState(false);
@@ -344,7 +348,7 @@
                   )}
                 </div>
                 {role === 'teacher' && (
-                  <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id))} className="text-gray-400 hover:text-red-600 transition relative z-10">
+                  <button onClick={() => confirmAction("¿Desea eliminar esta publicación definitivamente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)))} className="text-gray-400 hover:text-red-600 transition relative z-10">
                     <Trash2 size={20} />
                   </button>
                 )}
@@ -400,9 +404,14 @@
                                               <div className="flex justify-between items-center">
                                                   <span>{c.author} borró el comentario.</span>
                                                   {role === 'teacher' && (
-                                                      <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className={`font-bold px-2 py-1 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-blue-400 hover:text-blue-300' : 'bg-white text-blue-600 hover:text-blue-800'}`}>
-                                                          {revealedComments[cid] ? "Ocultar" : "Revelar"}
-                                                      </button>
+                                                      <div className="flex gap-2 items-center">
+                                                          <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className={`font-bold px-2 py-1 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-blue-400 hover:text-blue-300' : 'bg-white text-blue-600 hover:text-blue-800'}`}>
+                                                              {revealedComments[cid] ? "Ocultar" : "Revelar"}
+                                                          </button>
+                                                          <button onClick={() => confirmAction("¿Desea borrar este registro definitivamente de la base de datos?", () => handleDeleteComment(cid, c.author))} className={`font-bold p-1.5 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-red-400 hover:text-red-300' : 'bg-white text-red-600 hover:text-red-800'}`} title="Borrar registro permanentemente">
+                                                              <Trash2 size={14} />
+                                                          </button>
+                                                      </div>
                                                   )}
                                               </div>
                                               {role === 'teacher' && revealedComments[cid] && (
@@ -442,7 +451,7 @@
                                                 <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400 bg-gray-700' : 'text-gray-400 hover:text-blue-600 bg-gray-100'}`}><Edit3 size={16}/></button>
                                             )}
                                             {(role === 'teacher' || isOwner) && !isEditing && (
-                                                <button onClick={() => handleDeleteComment(cid, c.author)} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 bg-gray-700' : 'text-gray-400 hover:text-red-600 bg-gray-100'}`}><Trash2 size={16}/></button>
+                                                <button onClick={() => confirmAction("¿Seguro que desea borrar este comentario?", () => handleDeleteComment(cid, c.author))} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 bg-gray-700' : 'text-gray-400 hover:text-red-600 bg-gray-100'}`}><Trash2 size={16}/></button>
                                             )}
                                         </div>
                                     </div>
@@ -609,6 +618,7 @@
           const [loginError, setLoginError] = useState("");
           
           const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: "", onConfirm: null }); // ESTADO DEL MODAL DE CONFIRMACIÓN
 
           useEffect(() => {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -665,6 +675,24 @@
           const [chatInput, setChatInput] = useState("");
           const [isChatLoading, setIsChatLoading] = useState(false);
 
+          // --- ESTADOS DE MENSAJERÍA DIRECTA Y GRUPOS ---
+          const [isChatAppOpen, setIsChatAppOpen] = useState(false);
+          const [activeChat, setActiveChat] = useState(null); // { id, name, type: 'dm'|'group' }
+          const [chatMessages, setChatMessages] = useState([]);
+          const [chatGroups, setChatGroups] = useState([]);
+          const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+          const [newGroupName, setNewGroupName] = useState("");
+          const [newGroupMembers, setNewGroupMembers] = useState([]);
+          
+          const [chatAppInput, setChatAppInput] = useState("");
+          const [chatAppImageUrl, setChatAppImageUrl] = useState("");
+          const [showChatAppAttachmentMenu, setShowChatAppAttachmentMenu] = useState(false);
+          const [showChatAppImageInput, setShowChatAppImageInput] = useState(false);
+          const [showChatAppEmojiPicker, setShowChatAppEmojiPicker] = useState(false);
+          const chatMessagesEndRef = useRef(null);
+
+          const myChatId = role === 'teacher' ? 'teacher' : loggedInUser.replace('@', '');
+
           const [tasks, setTasks] = useState([]);
           const [syllabus, setSyllabus] = useState([]);
           const [evaluations, setEvaluations] = useState([]);
@@ -672,6 +700,10 @@
           const [suggestions, setSuggestions] = useState([]);
           const [alerts, setAlerts] = useState([]);
           const [reviews, setReviews] = useState([]); 
+
+          const confirmAction = (msg, action) => {
+              setConfirmDialog({ isOpen: true, message: msg, onConfirm: action });
+          };
 
           const getTabClass = (tabName) => {
               return activeTab === tabName ? 'nav-active-tab' : 'hover:bg-white/40 font-medium text-gray-800';
@@ -944,9 +976,95 @@
             const uReviews = onSnapshot(collection(db, ...base, 'reviews'), s => setReviews(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uBotSettings = onSnapshot(doc(db, ...base, 'settings', 'bot'), d => setBotInfoList(d.data()?.infoList || []));
             const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
+            
+            const uGroups = onSnapshot(collection(db, ...base, 'chatGroups'), s => setChatGroups(s.docs.map(d => ({ id: d.id, ...d.data() }))));
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); };
+            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); };
           }, [user]);
+
+          // --- LISTENER DE MENSAJES DEL CHAT ACTIVO ---
+          useEffect(() => {
+              if (!activeChat || !user) return;
+              const base = ['artifacts', appId, 'public', 'data'];
+              const unsubscribe = onSnapshot(collection(db, ...base, 'chats', activeChat.id, 'messages'), s => {
+                  setChatMessages(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.createdAt - b.createdAt));
+              });
+              return () => unsubscribe();
+          }, [activeChat, user]);
+
+          // Hacer scroll automático al final del chat cuando hay nuevos mensajes
+          useEffect(() => {
+              if (activeChat && isChatAppOpen) {
+                  chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }
+          }, [chatMessages, isChatAppOpen, activeChat]);
+
+          // --- GENERAR LISTA DE USUARIOS ---
+          const allChatUsers = [
+              { id: 'teacher', name: 'Profesora', role: 'teacher' },
+              ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role })),
+              ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ id, name: data.name, role: data.role }))
+          ].filter(u => u.id !== myChatId); // Excluirme a mí mismo
+
+          const myGroups = chatGroups.filter(g => g.members?.includes(myChatId));
+
+          // --- FUNCIÓN PARA ENVIAR MENSAJE EN EL CHAT ACTIVO ---
+          const handleSendAppMessage = async (e) => {
+              e.preventDefault();
+              if (!chatAppInput.trim() && !chatAppImageUrl.trim()) return;
+
+              if (containsBadWords(chatAppInput)) {
+                  showMessage("⚠️ Mensaje bloqueado: Lenguaje inapropiado.");
+                  return;
+              }
+
+              const authorName = role === 'teacher' ? 'Profesora' : loggedInName;
+
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages'), {
+                  text: chatAppInput.trim(),
+                  imageUrl: chatAppImageUrl.trim(),
+                  author: authorName,
+                  authorId: myChatId,
+                  uid: user.uid,
+                  createdAt: Date.now()
+              });
+
+              setChatAppInput("");
+              setChatAppImageUrl("");
+              setShowChatAppAttachmentMenu(false);
+              setShowChatAppImageInput(false);
+              setShowChatAppEmojiPicker(false);
+          };
+
+          // --- FUNCIÓN PARA CREAR GRUPO ---
+          const handleCreateGroup = async (e) => {
+              e.preventDefault();
+              if (!newGroupName.trim() || newGroupMembers.length === 0) {
+                  showMessage("⚠️ Ingresa un nombre y selecciona al menos 1 miembro.");
+                  return;
+              }
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chatGroups'), {
+                  name: newGroupName.trim(),
+                  members: [myChatId, ...newGroupMembers],
+                  createdBy: myChatId,
+                  createdAt: Date.now()
+              });
+              setIsCreatingGroup(false);
+              setNewGroupName("");
+              setNewGroupMembers([]);
+              showMessage("✅ Grupo creado.");
+          };
+
+          const handleChatAppLocalImageUpload = async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              try {
+                  const compressed = await compressImage(file, 800, 800, 0.6);
+                  setChatAppImageUrl(compressed);
+              } catch (error) {
+                  showMessage("Hubo un error al procesar tu imagen.");
+              }
+          };
 
           // --- Función para la profesora (Publicar tarea con imagen local) ---
           const handlePostLocalImageUpload = async (e) => {
@@ -1065,7 +1183,7 @@
                 </div>
               )}
               {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} />)}
+              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} confirmAction={confirmAction} />)}
             </div>
           );
 
@@ -1185,7 +1303,7 @@
                         </div>
                         <div className="relative z-10 flex justify-between items-center px-5 py-3 border-t border-white/30 bg-white/20 backdrop-blur-md">
                           <span className="text-xs font-bold text-gray-900">{r.slides?.length || 0} diapositivas</span>
-                          {role === 'teacher' && <button onClick={(e) => { e.stopPropagation(); deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reviews', r.id)); }} className="text-gray-800 hover:text-red-600"><Trash2 size={16} /></button>}
+                          {role === 'teacher' && <button onClick={(e) => { e.stopPropagation(); confirmAction("¿Borrar este repaso de forma permanente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reviews', r.id))); }} className="text-gray-800 hover:text-red-600"><Trash2 size={16} /></button>}
                         </div>
                       </div>
                     ))}
@@ -1207,8 +1325,10 @@
                               <div key={item.id} className="bg-white/50 p-3 rounded-xl text-xs flex justify-between items-start gap-2 border border-white/60 shadow-sm">
                                   <span className="text-gray-800 break-words flex-1 font-medium">{item.text}</span>
                                   <button onClick={() => {
-                                      const newList = botInfoList.filter(i => i.id !== item.id);
-                                      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
+                                      confirmAction("¿Seguro que desea eliminar esta instrucción del bot?", () => {
+                                          const newList = botInfoList.filter(i => i.id !== item.id);
+                                          setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
+                                      });
                                   }} className="text-gray-400 hover:text-red-600 shrink-0 transition-colors" title="Eliminar regla"><Trash2 size={16}/></button>
                               </div>
                           ))}
@@ -1255,7 +1375,7 @@
                             <td className="p-4 font-bold text-[#AD3333]">S{item.week}</td>
                             <td className="p-4 text-sm">{item.topic}</td>
                             <td className="p-4">{item.material ? <a href={item.material} target="_blank" className="text-blue-600 underline text-xs font-bold">Ver PDF</a> : '-'}</td>
-                            {role === 'teacher' && <td className="p-4"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))}><Trash2 size={14}/></button></td>}
+                            {role === 'teacher' && <td className="p-4"><button onClick={() => confirmAction("¿Desea borrar este tema del syllabus?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id)))}><Trash2 size={14}/></button></td>}
                           </tr>
                         ))}
                       </tbody>
@@ -1311,7 +1431,7 @@
                                    <p className="text-xs text-gray-600">Usuario: @{userKey}</p>
                                    <p className="text-xs text-gray-500">Correo: {data.email}</p>
                                </div>
-                               <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey))} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
+                               <button onClick={() => confirmAction("¿Desea eliminar a este estudiante del directorio?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey)))} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
                            </div>
                        ))}
                    </div>
@@ -1340,7 +1460,7 @@
                         <p className="font-bold text-gray-800 text-sm mb-1">{s.studentName}</p>
                         <p className="text-gray-700">{s.text}</p>
                         <p className="text-xs text-gray-400 mt-2">{new Date(s.createdAt).toLocaleString()}</p>
-                        <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'suggestions', s.id))} className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
+                        <button onClick={() => confirmAction("¿Borrar esta sugerencia?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'suggestions', s.id)))} className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
                       </div>
                     ))}
                   </div>
@@ -1364,7 +1484,7 @@
                           </button>
                         </div>
                         <p className="text-xs text-red-400 mt-2">{new Date(a.createdAt).toLocaleString()}</p>
-                        <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alerts', a.id))} className="absolute top-2 right-2 p-1.5 bg-white text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
+                        <button onClick={() => confirmAction("¿Borrar esta alerta?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'alerts', a.id)))} className="absolute top-2 right-2 p-1.5 bg-white text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
                       </div>
                     ))}
                   </div>
@@ -1690,6 +1810,206 @@
                   </div>
               )}
 
+              {/* BOTÓN Y MODAL DE CHAT DIRECTO Y GRUPOS (IZQUIERDA) */}
+              {hasEntered && (
+                  <div className="fixed bottom-24 md:bottom-6 left-4 md:left-6 z-[90]">
+                      <button
+                          onClick={() => setIsChatAppOpen(true)}
+                          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.2)] hover:scale-110 transition-all duration-300 ${isDarkMode ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'}`}
+                          title="Mensajes Directos"
+                      >
+                          <MessageCircle size={28} />
+                      </button>
+                  </div>
+              )}
+
+              {isChatAppOpen && ReactDOM.createPortal(
+                  <div className={`fixed inset-0 z-[99999] flex flex-col animate-in fade-in zoom-in-95 duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+                      
+                      {/* VISTA 1: LISTADO DE CHATS / DIRECTORIO */}
+                      {!activeChat && !isCreatingGroup && (
+                          <div className="flex flex-col h-full">
+                              <div className={`flex justify-between items-center p-4 md:p-6 border-b shadow-sm shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                  <h2 className={`text-xl md:text-2xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                                      <MessageCircle className="text-blue-500" /> Mensajes
+                                  </h2>
+                                  <button onClick={() => setIsChatAppOpen(false)} className={`p-3 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}>
+                                      <X size={24} />
+                                  </button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+                                  {/* SECCIÓN GRUPOS */}
+                                  <div>
+                                      <div className="flex justify-between items-center mb-3">
+                                          <h3 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Grupos</h3>
+                                          <button onClick={() => setIsCreatingGroup(true)} className="text-blue-500 font-bold text-xs bg-blue-500/10 px-3 py-1 rounded-full hover:bg-blue-500/20 transition-colors">+ Crear Grupo</button>
+                                      </div>
+                                      <div className="space-y-2">
+                                          {myGroups.length === 0 && <p className="text-sm italic text-gray-500">No perteneces a ningún grupo aún.</p>}
+                                          {myGroups.map(g => (
+                                              <button key={g.id} onClick={() => setActiveChat({ id: `group_${g.id}`, name: g.name, type: 'group' })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white"><UsersGroupIcon size={20}/></div>
+                                                  <div className="text-left"><p className={`font-bold text-base ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{g.name}</p><p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{g.members.length} miembros</p></div>
+                                              </button>
+                                          ))}
+                                      </div>
+                                  </div>
+                                  
+                                  {/* SECCIÓN CONTACTOS */}
+                                  <div>
+                                      <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Contactos</h3>
+                                      <div className="space-y-2">
+                                          {allChatUsers.map(u => {
+                                              const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
+                                              return (
+                                                  <button key={u.id} onClick={() => setActiveChat({ id: chatId, name: u.name, type: 'dm' })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                          {u.role === 'teacher' ? <FileText size={20}/> : <UserIcon size={20}/>}
+                                                      </div>
+                                                      <div className="text-left"><p className={`font-bold text-base ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p><p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p></div>
+                                                  </button>
+                                              );
+                                          })}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+
+                      {/* VISTA 2: CREAR GRUPO */}
+                      {isCreatingGroup && (
+                          <div className="flex flex-col h-full">
+                              <div className={`flex items-center p-4 md:p-6 border-b shadow-sm shrink-0 gap-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                  <button onClick={() => {setIsCreatingGroup(false); setNewGroupName(""); setNewGroupMembers([]);}} className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}><ArrowLeftIcon size={24} /></button>
+                                  <h2 className={`text-xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Crear Nuevo Grupo</h2>
+                              </div>
+                              <form onSubmit={handleCreateGroup} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+                                  <div>
+                                      <label className={`block text-sm font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Nombre del Grupo</label>
+                                      <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Ej: Equipo Proyecto Final" className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-500/50' : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-400/50'}`} required />
+                                  </div>
+                                  <div>
+                                      <label className={`block text-sm font-bold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Seleccionar Miembros</label>
+                                      <div className={`border rounded-2xl overflow-hidden ${isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-white'}`}>
+                                          {allChatUsers.map(u => (
+                                              <label key={u.id} className={`flex items-center gap-3 p-4 border-b last:border-0 cursor-pointer transition-colors ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'}`}>
+                                                  <input type="checkbox" checked={newGroupMembers.includes(u.id)} onChange={(e) => {
+                                                      if (e.target.checked) setNewGroupMembers([...newGroupMembers, u.id]);
+                                                      else setNewGroupMembers(newGroupMembers.filter(id => id !== u.id));
+                                                  }} className="w-5 h-5 accent-blue-600" />
+                                                  <span className={`font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name} <span className="text-xs font-normal text-gray-500">({u.role === 'teacher' ? 'Docente' : 'Estudiante'})</span></span>
+                                              </label>
+                                          ))}
+                                      </div>
+                                  </div>
+                                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all">Crear Grupo</button>
+                              </form>
+                          </div>
+                      )}
+
+                      {/* VISTA 3: CHAT ACTIVO */}
+                      {activeChat && !isCreatingGroup && (
+                          <div className="flex flex-col h-full">
+                              {/* Encabezado Chat */}
+                              <div className={`flex items-center p-4 md:p-6 border-b shadow-sm shrink-0 gap-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                  <button onClick={() => setActiveChat(null)} className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}><ArrowLeftIcon size={24} /></button>
+                                  <div className="flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.name === 'Profesora' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
+                                          {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.name === 'Profesora' ? <FileText size={20}/> : <UserIcon size={20}/>)}
+                                      </div>
+                                      <h2 className={`text-xl font-extrabold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
+                                  </div>
+                              </div>
+
+                              {/* Mensajes */}
+                              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 scroll-smooth">
+                                  {chatMessages.length === 0 && <p className="text-center text-gray-500 italic mt-10">Envía un mensaje para iniciar la conversación.</p>}
+                                  {chatMessages.map(m => {
+                                      const isMe = m.authorId === myChatId;
+                                      const isTeacher = m.author === 'Profesora';
+                                      return (
+                                          <div key={m.id} className={`flex flex-col max-w-[85%] md:max-w-[60%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
+                                              {!isMe && activeChat.type === 'group' && <span className={`text-[11px] font-bold mb-1 px-1 ${isTeacher ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>{m.author}</span>}
+                                              <div className={`p-3 md:p-4 rounded-2xl shadow-sm ${isMe ? (isDarkMode ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-blue-600 text-white rounded-tr-sm') : (isDarkMode ? 'bg-gray-800 text-gray-100 rounded-tl-sm border border-gray-700' : 'bg-white text-gray-800 rounded-tl-sm border border-gray-200')}`}>
+                                                  {m.text && <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{m.text}</p>}
+                                                  {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className="mt-2 rounded-xl max-h-60 object-contain cursor-pointer bg-black/10 border border-white/20" />}
+                                              </div>
+                                              <span className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                          </div>
+                                      );
+                                  })}
+                                  <div ref={chatMessagesEndRef} />
+                              </div>
+
+                              {/* Input Chat */}
+                              <form onSubmit={handleSendAppMessage} className={`p-4 border-t shrink-0 flex flex-col gap-3 pb-safe ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                                  <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
+                                      
+                                      <button type="button" onClick={() => setShowChatAppEmojiPicker(!showChatAppEmojiPicker)} className={`p-2 transition rounded-xl ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'}`}>
+                                          <SmileIcon size={24} />
+                                      </button>
+
+                                      <div className="relative">
+                                          <button type="button" onClick={() => setShowChatAppAttachmentMenu(!showChatAppAttachmentMenu)} className={`p-2 transition rounded-xl ${(showChatAppImageInput || showChatAppAttachmentMenu) ? 'text-blue-500 ' + (isDarkMode ? 'bg-gray-800' : 'bg-gray-200') : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`} title="Adjuntar Imagen">
+                                              <ImageIcon size={24} />
+                                          </button>
+
+                                          {showChatAppAttachmentMenu && (
+                                              <div className={`absolute bottom-full left-0 mb-4 w-44 backdrop-blur-2xl border shadow-2xl rounded-2xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                                  <button type="button" onClick={() => { setShowChatAppImageInput(!showChatAppImageInput); setShowChatAppAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                                      <ImageIcon size={16} /> Enlace web
+                                                  </button>
+                                                  <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                                      <UploadCloud size={16} /> Subir archivo
+                                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleChatAppLocalImageUpload(e); setShowChatAppAttachmentMenu(false); }} />
+                                                  </label>
+                                              </div>
+                                          )}
+                                      </div>
+
+                                      {showChatAppEmojiPicker && (
+                                          <div className={`absolute bottom-full left-4 mb-4 backdrop-blur-2xl border shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-3 z-50 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                              {COMMENT_EMOJIS.map(emj => (
+                                                  <button key={emj} type="button" onClick={() => {setChatAppInput(prev => prev + emj); setShowChatAppEmojiPicker(false);}} className="text-3xl hover:scale-125 transition-transform">{emj}</button>
+                                              ))}
+                                          </div>
+                                      )}
+
+                                      <input 
+                                        value={chatAppInput} onChange={(e) => setChatAppInput(e.target.value)} 
+                                        placeholder="Escribe un mensaje..." 
+                                        className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
+                                      />
+                                      
+                                      <button type="submit" className="p-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-xl transition-all flex items-center justify-center">
+                                          <Send size={24} />
+                                      </button>
+                                  </div>
+
+                                  {(showChatAppImageInput || chatAppImageUrl) && (
+                                      <div className="px-1 animate-in fade-in slide-in-from-top-2 relative">
+                                          {showChatAppImageInput && (
+                                              <input 
+                                                  value={chatAppImageUrl} onChange={e => setChatAppImageUrl(e.target.value)} 
+                                                  placeholder="Enlace DIRECTO de imagen..." 
+                                                  className={`w-full rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all text-sm font-medium border shadow-inner ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100 focus:ring-blue-500/50' : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-blue-400/50'}`} 
+                                              />
+                                          )}
+                                          
+                                          {chatAppImageUrl && (
+                                              <div className="relative w-fit mt-3">
+                                                  <img src={chatAppImageUrl} alt="Preview" className={`h-24 w-24 object-cover rounded-xl border shadow-sm ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />
+                                                  <button type="button" onClick={() => setChatAppImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
+                                              </div>
+                                          )}
+                                      </div>
+                                  )}
+                              </form>
+                          </div>
+                      )}
+                  </div>
+              , document.body)}
+
               {showSugModal && (
                   <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
                       <div className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200`}>
@@ -1709,6 +2029,22 @@
                   {toastMessage}
                 </div>
               )}
+
+              {/* MODAL GLOBAL DE CONFIRMACIÓN */}
+              {confirmDialog.isOpen && ReactDOM.createPortal(
+                  <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                      <div className={`max-w-sm w-full flex flex-col gap-4 p-6 rounded-3xl animate-in fade-in zoom-in duration-200 shadow-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                          <h3 className={`text-xl font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                              <AlertTriangle className="text-red-500" /> Confirmar Acción
+                          </h3>
+                          <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{confirmDialog.message}</p>
+                          <div className="flex gap-3 mt-4">
+                              <button onClick={() => setConfirmDialog({ isOpen: false })} className={`flex-1 py-2.5 rounded-xl font-bold transition-all shadow-sm ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'}`}>Cancelar</button>
+                              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false }); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition-all shadow-md">Sí, borrar</button>
+                          </div>
+                      </div>
+                  </div>
+              , document.body)}
             </div>
           );
         }
