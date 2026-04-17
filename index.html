@@ -15,30 +15,29 @@
     <script type="text/babel" data-type="module">
         const { useState, useEffect, useRef } = React;
         
-        // --- IMPORTACIONES ADAPTADAS ---
+        // --- IMPORTACIONES FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Íconos generales de Lucide
+        // Íconos de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
-        const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const CheckSquare = createIcon('☑️');
-        const Plus = createIcon('➕'); const FileText = createIcon('📄');
+        const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const Plus = createIcon('➕'); 
         const Trash2 = createIcon('🗑️'); const X = createIcon('❌'); const Sparkles = createIcon('✨');
-        const CheckCheck = createIcon('✅'); const Loader2 = createIcon('⏳'); 
-        const Undo2 = createIcon('↩️'); const Clock = createIcon('⏰'); const Lock = createIcon('🔒');
-        const Mail = createIcon('📥'); const AlertTriangle = createIcon('⚠️'); 
-        const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); const Edit3 = createIcon('✏️');
-        const Palette = createIcon('🎨'); const BotIcon = createIcon('🤖');
+        const CheckCheck = createIcon('✅'); const Loader2 = createIcon('⏳'); const Undo2 = createIcon('↩️'); 
+        const Clock = createIcon('⏰'); const Lock = createIcon('🔒'); const Mail = createIcon('📥'); 
+        const AlertTriangle = createIcon('⚠️'); const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); 
+        const Edit3 = createIcon('✏️'); const Palette = createIcon('🎨'); const UsersIcon = createIcon('👥');
+        const FileText = createIcon('📄');
         
         // Íconos SVG
+        const CuteBotIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
         const Sun = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
         const Moon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
         const LogOutIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>;
         const ArrowRightIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
         const SmileIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>;
 
-        // Íconos SVG barra inferior de celulares
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
         const NavCalendar = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>;
@@ -57,9 +56,13 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        
+        // INSTANCIA SECUNDARIA (Truco para que la profe cree usuarios sin cerrar su sesión)
+        const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        const secondaryAuth = getAuth(secondaryApp);
+
         const appId = 'unipamplona-english-app';
 
-        // --- ESTILOS LIQUID Glass MEJORADOS ---
         const glassCard = "bg-white/20 backdrop-blur-2xl border border-white/40 shadow-[0_8px_32px_0_rgba(173,51,51,0.1)] rounded-3xl p-6 transition-all duration-300";
         const glassInput = "w-full bg-white/30 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#AD3333]/50 focus:border-[#AD3333] transition-all placeholder-gray-600 text-gray-900 shadow-inner";
         const redButton = "bg-[#AD3333]/90 backdrop-blur-md text-white px-6 py-3 rounded-full font-semibold shadow-lg shadow-[#AD3333]/30 hover:shadow-[0_0_25px_#AD3333] hover:bg-[#8a2828] transition-all duration-300 flex items-center justify-center gap-2";
@@ -69,19 +72,14 @@
         const COMMENT_EMOJIS = ['😀', '😂', '🥰', '😎', '👍', '🙏', '❤️', '🔥', '✨', '🤔'];
 
         const SLIDE_GRADIENTS = [
-          "from-blue-400/40 to-indigo-500/40",
-          "from-emerald-400/40 to-teal-500/40",
-          "from-rose-400/40 to-orange-500/40",
-          "from-purple-400/40 to-pink-500/40",
-          "from-amber-400/40 to-red-500/40",
-          "from-cyan-400/40 to-blue-500/40",
-          "from-fuchsia-400/40 to-rose-500/40"
+          "from-blue-400/40 to-indigo-500/40", "from-emerald-400/40 to-teal-500/40", "from-rose-400/40 to-orange-500/40",
+          "from-purple-400/40 to-pink-500/40", "from-amber-400/40 to-red-500/40", "from-cyan-400/40 to-blue-500/40"
         ];
 
-        // --- BASE DE DATOS LOCAL DE USUARIOS (PROTOTIPO) ---
-        const USERS_DB = {
-            'GinaDocente': { pass: 'DANTE12345', name: 'Profesora', role: 'teacher' },
-            '@CamiloPruebas': { pass: '12345', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
+        // Mapeo inicial de emergencia por si la BD falla
+        const FALLBACK_MAP = {
+            'ginadocente': { email: 'ginamarcelaquintana19@gmail.com', name: 'La profe', role: 'teacher' },
+            'camilopruebas': { email: 'edwincamilojaimes1@gmail.com', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
         };
 
         const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName }) => {
@@ -92,6 +90,7 @@
           
           const [editingCommentId, setEditingCommentId] = useState(null);
           const [editCommentText, setEditCommentText] = useState("");
+          const [revealedComments, setRevealedComments] = useState({}); 
 
           const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
           const isExpired = new Date() > deadline;
@@ -112,9 +111,7 @@
 
           const toggleReaction = async (type) => {
             if (isLocked || !currentUser) return;
-            const currentReactions = task.reactions || {};
-            const newReactions = { ...currentReactions };
-            
+            const newReactions = { ...(task.reactions || {}) };
             const currentReactionData = newReactions[currentUser.uid];
             const currentType = typeof currentReactionData === 'object' ? currentReactionData.type : currentReactionData;
 
@@ -126,19 +123,15 @@
 
           const toggleCommentReaction = async (commentId, emoji) => {
             if (isLocked || !currentUser) return;
-            const updatedComments = (task.comments || []).map(c => {
-                if (c.id === commentId) {
+            const updatedComments = (task.comments || []).map((c, i) => {
+                const currentCid = c.id || `old-${i}`; 
+                if (currentCid === commentId) {
                     const reactions = { ...(c.reactions || {}) };
                     const currentReact = reactions[currentUser.uid];
-                    // Aseguramos leer el emoji correcto si ya estaba guardado como objeto o texto simple
                     const currentEmoji = typeof currentReact === 'object' ? currentReact.emoji : currentReact;
                     
-                    if (currentEmoji === emoji) {
-                        delete reactions[currentUser.uid];
-                    } else {
-                        // Guardamos el emoji junto con el nombre del usuario
-                        reactions[currentUser.uid] = { emoji: emoji, name: loggedInName };
-                    }
+                    if (currentEmoji === emoji) delete reactions[currentUser.uid];
+                    else reactions[currentUser.uid] = { emoji: emoji, name: loggedInName };
                     return { ...c, reactions };
                 }
                 return c;
@@ -149,10 +142,10 @@
           const handleDeleteComment = async (commentId, authorName) => {
               let updatedComments;
               if (role === 'teacher') {
-                  updatedComments = task.comments.filter(c => c.id !== commentId);
+                  updatedComments = task.comments.filter((c, i) => (c.id || `old-${i}`) !== commentId);
               } else {
-                  updatedComments = task.comments.map(c => 
-                      c.id === commentId ? { ...c, isDeleted: true, text: "" } : c
+                  updatedComments = task.comments.map((c, i) => 
+                      (c.id || `old-${i}`) === commentId ? { ...c, isDeleted: true } : c
                   );
               }
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
@@ -160,8 +153,8 @@
 
           const saveEditedComment = async () => {
               if (!editCommentText.trim()) return;
-              const updatedComments = task.comments.map(c => 
-                  c.id === editingCommentId ? { ...c, text: editCommentText.trim() } : c
+              const updatedComments = task.comments.map((c, i) => 
+                  (c.id || `old-${i}`) === editingCommentId ? { ...c, text: editCommentText.trim() } : c
               );
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
               setEditingCommentId(null);
@@ -183,7 +176,7 @@
 
             const newComment = { 
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
-                author: role === 'teacher' ? 'Profesora' : loggedInName, 
+                author: role === 'teacher' ? 'La profe' : loggedInName, 
                 text: commentText.trim(),
                 isDeleted: false,
                 reactions: {}
@@ -202,7 +195,9 @@
 
             Object.values(task.reactions || {}).forEach(r => { 
                 const rType = typeof r === 'object' ? r.type : r;
-                const rName = typeof r === 'object' ? r.name : 'Un usuario';
+                let rName = typeof r === 'object' ? r.name : 'Un usuario';
+                if (rName === 'Profesora') rName = 'La profe';
+
                 if (counts[rType] !== undefined) { 
                     counts[rType]++; 
                     namesByType[rType].push(rName);
@@ -262,18 +257,32 @@
                 <h4 className="text-sm font-bold text-gray-700 mb-3 drop-shadow-sm">Comentarios</h4>
                 <div className="space-y-3 mb-4 max-h-40 overflow-y-auto pr-2 relative z-10">
                   {task.comments?.map((c, i) => {
-                    const cid = c.id;
-                    const isOwner = c.author === loggedInName || (role === 'teacher' && c.author === 'Profesora');
+                    const cid = c.id || `old-${i}`; 
+                    const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === 'Profesora' || c.author === 'La profe'));
                     const isEditing = editingCommentId === cid;
                     
                     if (c.isDeleted) {
-                        return <div key={cid} className="bg-white/20 p-3 rounded-xl text-xs text-gray-500 italic border border-white/30">{c.author} eliminó este comentario.</div>;
+                        return (
+                            <div key={cid} className="bg-white/20 p-3 rounded-xl text-xs text-gray-500 italic border border-white/30 flex flex-col gap-2">
+                                <div className="flex justify-between items-center">
+                                    <span>{c.author} eliminó este comentario.</span>
+                                    {role === 'teacher' && (
+                                        <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className="text-blue-600 hover:text-blue-800 font-bold bg-white/50 px-2 py-1 rounded shadow-sm transition-all">
+                                            {revealedComments[cid] ? "Ocultar" : "Revelar"}
+                                        </button>
+                                    )}
+                                </div>
+                                {role === 'teacher' && revealedComments[cid] && (
+                                    <p className="text-gray-700 bg-white/40 p-2 rounded line-through not-italic mt-1">{c.text}</p>
+                                )}
+                            </div>
+                        );
                     }
 
                     return (
                         <div key={cid} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30 group/comment">
                           <div className="flex justify-between items-start">
-                              <span className={`font-bold ${c.author === 'Profesora' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
+                              <span className={`font-bold ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
                               
                               <div className="hidden group-hover/comment:flex items-center gap-2">
                                   {isOwner && !isEditing && (
@@ -298,17 +307,13 @@
                           {/* Reacciones en comentarios */}
                           <div className="mt-2 flex gap-1 items-center flex-wrap">
                               {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
-                                  // Agrupamos emojis y nombres para mostrar al pasar el mouse
                                   const emoji = typeof rData === 'object' ? rData.emoji : rData;
-                                  const name = typeof rData === 'object' ? rData.name : 'Un usuario';
-                                  const existing = acc.find(item => item.emoji === emoji);
+                                  let name = typeof rData === 'object' ? rData.name : 'Un usuario';
+                                  if (name === 'Profesora') name = 'La profe';
                                   
-                                  if (existing) {
-                                      existing.count++;
-                                      existing.names.push(name);
-                                  } else {
-                                      acc.push({ emoji, count: 1, names: [name] });
-                                  }
+                                  const existing = acc.find(item => item.emoji === emoji);
+                                  if (existing) { existing.count++; existing.names.push(name); } 
+                                  else { acc.push({ emoji, count: 1, names: [name] }); }
                                   return acc;
                               }, []).map((r, idx) => (
                                   <span key={idx} title={`${r.names.join(', ')} reaccionó así`} className="bg-white/50 px-1.5 py-0.5 rounded-full text-[10px] text-gray-700 border border-white/60 cursor-help">{r.emoji} {r.count}</span>
@@ -380,15 +385,14 @@
           const [loginType, setLoginType] = useState(null); 
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
+          const [userMappings, setUserMappings] = useState({}); 
           
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
           const [activeTab, setActiveTab] = useState('tasks');
           const [loginError, setLoginError] = useState("");
           
-          const [isDarkMode, setIsDarkMode] = useState(() => {
-            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          });
+          const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
           useEffect(() => {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -402,10 +406,7 @@
           const [isSugLoading, setIsSugLoading] = useState(false);
           
           const [toastMessage, setToastMessage] = useState("");
-          const showMessage = (msg) => {
-              setToastMessage(msg);
-              setTimeout(() => setToastMessage(""), 5000);
-          };
+          const showMessage = (msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(""), 5000); };
 
           const getToday = () => new Date().toISOString().split('T')[0];
           
@@ -437,9 +438,9 @@
           const [slideInstructions, setSlideInstructions] = useState({}); 
           const [loadingSlides, setLoadingSlides] = useState({}); 
 
-          // Estados del Chatbot
+          const [isChatOpen, setIsChatOpen] = useState(false); 
           const [botTrainingInfo, setBotTrainingInfo] = useState("");
-          const [botInfoList, setBotInfoList] = useState([]); // Nuevo estado para la lista de reglas
+          const [botInfoList, setBotInfoList] = useState([]); 
           const [chatHistory, setChatHistory] = useState([]);
           const [chatInput, setChatInput] = useState("");
           const [isChatLoading, setIsChatLoading] = useState(false);
@@ -454,122 +455,71 @@
 
           const callGemini = async (promptText) => {
             try {
-              const res = await fetch('/api/gemini', { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ promptText: promptText }) 
-              });
-              if (!res.ok) { showMessage(`❌ Error de conexión con Vercel (${res.status}).`); return ""; }
+              const res = await fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: promptText }) });
+              if (!res.ok) { showMessage(`❌ Error de conexión.`); return ""; }
               const data = await res.json();
               return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            } catch (error) {
-              showMessage("❌ Error de red: No se pudo conectar con el backend.");
-              return "";
-            }
+            } catch (error) { return ""; }
           };
 
           const handleGenerateReview = async (e) => {
             e.preventDefault();
             if (!reviewTopic) return;
             setIsReviewLoading(true);
-
-            const prompt = `Actúa como un profesor de inglés. Crea una presentación de repaso sobre: "${reviewTopic}". 
-            Genera exactamente ${reviewCount} diapositivas. Usa EMOJIS.
-            Devuelve ÚNICAMENTE un JSON válido:
-            [
-              { "type": "info", "title": "Título con emoji", "content": "Texto del párrafo." },
-              { "type": "quiz", "title": "Pregunta rápida 🤔", "question": "¿Qué verbo falta aquí?", "answer": "Falta el verbo 'is'." }
-            ]`;
-            
+            const prompt = `Actúa como un profesor de inglés. Crea una presentación de repaso sobre: "${reviewTopic}". Genera exactamente ${reviewCount} diapositivas. Usa EMOJIS. Devuelve ÚNICAMENTE un JSON válido: [ { "type": "info", "title": "Título con emoji", "content": "Texto del párrafo." }, { "type": "quiz", "title": "Pregunta rápida 🤔", "question": "¿Qué verbo falta aquí?", "answer": "Falta el verbo 'is'." } ]`;
             try {
               const result = await callGemini(prompt);
               if (!result) { setIsReviewLoading(false); return; }
-
               const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
               const generatedSlides = JSON.parse(cleanedJson);
-              
               generatedSlides.forEach((s, idx) => { s.gradient = SLIDE_GRADIENTS[idx % SLIDE_GRADIENTS.length]; });
-              const mainTitle = generatedSlides[0]?.title || "Nuevo Repaso de Inglés ✨";
-
-              setDraftReview({ topic: mainTitle, slides: generatedSlides });
+              setDraftReview({ topic: generatedSlides[0]?.title || "Repaso", slides: generatedSlides });
               setReviewTopic("");
-            } catch (err) {
-              showMessage("Hubo un error al leer la respuesta de la IA. Intente de nuevo.");
-            }
+            } catch (err) { showMessage("Error en IA."); }
             setIsReviewLoading(false);
           };
 
           const handleRegenerateSingleSlide = async (index) => {
             const instruction = slideInstructions[index];
-            if (!instruction) return showMessage("Escribe una instrucción para modificar esta diapositiva.");
-            
+            if (!instruction) return showMessage("Escribe instrucción.");
             setLoadingSlides(prev => ({ ...prev, [index]: true }));
-
-            const currentSlideData = draftReview.slides[index];
-            const prompt = `Modifica la diapositiva basándote en: "${instruction}".
-            Diapositiva: ${JSON.stringify(currentSlideData)}
-            Devuelve ÚNICAMENTE un JSON válido (info o quiz).`;
-
+            const prompt = `Modifica la diapositiva basándote en: "${instruction}". Diapositiva: ${JSON.stringify(draftReview.slides[index])} Devuelve ÚNICAMENTE un JSON válido (info o quiz).`;
             try {
               const result = await callGemini(prompt);
               if (!result) { setLoadingSlides(prev => ({ ...prev, [index]: false })); return; }
-
-              const cleanedJson = result.replace(/```json/gi, '').replace(/```/gi, '').trim();
-              const regeneratedSlide = JSON.parse(cleanedJson);
-              regeneratedSlide.gradient = currentSlideData.gradient;
-
-              const newSlides = [...draftReview.slides];
-              newSlides[index] = regeneratedSlide;
+              const regeneratedSlide = JSON.parse(result.replace(/```json/gi, '').replace(/```/gi, '').trim());
+              regeneratedSlide.gradient = draftReview.slides[index].gradient;
+              const newSlides = [...draftReview.slides]; newSlides[index] = regeneratedSlide;
               setDraftReview({ ...draftReview, slides: newSlides });
-              
-              const newInstructions = { ...slideInstructions };
-              newInstructions[index] = "";
-              setSlideInstructions(newInstructions);
-            } catch (err) {
-              showMessage("No se pudo regenerar esta diapositiva.");
-            }
+              setSlideInstructions({...slideInstructions, [index]: ""});
+            } catch (err) { showMessage("Error."); }
             setLoadingSlides(prev => ({ ...prev, [index]: false }));
           };
 
           const handlePublishDraft = async () => {
             if (!draftReview) return;
-            try {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'), {
-                topic: draftReview.topic, slides: draftReview.slides, createdAt: Date.now()
-              });
-              setDraftReview(null);
-              showMessage("✅ Repaso publicado exitosamente.");
-            } catch (err) {
-              showMessage("Error al publicar.");
-            }
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'), { topic: draftReview.topic, slides: draftReview.slides, createdAt: Date.now() });
+            setDraftReview(null); showMessage("✅ Repaso publicado.");
           };
 
           const handleQuizSubmit = async (e) => {
             e.preventDefault();
             if (!studentQuizAnswer.trim()) return;
             setIsEvaluatingQuiz(true);
-
-            const currentAttempt = quizAttempts + 1;
-            setQuizAttempts(currentAttempt);
+            const currentAttempt = quizAttempts + 1; setQuizAttempts(currentAttempt);
             const activeSlide = activeReview.slides[currentSlide];
 
             if (currentAttempt >= 3) {
-              setQuizFeedback("¡Buen esfuerzo! 🌟 Aquí tienes la respuesta para que la repases.");
+              setQuizFeedback("¡Buen esfuerzo! 🌟 Aquí tienes la respuesta.");
               setShowQuizAnswer(true); setIsEvaluatingQuiz(false); return;
             }
-
             const prompt = `Un estudiante responde un quiz de inglés. Pregunta: "${activeSlide.question}". Esperada: "${activeSlide.answer}". Respuesta estudiante: "${studentQuizAnswer}". Evalúa si es correcta. Responde ÚNICAMENTE con JSON: {"isCorrect": true/false, "feedback": "Mensaje animando o felicitando"}`;
-
             try {
               const res = await callGemini(prompt);
               if (!res) { setIsEvaluatingQuiz(false); return; }
-
               const json = JSON.parse(res.replace(/```json/gi, '').replace(/```/gi, '').trim());
-              setQuizFeedback(json.feedback);
-              if(json.isCorrect) setShowQuizAnswer(true);
-            } catch(err) {
-              setQuizFeedback("¡Ups! Hubo un error al revisar, intenta de nuevo ✨");
-            }
+              setQuizFeedback(json.feedback); if(json.isCorrect) setShowQuizAnswer(true);
+            } catch(err) { setQuizFeedback("Error al revisar ✨"); }
             setIsEvaluatingQuiz(false);
           };
 
@@ -577,38 +527,57 @@
             e.preventDefault();
             if (!sugText) return;
             setIsSugLoading(true);
-
             const prompt = `Analiza la sugerencia. Si contiene ofensas, responde "RECHAZADO". Si es constructiva, reescríbela formalmente para la profesora. Devuelve SÓLO la versión mejorada o "RECHAZADO".\n\nTexto: ${sugText}`;
             const result = await callGemini(prompt);
-            
             if (!result) { setIsSugLoading(false); return; }
 
             if (result.trim() === "RECHAZADO") {
-              showMessage("⚠️ No se permiten groserías ni comentarios ofensivos.");
+              showMessage("⚠️ Comentario bloqueado.");
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), { studentName: loggedInName, originalText: sugText, createdAt: Date.now() });
             } else {
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), { studentName: loggedInName, text: result, createdAt: Date.now() });
-              showMessage("✅ Sugerencia enviada correctamente.");
-              setShowSugModal(false); setSugText("");
+              showMessage("✅ Sugerencia enviada."); setShowSugModal(false); setSugText("");
             }
             setIsSugLoading(false);
           };
 
-          const handleLogin = (e) => {
+          // --- SISTEMA DE LOGIN INVISIBLE ---
+          const handleLogin = async (e) => {
             e.preventDefault();
-            const u = e.target.username.value;
-            const p = e.target.password.value;
-            const userInfo = USERS_DB[u];
+            const rawUser = e.target.username.value.trim(); 
+            const password = e.target.password.value;
+            const cleanUser = rawUser.toLowerCase().replace('@', '');
+            
+            // Primero consultamos si el usuario existe en nuestra BD oculta (o en el fallback)
+            let targetEmail = "";
+            let expectedRole = "";
+            let targetName = "";
 
-            if (userInfo && userInfo.pass === p && userInfo.role === loginType) {
-              setRole(userInfo.role); 
-              setLoggedInUser(u);
-              setLoggedInName(userInfo.name);
-              setLoginType(null); 
-              setLoginError("");
-              setHasEntered(true);
+            if (userMappings[cleanUser]) {
+                targetEmail = userMappings[cleanUser].email;
+                expectedRole = userMappings[cleanUser].role;
+                targetName = userMappings[cleanUser].fullName;
+            } else if (FALLBACK_MAP[cleanUser]) {
+                targetEmail = FALLBACK_MAP[cleanUser].email;
+                expectedRole = FALLBACK_MAP[cleanUser].role;
+                targetName = FALLBACK_MAP[cleanUser].name;
             } else {
-              setLoginError("Usuario o contraseña incorrectos");
+                setLoginError("Ese usuario no está registrado en el directorio.");
+                return;
+            }
+
+            if (expectedRole !== loginType) {
+                setLoginError(`Ese usuario no es ${loginType === 'teacher' ? 'docente' : 'estudiante'}.`);
+                return;
+            }
+
+            try {
+                // Validación final en Firebase Auth
+                await signInWithEmailAndPassword(auth, targetEmail, password);
+                setLoginError("");
+                // Los estados se actualizarán en onAuthStateChanged
+            } catch (error) {
+                setLoginError("Contraseña incorrecta.");
             }
           };
 
@@ -624,14 +593,19 @@
             setHasAiModified(true); setIsAiLoading(false);
           };
 
-          const handleLogout = () => {
+          const handleLogout = async () => {
+            if (role === 'student' && user) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'));
+                } catch(e) { console.error(e); }
+            }
+            await signOut(auth);
             setHasEntered(false);
             setRole('student');
             setLoggedInUser("");
             setLoggedInName("");
           };
 
-          // Función para el Chatbot Estudiantil
           const sendChatMessage = async (e) => {
               e.preventDefault();
               if (!chatInput.trim()) return;
@@ -659,18 +633,34 @@
               setIsChatLoading(false);
           };
 
+          // --- ESTADOS DE AUTENTICACIÓN ---
           useEffect(() => {
-            const initAuth = async () => {
-              try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-              } catch (error) {
-                try { await signInAnonymously(auth); } catch (e) { console.error(e); }
-              }
-            };
-            initAuth();
-            return onAuthStateChanged(auth, setUser);
-          }, []);
+            // Leer el directorio completo de mappings desde Firestore sin necesidad de estar logueado para que funcione el login
+            const uMappings = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'userMappings'), s => {
+                const maps = {};
+                s.docs.forEach(d => { maps[d.id] = d.data(); });
+                setUserMappings(maps);
+            });
+
+            const unsubscribe = onAuthStateChanged(auth, (u) => {
+                setUser(u);
+                if (u && u.email) {
+                    // Buscar el usuario en los mappings o en el fallback
+                    let foundKey = Object.keys(userMappings).find(k => userMappings[k].email === u.email);
+                    if (!foundKey) foundKey = Object.keys(FALLBACK_MAP).find(k => FALLBACK_MAP[k].email === u.email);
+
+                    if (foundKey) {
+                        const data = userMappings[foundKey] || FALLBACK_MAP[foundKey];
+                        setRole(data.role);
+                        setLoggedInUser(data.role === 'teacher' ? 'GinaDocente' : `@${foundKey}`);
+                        setLoggedInName(data.role === 'teacher' ? 'La profe' : data.fullName || data.name);
+                        setHasEntered(true);
+                        setLoginType(null);
+                    }
+                }
+            });
+            return () => { unsubscribe(); uMappings(); };
+          }, [userMappings]); // Dependencia necesaria para actualizar cuando userMappings cargue
 
           useEffect(() => {
             if (!user) return;
@@ -682,8 +672,6 @@
             const uSug = onSnapshot(collection(db, ...base, 'suggestions'), s => setSuggestions(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uAlerts = onSnapshot(collection(db, ...base, 'alerts'), s => setAlerts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uReviews = onSnapshot(collection(db, ...base, 'reviews'), s => setReviews(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            
-            // Suscripciones para el Chatbot (Actualizado para usar la lista)
             const uBotSettings = onSnapshot(doc(db, ...base, 'settings', 'bot'), d => setBotInfoList(d.data()?.infoList || []));
             const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
 
@@ -885,101 +873,128 @@
             <div className="space-y-6 pb-20 md:pb-0">
               <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2"><CalendarEmoji className="text-[#AD3333]" /> Contenidos programáticos</h2>
               
-              <div className="flex flex-col md:flex-row gap-6 items-start">
-                  {/* TABLA DEL SYLLABUS */}
-                  <div className="flex-1 w-full space-y-6">
-                      {role === 'teacher' && (
-                        <form onSubmit={(e) => {
-                          e.preventDefault();
-                          addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), { week: Number(e.target.week.value), topic: e.target.topic.value, material: e.target.material.value });
-                          e.target.reset();
-                        }} className={`${glassCard} flex flex-wrap gap-4 items-end`}>
-                          <input type="number" name="week" placeholder="Semana" className={`${glassInput} w-24`} required />
-                          <input name="topic" placeholder="Tema..." className={`${glassInput} flex-1`} required />
-                          <button type="submit" className={redButton}>Añadir</button>
-                        </form>
-                      )}
-                      <div className={`${glassCard} overflow-x-auto p-0`}>
-                        <table className="w-full text-left">
-                          <thead className="bg-white/40 border-b border-white/50">
-                            <tr><th className="p-4 font-bold">Semana</th><th className="p-4 font-bold">Tema</th><th className="p-4 font-bold">Material</th>{role === 'teacher' && <th></th>}</tr>
-                          </thead>
-                          <tbody>
-                            {syllabus.map(item => (
-                              <tr key={item.id} className="border-b border-white/20">
-                                <td className="p-4 font-bold text-[#AD3333]">S{item.week}</td>
-                                <td className="p-4 text-sm">{item.topic}</td>
-                                <td className="p-4">{item.material ? <a href={item.material} className="text-blue-600 underline text-xs font-bold">Ver PDF</a> : '-'}</td>
-                                {role === 'teacher' && <td className="p-4"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))}><Trash2 size={14}/></button></td>}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+              {role === 'teacher' && (
+                  <div className={`${glassCard} flex flex-col gap-4 mb-6`}>
+                      <h3 className="font-bold text-gray-800 flex items-center gap-2"><CuteBotIcon size={20} className="text-gray-500" /> Entrenamiento del Asistente Virtual</h3>
+                      <div className="flex-1 max-h-40 overflow-y-auto space-y-2 pr-1">
+                          {botInfoList.length === 0 && <p className="text-xs text-gray-500 italic">No hay información guardada. Escribe algo para que el bot lo aprenda.</p>}
+                          {botInfoList.map(item => (
+                              <div key={item.id} className="bg-white/50 p-3 rounded-xl text-xs flex justify-between items-start gap-2 border border-white/60 shadow-sm">
+                                  <span className="text-gray-800 break-words flex-1 font-medium">{item.text}</span>
+                                  <button onClick={() => {
+                                      const newList = botInfoList.filter(i => i.id !== item.id);
+                                      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
+                                  }} className="text-gray-400 hover:text-red-600 shrink-0 transition-colors" title="Eliminar regla"><Trash2 size={16}/></button>
+                              </div>
+                          ))}
+                      </div>
+                      <div className="flex gap-2">
+                          <textarea 
+                              value={botTrainingInfo} onChange={e => setBotTrainingInfo(e.target.value)} 
+                              placeholder="Ej: El parcial de verbos es el 25 de mayo y vale el 30%..." 
+                              className={`${glassInput} h-12 py-3 resize-none text-sm flex-1`}
+                          />
+                          <button onClick={() => {
+                              if(!botTrainingInfo.trim()) return;
+                              const newItem = { id: Date.now().toString(), text: botTrainingInfo.trim() };
+                              const newList = [...botInfoList, newItem];
+                              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
+                              setBotTrainingInfo("");
+                              showMessage("✅ Entrenamiento añadido con éxito.");
+                          }} className={`${redButton} h-12 px-6 whitespace-nowrap`}><Plus size={16}/> Añadir Info</button>
                       </div>
                   </div>
+              )}
 
-                  {/* CHATBOT LATERAL */}
-                  <div className={`${glassCard} w-full md:w-80 shrink-0 flex flex-col h-[500px]`}>
-                      <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><BotIcon className="text-blue-600"/> Asistente Virtual</h3>
-                      
-                      {role === 'teacher' ? (
-                          <div className="flex flex-col h-full gap-2">
-                              <p className="text-xs font-bold text-gray-600">Entrena al bot con fechas e info de la clase:</p>
-                              
-                              <div className="flex-1 overflow-y-auto space-y-2 mb-2 pr-1">
-                                  {botInfoList.length === 0 && <p className="text-xs text-gray-500 italic">No hay información guardada.</p>}
-                                  {botInfoList.map(item => (
-                                      <div key={item.id} className="bg-white/50 p-2 rounded-xl text-xs flex justify-between items-start gap-2 border border-white/60 shadow-sm">
-                                          <span className="text-gray-800 break-words flex-1">{item.text}</span>
-                                          <button onClick={() => {
-                                              const newList = botInfoList.filter(i => i.id !== item.id);
-                                              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
-                                          }} className="text-gray-400 hover:text-red-600 shrink-0 transition-colors" title="Eliminar regla"><Trash2 size={14}/></button>
-                                      </div>
-                                  ))}
-                              </div>
-
-                              <textarea 
-                                  value={botTrainingInfo} onChange={e => setBotTrainingInfo(e.target.value)} 
-                                  placeholder="Ej: El parcial es el 25 de mayo..." 
-                                  className={`${glassInput} h-20 resize-none text-sm shrink-0`}
-                              />
-                              <button onClick={() => {
-                                  if(!botTrainingInfo.trim()) return;
-                                  const newItem = { id: Date.now().toString(), text: botTrainingInfo.trim() };
-                                  const newList = [...botInfoList, newItem];
-                                  setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'bot'), { infoList: newList });
-                                  setBotTrainingInfo("");
-                                  showMessage("✅ Entrenamiento añadido.");
-                              }} className={`${redButton} w-full mt-2`}><Plus size={16}/> Añadir Info</button>
-                          </div>
-                      ) : (
-                          <div className="flex flex-col h-full bg-white/20 rounded-2xl overflow-hidden border border-white/50">
-                              <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                                  <div className="bg-blue-100 text-blue-900 text-xs p-2 rounded-xl rounded-tl-none w-10/12">
-                                      ¡Hola! 👋 Soy el asistente de la clase. ¿Tienes alguna pregunta sobre el cronograma o las fechas?
-                                  </div>
-                                  {chatHistory.map((m, i) => (
-                                      <div key={i} className={`text-xs p-2 rounded-xl max-w-[85%] ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
-                                          {m.text}
-                                      </div>
-                                  ))}
-                              </div>
-                              <form onSubmit={sendChatMessage} className="p-2 bg-white/50 flex gap-2 border-t border-white/50">
-                                  <input 
-                                      value={chatInput} onChange={e => setChatInput(e.target.value)} 
-                                      placeholder="Pregunta algo..." 
-                                      className="flex-1 bg-white/60 border border-white/80 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-400/50"
-                                  />
-                                  <button type="submit" disabled={isChatLoading} className="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                                      {isChatLoading ? <Loader2 size={16} className="animate-spin"/> : <ArrowRightIcon size={16}/>}
-                                  </button>
-                              </form>
-                          </div>
-                      )}
+              {/* TABLA DEL SYLLABUS */}
+              <div className="w-full space-y-6">
+                  {role === 'teacher' && (
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), { week: Number(e.target.week.value), topic: e.target.topic.value, material: e.target.material.value });
+                      e.target.reset();
+                    }} className={`${glassCard} flex flex-wrap gap-4 items-end`}>
+                      <input type="number" name="week" placeholder="Semana" className={`${glassInput} w-24`} required />
+                      <input name="topic" placeholder="Tema..." className={`${glassInput} flex-1`} required />
+                      <button type="submit" className={redButton}>Añadir</button>
+                    </form>
+                  )}
+                  <div className={`${glassCard} overflow-x-auto p-0`}>
+                    <table className="w-full text-left">
+                      <thead className="bg-white/40 border-b border-white/50">
+                        <tr><th className="p-4 font-bold">Semana</th><th className="p-4 font-bold">Tema</th><th className="p-4 font-bold">Material</th>{role === 'teacher' && <th></th>}</tr>
+                      </thead>
+                      <tbody>
+                        {syllabus.length === 0 ? <tr><td colSpan="4" className="p-4 text-gray-600 text-center font-medium">No hay contenidos en el calendario.</td></tr> : syllabus.map(item => (
+                          <tr key={item.id} className="border-b border-white/20">
+                            <td className="p-4 font-bold text-[#AD3333]">S{item.week}</td>
+                            <td className="p-4 text-sm">{item.topic}</td>
+                            <td className="p-4">{item.material ? <a href={item.material} target="_blank" className="text-blue-600 underline text-xs font-bold">Ver PDF</a> : '-'}</td>
+                            {role === 'teacher' && <td className="p-4"><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'syllabus', item.id))}><Trash2 size={14}/></button></td>}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
               </div>
             </div>
+          );
+
+          // --- NUEVA PESTAÑA: DIRECTORIO DE USUARIOS ---
+          const renderDirectory = () => (
+             <div className="space-y-6 max-w-2xl mx-auto pb-20 md:pb-0">
+               <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><UsersIcon className="text-[#AD3333]" /> Directorio de Estudiantes</h2>
+               
+               <form onSubmit={async (e) => {
+                   e.preventDefault();
+                   const u = e.target.username.value.trim().toLowerCase().replace('@', '');
+                   const fn = e.target.fullname.value.trim();
+                   const email = e.target.email.value.trim();
+                   const pass = e.target.password.value;
+                   
+                   if (!u || !fn || !email || !pass) return;
+                   
+                   try {
+                       // 1. Crear usuario en Firebase Auth sin cerrar sesión actual usando secondary app
+                       await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+                       await signOut(secondaryAuth);
+                       
+                       // 2. Guardar mapping en Firestore
+                       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', u), { 
+                           fullName: fn, email: email, role: 'student', createdAt: Date.now() 
+                       });
+                       e.target.reset();
+                       showMessage("✅ Estudiante creado e ingresado al directorio.");
+                   } catch(err) {
+                       showMessage("❌ Error: " + (err.message.includes('email-already') ? 'El correo ya existe' : err.message));
+                   }
+               }} className={`${glassCard} flex flex-col gap-4 mb-6`}>
+                   <p className="text-sm font-bold text-gray-700">Crea un nuevo estudiante. La contraseña se encriptará en Google y nadie podrá verla en el código.</p>
+                   <input name="fullname" placeholder="Nombre Real Completo" className={glassInput} required />
+                   <input name="username" placeholder="Nombre de Usuario (Ej: camilopruebas)" className={glassInput} required />
+                   <input name="email" type="email" placeholder="Correo electrónico del estudiante" className={glassInput} required />
+                   <input name="password" type="text" placeholder="Contraseña Inicial" className={glassInput} required />
+                   
+                   <button type="submit" className={redButton}><Plus size={18}/> Crear Estudiante</button>
+               </form>
+
+               <div className={glassCard}>
+                   <h3 className="font-bold text-gray-800 mb-4">Directorio Oculto</h3>
+                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                       {Object.keys(userMappings).length === 0 && <p className="text-sm text-gray-500 italic">No hay estudiantes extra.</p>}
+                       {Object.entries(userMappings).map(([userKey, data]) => (
+                           <div key={userKey} className="bg-white/50 p-3 rounded-xl flex justify-between items-center border border-white/60 shadow-sm">
+                               <div>
+                                   <p className="font-bold text-sm text-gray-800">{data.fullName}</p>
+                                   <p className="text-xs text-gray-600">Usuario: @{userKey}</p>
+                                   <p className="text-xs text-gray-500">Correo: {data.email}</p>
+                               </div>
+                               <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey))} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
+                           </div>
+                       ))}
+                   </div>
+               </div>
+             </div>
           );
 
           const renderEvaluations = () => (
@@ -1035,7 +1050,6 @@
                         .dark-mode [class*="bg-white/20"] { background-color: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
                         .dark-mode [class*="bg-white/30"] { background-color: rgba(0, 0, 0, 0.5) !important; border-color: rgba(255, 255, 255, 0.15) !important; }
                         .dark-mode [class*="border-white/"] { border-color: rgba(255, 255, 255, 0.2) !important; }
-                        /* Asegurar que el texto y los puntos de la contraseña sean blancos en modo oscuro */
                         .dark-mode input { color: #ffffff !important; }
                         .dark-mode input::placeholder { color: #9ca3af !important; }
                       `}</style>
@@ -1078,7 +1092,7 @@
                               <h3 className="text-2xl font-bold text-center text-gray-800 mb-2 drop-shadow-sm">
                                 {loginType === 'teacher' ? 'Acceso Docente' : 'Acceso Estudiante'}
                               </h3>
-                              <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input name="username" placeholder="Tu usuario" className={glassInput} required /></div>
+                              <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input type="text" name="username" placeholder="Ej: @Usuario" className={glassInput} required /></div>
                               <div><label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label><input name="password" type="password" placeholder="••••••••" className={glassInput} required /></div>
                               {loginError && <p className="text-[#AD3333] text-sm text-center font-bold bg-white/50 py-2 rounded-lg">{loginError}</p>}
                               
@@ -1112,7 +1126,7 @@
                 
                 .dark-mode [class*="border-white/"] { border-color: rgba(255, 255, 255, 0.2) !important; }
                 .dark-mode [class*="bg-red-100/"] { background-color: rgba(153, 27, 27, 0.2) !important; border-color: rgba(220, 38, 38, 0.3) !important; }
-                .dark-mode [class*="bg-red-50"] { background-color: rgba(69, 10, 10, 0.4) !important; }
+                .dark-mode [class*="bg-red-50"] { background-color: rgba(69, 10, 0, 0.4) !important; }
                 .dark-mode [class*="text-red-600"] { color: #f87171 !important; }
                 .dark-mode [class*="bg-green-100/"] { background-color: rgba(6, 78, 59, 0.4) !important; border-color: rgba(52, 211, 153, 0.3) !important; }
                 .dark-mode [class*="text-green-700"] { color: #34d399 !important; }
@@ -1155,6 +1169,7 @@
                     <button onClick={() => setActiveTab('reviews')} className={`${activeTab === 'reviews' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800 hover:text-gray-900 flex items-center gap-1`}>Repasos</button>
                     <button onClick={() => setActiveTab('syllabus')} className={`${activeTab === 'syllabus' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Contenidos programáticos</button>
                     <button onClick={() => setActiveTab('evaluations')} className={`${activeTab === 'evaluations' ? 'bg-white/60 shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Evaluaciones</button>
+                    {role === 'teacher' && <button onClick={() => setActiveTab('directory')} className={`${activeTab === 'directory' ? 'bg-[#AD3333] text-white shadow-md font-bold' : 'hover:bg-white/40 font-medium'} px-4 py-2 rounded-full transition text-sm text-gray-800`}>Directorio</button>}
                     <div className="w-px h-6 bg-gray-400 mx-2"></div>
                   </div>
                   
@@ -1179,6 +1194,7 @@
                 {activeTab === 'reviews' && renderReviews()}
                 {activeTab === 'syllabus' && renderSyllabus()}
                 {activeTab === 'evaluations' && renderEvaluations()}
+                {activeTab === 'directory' && role === 'teacher' && renderDirectory()}
                 {activeTab === 'inbox' && role === 'teacher' && renderInbox()}
               </main>
 
@@ -1198,6 +1214,58 @@
                 </button>
               </nav>
 
+              {/* ASISTENTE VIRTUAL FLOTANTE (SOLO ESTUDIANTES) */}
+              {role === 'student' && hasEntered && (
+                  <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[100] flex flex-col items-end">
+                      {isChatOpen && (
+                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border border-white/60 shadow-2xl`}>
+                              <div className="flex justify-between items-center mb-3 border-b border-gray-300/30 pb-3">
+                                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                      <CuteBotIcon size={24} className="text-gray-700" /> Asistente de Clase
+                                  </h3>
+                                  <button onClick={() => setIsChatOpen(false)} className="text-gray-500 hover:text-gray-800 bg-white/40 p-1.5 rounded-full transition-colors"><X size={16}/></button>
+                              </div>
+                              
+                              <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
+                                  <div className="bg-blue-100 text-blue-900 text-xs p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm">
+                                      ¡Hola! 👋 Soy el asistente virtual. ¿Tienes alguna pregunta sobre el cronograma o las fechas de la clase?
+                                  </div>
+                                  {chatHistory.map((m, i) => (
+                                      <div key={i} className={`text-xs p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
+                                          {m.text}
+                                      </div>
+                                  ))}
+                                  {isChatLoading && (
+                                      <div className="bg-blue-100/50 p-3 rounded-xl rounded-tl-none w-fit flex gap-1 items-center">
+                                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce"></span>
+                                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
+                                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                                      </div>
+                                  )}
+                              </div>
+
+                              <form onSubmit={sendChatMessage} className="flex gap-2">
+                                  <input 
+                                      value={chatInput} onChange={e => setChatInput(e.target.value)} 
+                                      placeholder="Escribe tu pregunta..." 
+                                      className={`${glassInput} py-2 px-3 text-xs bg-white/60`}
+                                  />
+                                  <button type="submit" disabled={isChatLoading} className="bg-gray-800 text-white p-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition shadow-md">
+                                      <ArrowRightIcon size={16}/>
+                                  </button>
+                              </form>
+                          </div>
+                      )}
+                      
+                      <button 
+                          onClick={() => setIsChatOpen(!isChatOpen)} 
+                          className="w-16 h-16 rounded-full bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 transition-transform focus:outline-none text-gray-700"
+                      >
+                          <CuteBotIcon size={32} />
+                      </button>
+                  </div>
+              )}
+
               {toastMessage && (
                 <div className="fixed bottom-24 md:bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/95 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl z-[200] font-medium text-sm text-center border border-gray-700 whitespace-nowrap">
                   {toastMessage}
@@ -1212,4 +1280,5 @@
     </script>
 </body>
 </html>
+
 
