@@ -39,13 +39,42 @@
         const LogOutIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>;
         const ArrowRightIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
         const SmileIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>;
-        const ImageIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>; // NUEVO ÍCONO
+        const ImageIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
         const Send = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
+        const UploadCloud = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="16 16 12 12 8 16"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>;
 
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
         const NavCalendar = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>;
         const NavFile = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>;
+
+        // --- FUNCIÓN DE COMPRESIÓN DE IMÁGENES ---
+        const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.6) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) {
+                            if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                        } else {
+                            if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                        }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = error => reject(error);
+                };
+                reader.onerror = error => reject(error);
+            });
+        };
 
         // --- CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
@@ -113,10 +142,10 @@
             'camilopruebas': { email: 'edwincamilojaimes1@gmail.com', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
         };
 
-        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName }) => {
+        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode }) => {
           const [commentText, setCommentText] = useState("");
-          const [commentImageUrl, setCommentImageUrl] = useState(""); // NUEVO
-          const [showCommentImageInput, setShowCommentImageInput] = useState(false); // NUEVO
+          const [commentImageUrl, setCommentImageUrl] = useState("");
+          const [showCommentImageInput, setShowCommentImageInput] = useState(false);
 
           const [isProcessing, setIsProcessing] = useState(false);
           const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -126,6 +155,9 @@
           const [editCommentText, setEditCommentText] = useState("");
           const [revealedComments, setRevealedComments] = useState({}); 
           const [historyOpenCid, setHistoryOpenCid] = useState(null); 
+          const [showCommentModal, setShowCommentModal] = useState(false); 
+          
+          const [fullScreenImage, setFullScreenImage] = useState(null); // NUEVO ESTADO PARA PANTALLA COMPLETA
 
           const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
           const isExpired = new Date() > deadline;
@@ -208,6 +240,21 @@
               setEditingCommentId(null);
           };
 
+          const handleLocalImageUpload = async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              try {
+                  setIsProcessing(true);
+                  // Comprimir imagen local para no saturar la base de datos
+                  const compressed = await compressImage(file, 800, 800, 0.6);
+                  setCommentImageUrl(compressed);
+                  setIsProcessing(false);
+              } catch (error) {
+                  showMessage("Hubo un error al procesar tu imagen.");
+                  setIsProcessing(false);
+              }
+          };
+
           const handleAddComment = async (e) => {
             e.preventDefault();
             if(!commentText.trim() && !commentImageUrl.trim()) return;
@@ -221,9 +268,9 @@
 
             const newComment = { 
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
-                author: role === 'teacher' ? 'La profe' : loggedInName, 
+                author: role === 'teacher' ? 'Profesora' : loggedInName, 
                 text: commentText.trim(),
-                imageUrl: commentImageUrl.trim(), // GUARDAR IMAGEN
+                imageUrl: commentImageUrl.trim(), // GUARDAR IMAGEN (link o base64)
                 isDeleted: false,
                 reactions: {}
             };
@@ -231,7 +278,7 @@
             const newComments = [...(task.comments || []), newComment];
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
             setCommentText("");
-            setCommentImageUrl(""); // LIMPIAR
+            setCommentImageUrl(""); 
             setShowCommentImageInput(false);
             setShowEmojiPicker(false);
             setIsProcessing(false);
@@ -305,178 +352,234 @@
               {/* IMAGEN DE LA PUBLICACIÓN */}
               {task.imageUrl && (
                   <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
-                      <img src={task.imageUrl} alt="Adjunto" className="w-full h-auto max-h-96 object-contain bg-black/5" onError={(e) => e.target.style.display = 'none'} />
+                      <img src={task.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(task.imageUrl)} className="w-full h-auto max-h-96 object-contain bg-black/5 cursor-pointer" onError={(e) => e.target.style.display = 'none'} />
                   </div>
               )}
 
               {renderReactions()}
 
-              <div className="mt-6 pt-6 border-t border-white/30">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 drop-shadow-sm">Comentarios</h4>
-                <div className="space-y-3 mb-4 max-h-60 overflow-y-auto pr-2 relative z-10">
-                  {task.comments?.map((c, i) => {
-                    const cid = c.id || `old-${i}`; 
-                    const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === 'Profesora' || c.author === 'La profe'));
-                    const isEditing = editingCommentId === cid;
-                    
-                    if (c.isDeleted) {
-                        if (role === 'teacher' || isOwner) {
-                            return (
-                                <div key={cid} className="bg-white/20 p-3 rounded-xl text-xs text-gray-500 italic border border-white/30 flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <span>{c.author} borró el comentario.</span>
-                                        {role === 'teacher' && (
-                                            <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className="text-blue-600 hover:text-blue-800 font-bold bg-white/50 px-2 py-1 rounded shadow-sm transition-all">
-                                                {revealedComments[cid] ? "Ocultar" : "Revelar"}
-                                            </button>
-                                        )}
-                                    </div>
-                                    {role === 'teacher' && revealedComments[cid] && (
-                                        <p className="text-gray-700 bg-white/40 p-2 rounded line-through not-italic mt-1">{c.text}</p>
-                                    )}
-                                </div>
-                            );
-                        }
-                        return null; 
-                    }
+              <div className="mt-4 pt-4 border-t border-white/30">
+                  <button
+                      onClick={() => setShowCommentModal(true)}
+                      className="w-full py-3 bg-white/40 hover:bg-white/60 border border-white/50 shadow-sm rounded-xl font-bold text-gray-800 transition-all flex justify-center items-center gap-2"
+                  >
+                      <FileText size={18} className="text-[#AD3333]" />
+                      {task.comments?.length > 0 ? `Ver los ${task.comments.length} comentarios` : 'Sé el primero en comentar 💬'}
+                  </button>
+              </div>
 
-                    return (
-                        <div key={cid} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30 group/comment">
-                          <div className="flex justify-between items-start">
-                              <div className="flex items-center gap-2">
-                                  <span className={`font-bold ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
-                                  {c.isEdited && !isEditing && (
-                                      <div className="relative inline-block">
-                                          <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-600 italic transition-colors mt-0.5">(Editado)</button>
-                                          {historyOpenCid === cid && (
-                                              <div className="absolute top-full left-0 mt-1 bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-lg p-2 z-50 w-56">
-                                                  <p className="text-xs font-bold text-gray-700 mb-2 border-b border-gray-300 pb-1">Historial de ediciones</p>
-                                                  {c.editHistory?.map((h, hi) => (
-                                                      <div key={hi} className="mb-2 pb-2 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0">
-                                                          <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
-                                                          <p className="text-xs text-gray-600 line-through">{h.text}</p>
-                                                      </div>
-                                                  ))}
-                                              </div>
-                                          )}
-                                      </div>
-                                  )}
+              {/* MODAL DE COMENTARIOS AMPLIADO */}
+              {showCommentModal && ReactDOM.createPortal(
+                  <div className={`fixed inset-0 z-[9999] flex justify-center items-end md:items-center bg-black/70 backdrop-blur-md p-0 md:p-4 transition-all ${isDarkMode ? 'dark-mode' : ''}`}>
+                      <div className={`w-full max-w-3xl h-[90vh] md:h-[85vh] flex flex-col p-4 md:p-6 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+                          
+                          {/* Encabezado del Modal */}
+                          <div className={`flex justify-between items-center mb-4 border-b pb-4 shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                              <div>
+                                  <h3 className={`text-xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                                      <FileText className="text-[#AD3333]" /> Comentarios
+                                  </h3>
+                                  <p className={`text-xs font-medium mt-1 truncate max-w-[250px] md:max-w-md ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>De: {task.title}</p>
                               </div>
-                              
-                              <div className="hidden group-hover/comment:flex items-center gap-2">
-                                  {isOwner && !isEditing && (
-                                      <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className="text-gray-400 hover:text-blue-600"><Edit3 size={14}/></button>
-                                  )}
-                                  {(role === 'teacher' || isOwner) && !isEditing && (
-                                      <button onClick={() => handleDeleteComment(cid, c.author)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button>
-                                  )}
-                              </div>
+                              <button onClick={() => setShowCommentModal(false)} className={`p-2 rounded-full transition-all shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-red-500 bg-gray-800 hover:bg-gray-700' : 'text-gray-500 hover:text-red-600 bg-white hover:bg-gray-100'}`}><X size={20}/></button>
                           </div>
 
-                          {isEditing ? (
-                              <div className="mt-2 flex gap-2 items-center">
-                                  <input className={`${glassInput} py-1 px-2 text-sm`} value={editCommentText} onChange={e => setEditCommentText(e.target.value)} />
-                                  <button onClick={saveEditedComment} className="text-green-600 bg-white/50 p-1.5 rounded-lg hover:bg-white/80"><CheckCheck size={16}/></button>
-                                  <button onClick={() => setEditingCommentId(null)} className="text-red-600 bg-white/50 p-1.5 rounded-lg hover:bg-white/80"><X size={16}/></button>
-                              </div>
-                          ) : (
-                              <div className="flex flex-col gap-2 mt-1">
-                                  {c.text && <p className="text-gray-800">{c.text}</p>}
-                                  {/* IMAGEN EN COMENTARIO */}
-                                  {c.imageUrl && (
-                                      <img src={c.imageUrl} alt="Adjunto" className="max-w-full h-auto max-h-48 rounded-lg border border-white/40 object-cover mt-1" onError={(e) => e.target.style.display = 'none'} />
-                                  )}
-                              </div>
-                          )}
-
-                          <div className="mt-2 flex gap-1 items-center flex-wrap">
-                              {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
-                                  const emoji = typeof rData === 'object' ? rData.emoji : rData;
-                                  let name = typeof rData === 'object' ? rData.name : 'Un usuario';
-                                  if (name === 'Profesora') name = 'La profe';
-                                  
-                                  const existing = acc.find(item => item.emoji === emoji);
-                                  if (existing) { existing.count++; existing.names.push(name); } 
-                                  else { acc.push({ emoji, count: 1, names: [name] }); }
-                                  return acc;
-                              }, []).map((r, idx) => (
-                                  <span key={idx} title={`${r.names.join(', ')} reaccionó así`} className="bg-white/50 px-1.5 py-0.5 rounded-full text-[10px] text-gray-700 border border-white/60 cursor-help">{r.emoji} {r.count}</span>
-                              ))}
+                          {/* Lista de Comentarios */}
+                          <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scroll-smooth">
+                            {task.comments?.map((c, i) => {
+                              const cid = c.id || `old-${i}`; 
+                              const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === 'Profesora' || c.author === 'La profe'));
+                              const isEditing = editingCommentId === cid;
                               
-                              {!isLocked && (
-                                  <div className="flex items-center gap-1 ml-1">
-                                      <button onClick={() => setActiveReactionCommentId(activeReactionCommentId === cid ? null : cid)} className="text-gray-400 hover:text-gray-600 bg-white/40 rounded-full p-1"><Plus size={10}/></button>
-                                      {activeReactionCommentId === cid && (
-                                          <div className="flex gap-1 bg-white/80 rounded-full px-2 py-0.5 border border-white/50 shadow-sm animate-in fade-in slide-in-from-left-2">
-                                              {['❤️','👍','😂','😲'].map(emj => (
-                                                  <button key={emj} onClick={() => { toggleCommentReaction(cid, emj); setActiveReactionCommentId(null); }} className="hover:scale-125 transition-transform text-xs">{emj}</button>
-                                              ))}
+                              if (c.isDeleted) {
+                                  if (role === 'teacher' || isOwner) {
+                                      return (
+                                          <div key={cid} className={`p-3 rounded-xl text-xs italic border flex flex-col gap-2 ${isDarkMode ? 'bg-gray-800/50 border-gray-700 text-gray-500' : 'bg-gray-200/50 border-gray-300 text-gray-500'}`}>
+                                              <div className="flex justify-between items-center">
+                                                  <span>{c.author} borró el comentario.</span>
+                                                  {role === 'teacher' && (
+                                                      <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className={`font-bold px-2 py-1 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-blue-400 hover:text-blue-300' : 'bg-white text-blue-600 hover:text-blue-800'}`}>
+                                                          {revealedComments[cid] ? "Ocultar" : "Revelar"}
+                                                      </button>
+                                                  )}
+                                              </div>
+                                              {role === 'teacher' && revealedComments[cid] && (
+                                                  <p className={`p-2 rounded line-through not-italic mt-1 ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-700'}`}>{c.text}</p>
+                                              )}
+                                          </div>
+                                      );
+                                  }
+                                  return null; 
+                              }
+
+                              return (
+                                  <div key={cid} className={`p-4 rounded-2xl text-sm border shadow-sm group/comment transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/80' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`font-bold text-base ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-200' : 'text-gray-800')}`}>{c.author}</span>
+                                            {c.isEdited && !isEditing && (
+                                                <div className="relative inline-block">
+                                                    <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-500 italic transition-colors mt-0.5">(Editado)</button>
+                                                    {historyOpenCid === cid && (
+                                                        <div className={`absolute top-full left-0 mt-1 backdrop-blur-xl border shadow-xl rounded-lg p-2 z-50 w-56 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
+                                                            <p className={`text-xs font-bold mb-2 border-b pb-1 ${isDarkMode ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>Historial de ediciones</p>
+                                                            {c.editHistory?.map((h, hi) => (
+                                                                <div key={hi} className={`mb-2 pb-2 border-b last:border-0 last:mb-0 last:pb-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                                                                    <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
+                                                                    <p className={`text-xs line-through ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{h.text}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="hidden group-hover/comment:flex items-center gap-2">
+                                            {isOwner && !isEditing && (
+                                                <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400 bg-gray-700' : 'text-gray-400 hover:text-blue-600 bg-gray-100'}`}><Edit3 size={16}/></button>
+                                            )}
+                                            {(role === 'teacher' || isOwner) && !isEditing && (
+                                                <button onClick={() => handleDeleteComment(cid, c.author)} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 bg-gray-700' : 'text-gray-400 hover:text-red-600 bg-gray-100'}`}><Trash2 size={16}/></button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {isEditing ? (
+                                        <div className="mt-3 flex gap-2 items-center">
+                                            <input className={`py-2 px-3 text-sm flex-1 rounded-xl outline-none focus:ring-2 transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-700 text-gray-100 focus:ring-blue-500/50' : 'bg-gray-100 border border-gray-300 text-gray-900 focus:ring-blue-400/50'}`} value={editCommentText} onChange={e => setEditCommentText(e.target.value)} />
+                                            <button onClick={saveEditedComment} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-green-400 bg-gray-700 hover:bg-gray-600' : 'text-green-700 bg-gray-100 hover:bg-gray-200'}`}><CheckCheck size={18}/></button>
+                                            <button onClick={() => setEditingCommentId(null)} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-gray-100 hover:bg-gray-200'}`}><X size={18}/></button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3 mt-2">
+                                            {c.text && <p className={`text-base leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{c.text}</p>}
+                                            {/* MINIATURA DE LA IMAGEN AQUÍ */}
+                                            {c.imageUrl && (
+                                                <img 
+                                                    src={c.imageUrl} 
+                                                    alt="Adjunto" 
+                                                    onClick={() => setFullScreenImage(c.imageUrl)}
+                                                    className={`w-20 h-20 rounded-xl border object-cover mt-1 shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+                                                    onError={(e) => e.target.style.display = 'none'} 
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 flex gap-1.5 items-center flex-wrap">
+                                        {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
+                                            const emoji = typeof rData === 'object' ? rData.emoji : rData;
+                                            let name = typeof rData === 'object' ? rData.name : 'Un usuario';
+                                            if (name === 'Profesora') name = 'La profe';
+                                            
+                                            const existing = acc.find(item => item.emoji === emoji);
+                                            if (existing) { existing.count++; existing.names.push(name); } 
+                                            else { acc.push({ emoji, count: 1, names: [name] }); }
+                                            return acc;
+                                        }, []).map((r, idx) => (
+                                            <span key={idx} title={`${r.names.join(', ')} reaccionó así`} className={`px-2 py-1 rounded-full text-xs font-bold border cursor-help shadow-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-700'}`}>{r.emoji} {r.count}</span>
+                                        ))}
+                                        
+                                        {!isLocked && (
+                                            <div className="flex items-center gap-1 ml-1">
+                                                <button onClick={() => setActiveReactionCommentId(activeReactionCommentId === cid ? null : cid)} className={`rounded-full p-1.5 transition-colors shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-gray-200 bg-gray-700 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200'}`}><Plus size={14}/></button>
+                                                {activeReactionCommentId === cid && (
+                                                    <div className={`flex gap-1.5 rounded-full px-3 py-1 border shadow-md animate-in fade-in slide-in-from-left-2 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                                        {['❤️','👍','😂','😲'].map(emj => (
+                                                            <button key={emj} onClick={() => { toggleCommentReaction(cid, emj); setActiveReactionCommentId(null); }} className="hover:scale-125 transition-transform text-base">{emj}</button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                  </div>
+                              );
+                            })}
+                            {(!task.comments || task.comments.length === 0) && <p className="text-sm text-gray-500 italic text-center mt-10">Sé el primero en iniciar la conversación.</p>}
+                          </div>
+                          
+                          {/* Formulario de Comentarios */}
+                          {!isLocked ? (
+                            <form onSubmit={handleAddComment} className={`pt-4 border-t flex flex-col gap-3 shrink-0 relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                              <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 focus-within:ring-blue-500/50' : 'bg-white border-gray-300 focus-within:ring-blue-400/50'}`}>
+                                
+                                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 transition rounded-xl shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600'}`}>
+                                    <SmileIcon size={20} />
+                                </button>
+
+                                {/* BOTÓN DE ENLACE */}
+                                <button type="button" onClick={() => setShowCommentImageInput(!showCommentImageInput)} className={`p-2 transition rounded-xl shadow-sm ${showCommentImageInput ? 'text-blue-500 ring-2 ring-blue-500/50 ' + (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600')}`} title="Pegar Enlace de Imagen">
+                                    <ImageIcon size={20} />
+                                </button>
+
+                                {/* BOTÓN DE SUBIR ARCHIVO LOCAL */}
+                                <label className={`p-2 cursor-pointer transition rounded-xl shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600'}`} title="Subir desde el dispositivo">
+                                    <UploadCloud size={20} />
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleLocalImageUpload} />
+                                </label>
+
+                                {showEmojiPicker && (
+                                    <div className={`absolute bottom-full left-0 mb-4 backdrop-blur-2xl border shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-3 z-50 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                        {COMMENT_EMOJIS.map(emj => (
+                                            <button key={emj} type="button" onClick={() => {setCommentText(prev => prev + emj); setShowEmojiPicker(false);}} className="text-2xl hover:scale-125 transition-transform">{emj}</button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <input 
+                                  value={commentText} onChange={(e) => setCommentText(e.target.value)} 
+                                  placeholder="Escribe tu mensaje aquí..." 
+                                  className={`flex-1 bg-transparent border-none outline-none py-2 px-2 text-base font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
+                                />
+                                
+                                <button type="submit" disabled={isProcessing} className="p-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-xl transition-all disabled:opacity-50 flex items-center justify-center">
+                                    {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                                </button>
+                              </div>
+
+                              {/* VISTA PREVIA O INPUT DEL ENLACE DE IMAGEN */}
+                              {(showCommentImageInput || commentImageUrl) && (
+                                  <div className="px-1 animate-in fade-in slide-in-from-top-2 relative">
+                                      {showCommentImageInput && (
+                                          <input 
+                                              value={commentImageUrl} onChange={e => setCommentImageUrl(e.target.value)} 
+                                              placeholder="Enlace DIRECTO de imagen (ej. termina en .jpg o .png)..." 
+                                              className={`w-full rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all text-sm font-medium border shadow-inner ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:ring-blue-500/50' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-400/50'}`} 
+                                          />
+                                      )}
+                                      
+                                      {commentImageUrl && (
+                                          <div className="relative w-fit mt-3">
+                                              <img src={commentImageUrl} alt="Preview" className={`h-24 w-24 object-cover rounded-xl border shadow-sm ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />
+                                              <button type="button" onClick={() => setCommentImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
                                           </div>
                                       )}
                                   </div>
                               )}
-                          </div>
-                        </div>
-                    );
-                  })}
-                  {(!task.comments || task.comments.length === 0) && <p className="text-xs text-gray-500 italic">No hay comentarios.</p>}
-                </div>
-                
-                {!isLocked ? (
-                  <form onSubmit={handleAddComment} className="relative z-10 flex flex-col gap-2">
-                    <div className="flex gap-2 items-center bg-white/30 backdrop-blur-md border border-white/50 rounded-2xl px-2 py-1 focus-within:ring-2 focus-within:ring-blue-400/50 transition-all shadow-inner">
-                      
-                      <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 text-gray-500 hover:text-blue-600 transition">
-                          <SmileIcon size={20} />
-                      </button>
 
-                      {/* BOTÓN PARA ABRIR INPUT DE IMAGEN EN COMENTARIOS */}
-                      <button type="button" onClick={() => setShowCommentImageInput(!showCommentImageInput)} className={`p-2 transition ${showCommentImageInput ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'}`}>
-                          <ImageIcon size={20} />
-                      </button>
-
-                      {showEmojiPicker && (
-                          <div className="absolute bottom-full left-0 mb-2 bg-white/90 backdrop-blur-xl border border-white/40 shadow-xl rounded-2xl p-2 grid grid-cols-5 gap-2 z-50">
-                              {COMMENT_EMOJIS.map(emj => (
-                                  <button key={emj} type="button" onClick={() => {setCommentText(prev => prev + emj); setShowEmojiPicker(false);}} className="text-lg hover:scale-125 transition-transform">{emj}</button>
-                              ))}
-                          </div>
-                      )}
-
-                      <input 
-                        value={commentText} onChange={(e) => setCommentText(e.target.value)} 
-                        placeholder="Escribe un comentario..." 
-                        className="flex-1 bg-transparent border-none outline-none py-2 text-sm text-gray-900 placeholder-gray-500" 
-                      />
-                      
-                      <button type="submit" disabled={isProcessing} className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-all disabled:opacity-50">
-                          {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <ArrowRightIcon size={20} />}
-                      </button>
-                    </div>
-
-                    {/* INPUT PARA ENLACE DE IMAGEN EN COMENTARIOS */}
-                    {showCommentImageInput && (
-                        <div className="px-2 animate-in fade-in slide-in-from-top-2">
-                            <input 
-                                value={commentImageUrl} onChange={e => setCommentImageUrl(e.target.value)} 
-                                placeholder="Pega un enlace de imagen (https://...)" 
-                                className={`${glassInput} py-2 text-xs`} 
-                            />
-                            {commentImageUrl && <img src={commentImageUrl} alt="Preview" className="mt-2 h-20 object-cover rounded-lg border border-white/50" onError={(e) => e.target.style.display = 'none'} />}
-                        </div>
-                    )}
-
-                    {role === 'teacher' && (
-                      <div className="flex gap-2 justify-start mt-1">
-                        <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isProcessing} title="Traducir a Inglés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇺🇸</button>
-                        <button type="button" onClick={() => handleTranslate('Francés')} disabled={isProcessing} title="Traducir a Francés" className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1 rounded-lg text-base shadow-sm hover:bg-white/80 transition-all flex items-center justify-center disabled:opacity-50">🇫🇷</button>
+                              {role === 'teacher' && (
+                                <div className="flex gap-2 justify-start mt-1">
+                                  <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isProcessing} title="Traducir a Inglés" className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇺🇸 Inglés</button>
+                                  <button type="button" onClick={() => handleTranslate('Francés')} disabled={isProcessing} title="Traducir a Francés" className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇫🇷 Francés</button>
+                                </div>
+                              )}
+                            </form>
+                          ) : (
+                            <p className="text-sm font-bold text-red-600 bg-red-100/50 p-4 rounded-xl border border-red-200 text-center mt-2">🔒 La interacción para esta tarea ha sido bloqueada.</p>
+                          )}
                       </div>
-                    )}
-                  </form>
-                ) : (
-                  <p className="text-sm font-bold text-red-600 bg-red-100/50 p-3 rounded-xl border border-red-200">🔒 La interacción para esta tarea ha sido bloqueada.</p>
-                )}
-              </div>
+                  </div>
+              , document.body)}
+
+              {/* PORTAL DE IMAGEN EN PANTALLA COMPLETA (GLOBAL) */}
+              {fullScreenImage && ReactDOM.createPortal(
+                  <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setFullScreenImage(null)}>
+                      <button className="absolute top-4 md:top-8 right-4 md:right-8 text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all shadow-lg"><X size={28}/></button>
+                      <img src={fullScreenImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+                  </div>
+              , document.body)}
             </div>
           );
         };
@@ -517,8 +620,8 @@
           const [postType, setPostType] = useState('task'); 
           const [taskTitle, setTaskTitle] = useState("");
           const [taskDesc, setTaskDesc] = useState("");
-          const [postImageUrl, setPostImageUrl] = useState(""); // NUEVO ESTADO PARA IMÁGENES
-          const [showImageInput, setShowImageInput] = useState(false); // MOSTRAR INPUT DE IMAGEN
+          const [postImageUrl, setPostImageUrl] = useState(""); 
+          const [showImageInput, setShowImageInput] = useState(false); 
           const [taskDate, setTaskDate] = useState(getToday());
           const [taskTime, setTaskTime] = useState("23:59");
           const [allowLate, setAllowLate] = useState(false);
@@ -834,6 +937,21 @@
             return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); };
           }, [user]);
 
+          // --- Función para la profesora (Publicar tarea con imagen local) ---
+          const handlePostLocalImageUpload = async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              try {
+                  setIsAiLoading(true);
+                  const compressed = await compressImage(file, 800, 800, 0.6);
+                  setPostImageUrl(compressed);
+                  setIsAiLoading(false);
+              } catch (error) {
+                  showMessage("Hubo un error al procesar tu imagen.");
+                  setIsAiLoading(false);
+              }
+          };
+
           const renderTasks = () => (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Muro de Clase</h2>
@@ -849,16 +967,21 @@
                   <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas o escribe una idea y usa la IA para potenciarla..." className={`${glassInput} h-32 resize-none`} required />
                   
                   {/* SECCIÓN IMAGEN DE PUBLICACIÓN */}
-                  {showImageInput && (
-                      <div className="animate-in fade-in slide-in-from-top-2">
-                          <input 
-                              value={postImageUrl} 
-                              onChange={(e) => setPostImageUrl(e.target.value)} 
-                              placeholder="Pega el enlace de la imagen aquí (https://...)" 
-                              className={glassInput} 
-                          />
+                  {(showImageInput || postImageUrl) && (
+                      <div className="animate-in fade-in slide-in-from-top-2 relative">
+                          {showImageInput && (
+                              <input 
+                                  value={postImageUrl} 
+                                  onChange={(e) => setPostImageUrl(e.target.value)} 
+                                  placeholder="Pega el enlace directo de la imagen aquí..." 
+                                  className={glassInput} 
+                              />
+                          )}
                           {postImageUrl && (
-                              <img src={postImageUrl} alt="Preview" className="mt-2 h-32 object-cover rounded-xl border border-white/50 bg-black/5" onError={(e) => e.target.style.display = 'none'} />
+                              <div className="relative w-fit mt-3">
+                                  <img src={postImageUrl} alt="Preview" className="h-32 object-cover rounded-xl border border-white/50 bg-black/5 shadow-sm" onError={(e) => e.target.style.display = 'none'} />
+                                  <button type="button" onClick={() => setPostImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1.5 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
+                              </div>
                           )}
                       </div>
                   )}
@@ -886,10 +1009,16 @@
                     <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
                     <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
 
-                    {/* BOTÓN PARA ACTIVAR IMAGEN */}
-                    <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 ${showImageInput ? 'text-blue-600 border-blue-300' : 'text-gray-800'}`}>
-                        <ImageIcon size={16} /> Imagen
+                    {/* BOTÓN PARA ACTIVAR ENLACE DE IMAGEN */}
+                    <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 ${showImageInput ? 'text-blue-600 border-blue-300' : 'text-gray-800'}`} title="Añadir por enlace">
+                        <ImageIcon size={16} /> Enlace
                     </button>
+
+                    {/* BOTÓN PARA SUBIR ARCHIVO LOCAL EN LA PUBLICACIÓN */}
+                    <label className="cursor-pointer bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 text-gray-800" title="Subir foto del computador">
+                        <UploadCloud size={16} /> Subir foto
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePostLocalImageUpload} />
+                    </label>
 
                     {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
                   </div>
@@ -917,7 +1046,7 @@
                 </div>
               )}
               {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} />)}
+              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} />)}
             </div>
           );
 
@@ -1570,3 +1699,4 @@
     </script>
 </body>
 </html>
+
