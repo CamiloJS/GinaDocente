@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>English TECH 2.0</title>
+    <title>English TECH</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -31,6 +31,8 @@
         const FileText = createIcon('📄');
         
         // Íconos SVG
+        const Eye = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const EyeOff = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>;
         const CuteBotIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
         const Sun = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
         const Moon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
@@ -301,7 +303,25 @@
                     return (
                         <div key={cid} className="bg-white/40 backdrop-blur-md p-3 rounded-xl text-sm border border-white/30 group/comment">
                           <div className="flex justify-between items-start">
-                              <span className={`font-bold ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
+                              <div className="flex items-center gap-2">
+                                  <span className={`font-bold ${c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
+                                  {c.isEdited && !isEditing && (
+                                      <div className="relative inline-block">
+                                          <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-600 italic transition-colors mt-0.5">(Editado)</button>
+                                          {historyOpenCid === cid && (
+                                              <div className="absolute top-full left-0 mt-1 bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-lg p-2 z-50 w-56">
+                                                  <p className="text-xs font-bold text-gray-700 mb-2 border-b border-gray-300 pb-1">Historial de ediciones</p>
+                                                  {c.editHistory?.map((h, hi) => (
+                                                      <div key={hi} className="mb-2 pb-2 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0">
+                                                          <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
+                                                          <p className="text-xs text-gray-600 line-through">{h.text}</p>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          )}
+                                      </div>
+                                  )}
+                              </div>
                               
                               <div className="hidden group-hover/comment:flex items-center gap-2">
                                   {isOwner && !isEditing && (
@@ -322,22 +342,6 @@
                           ) : (
                               <div className="flex gap-2 items-baseline flex-wrap">
                                   <p className="text-gray-800 mt-1">{c.text}</p>
-                                  {c.isEdited && (
-                                      <div className="relative inline-block mt-1">
-                                          <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-blue-600 hover:text-blue-800 italic bg-white/50 px-1.5 py-0.5 rounded shadow-sm border border-white/60">✏️ Editado</button>
-                                          {historyOpenCid === cid && (
-                                              <div className="absolute top-full left-0 mt-1 bg-white/95 backdrop-blur-xl border border-gray-200 shadow-xl rounded-lg p-2 z-50 w-56">
-                                                  <p className="text-xs font-bold text-gray-700 mb-2 border-b border-gray-300 pb-1">Historial de ediciones</p>
-                                                  {c.editHistory?.map((h, hi) => (
-                                                      <div key={hi} className="mb-2 pb-2 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0">
-                                                          <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
-                                                          <p className="text-xs text-gray-600 line-through">{h.text}</p>
-                                                      </div>
-                                                  ))}
-                                              </div>
-                                          )}
-                                      </div>
-                                  )}
                               </div>
                           )}
 
@@ -423,6 +427,7 @@
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
+          const [showPassword, setShowPassword] = useState(false);
           
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
@@ -650,7 +655,7 @@
               setChatHistory(newHistory);
 
               const prompt = `Rol: Eres el asistente virtual de la Profesora Gina (English TECH).
-              Reglas: Eres muy amigable, usas emojis, y respondes de forma EXTREMADAMENTE concisa, fácil de entender y rápida para los estudiantes.
+              Reglas: Eres muy amigable y puedes conversar de forma natural con los estudiantes si te saludan o hablan. SIN EMBARGO, mantén tus respuestas SIEMPRE BREVES (1 a 3 oraciones como máximo) para ser ágil. Usa emojis.
               Información clave dada por la profesora:
               ${botInfoList.map(i => "- " + i.text).join('\n')}
               
@@ -1092,7 +1097,7 @@
                           <div className="w-20 h-20 bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-[#AD3333]/40 border border-white/20">UP</div>
                           
                           <div className="text-center">
-                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH 2.0 ✨</h1>
+                              <h1 className="text-3xl font-extrabold text-gray-800 drop-shadow-sm mb-1">English TECH</h1>
                               <p className="text-sm font-bold text-[#AD3333]">Universidad de Pamplona</p>
                           </div>
 
@@ -1124,7 +1129,13 @@
                                 {loginType === 'teacher' ? 'Acceso Docente' : 'Acceso Estudiante'}
                               </h3>
                               <div><label className="text-xs font-bold text-gray-700 ml-2">Usuario</label><input type="text" name="username" placeholder="Ej: @Usuario" className={glassInput} required /></div>
-                              <div><label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label><input name="password" type="password" placeholder="••••••••" className={glassInput} required /></div>
+                              <div className="relative">
+                                  <label className="text-xs font-bold text-gray-700 ml-2">Contraseña</label>
+                                  <input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" className={glassInput} required />
+                                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-9 text-gray-500 hover:text-gray-800 transition-colors">
+                                      {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                                  </button>
+                              </div>
                               {loginError && <p className="text-[#AD3333] text-sm text-center font-bold bg-white/50 py-2 rounded-lg">{loginError}</p>}
                               
                               <div className="flex gap-3 mt-2">
@@ -1183,7 +1194,7 @@
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 min-w-[44px] bg-gradient-to-br from-[#AD3333] to-[#8a2828] rounded-xl flex items-center justify-center text-white font-extrabold shadow-lg shadow-[#AD3333]/40 border border-white/20">UP</div>
                     <div>
-                      <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH 2.0 ✨</h1>
+                      <h1 className="text-xl font-extrabold text-gray-800 leading-tight drop-shadow-sm">English TECH</h1>
                       <p className="text-xs text-[#AD3333] font-bold">Universidad de Pamplona</p>
                     </div>
                   </div>
@@ -1258,11 +1269,11 @@
                               </div>
                               
                               <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
-                                  <div className="bg-blue-100 text-blue-900 text-xs p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm">
+                                  <div className="bg-blue-100 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm">
                                       ¡Hola! 👋 Soy el asistente virtual. ¿Tienes alguna pregunta sobre el cronograma o las fechas de la clase?
                                   </div>
                                   {chatHistory.map((m, i) => (
-                                      <div key={i} className={`text-xs p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
+                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
                                           {m.text}
                                       </div>
                                   ))}
@@ -1278,8 +1289,8 @@
                               <form onSubmit={sendChatMessage} className="flex gap-2">
                                   <input 
                                       value={chatInput} onChange={e => setChatInput(e.target.value)} 
-                                      placeholder="Escribe tu pregunta..." 
-                                      className={`${glassInput} py-2 px-3 text-xs bg-white/60`}
+                                      placeholder="Escribe tu mensaje..." 
+                                      className={`${glassInput} py-2 px-3 text-sm bg-white/60`}
                                   />
                                   <button type="submit" disabled={isChatLoading} className="bg-gray-800 text-white p-2.5 rounded-xl hover:bg-black disabled:opacity-50 transition shadow-md">
                                       <ArrowRightIcon size={16}/>
@@ -1311,3 +1322,8 @@
     </script>
 </body>
 </html>
+
+
+
+
+
