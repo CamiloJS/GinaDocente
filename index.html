@@ -273,7 +273,7 @@
                               <span className={`font-bold ${c.author === 'Profesora' ? 'text-[#AD3333]' : 'text-gray-800'}`}>{c.author}</span>
                               
                               <div className="hidden group-hover/comment:flex items-center gap-2">
-                                  {role === 'teacher' && !isEditing && (
+                                  {isOwner && !isEditing && (
                                       <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className="text-gray-400 hover:text-blue-600"><Edit3 size={14}/></button>
                                   )}
                                   {(role === 'teacher' || isOwner) && !isEditing && (
@@ -472,6 +472,28 @@
             }
           };
 
+          const handleAiTranslate = async (lang) => {
+            if (!taskDesc && !taskTitle) return showMessage("Escribe algo para traducir primero.");
+            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+            
+            const prompt = `Traduce al ${lang}:\nTITULO: [Título traducido]\nDESCRIPCION: [Descripción traducida]\n\nTítulo: ${taskTitle}\nDescripción: ${taskDesc}`;
+            const result = await callGemini(prompt);
+            
+            if (!result) { setIsAiLoading(false); return; }
+
+            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
+            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
+            
+            if (titleMatch && descMatch) { 
+              setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); 
+              setTaskDesc(descMatch[1].trim()); 
+            } else {
+              setTaskDesc(result);
+            }
+            setHasAiModified(true);
+            setIsAiLoading(false);
+          };
+
           const handleLogout = () => {
             setHasEntered(false);
             setRole('student');
@@ -541,6 +563,9 @@
                         setTaskDesc(result); setHasAiModified(true); setIsAiLoading(false);
                     }} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir</button>
                     
+                    <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
+                    <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
+
                     {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
                   </div>
 
@@ -570,7 +595,6 @@
           );
 
           const renderReviews = () => {
-              /* ... (El código de reviews se mantiene igual, no requiere modificaciones para esta solicitud) ... */
               return (
               <div className="space-y-6 pb-20 md:pb-0">
                 <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm">Repasos</h2>
@@ -816,6 +840,18 @@
               
               <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
               <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-300/15 rounded-full blur-[120px] pointer-events-none" />
+
+              {showSugModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+                  <form onSubmit={handleSubmitSuggestion} className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative animate-in fade-in zoom-in duration-200`}>
+                    <button type="button" onClick={() => setShowSugModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-[#AD3333] transition-colors"><X size={24}/></button>
+                    <h3 className="text-2xl font-bold text-center text-gray-800 drop-shadow-sm flex items-center justify-center gap-2"><Mail className="text-[#AD3333]"/> Enviar Sugerencia</h3>
+                    <p className="text-xs text-center text-gray-600 mb-2">Buzón de sugerencias para mejorar las clases.</p>
+                    <textarea value={sugText} onChange={e => setSugText(e.target.value)} placeholder="Escribe tu idea para mejorar la clase..." className={`${glassInput} h-32 resize-none`} required />
+                    <button type="submit" disabled={isSugLoading} className={`${redButton} w-full mt-2 disabled:opacity-50`}>{isSugLoading ? 'Enviando...' : 'Enviar'}</button>
+                  </form>
+                </div>
+              )}
 
               {/* BARRA SUPERIOR */}
               <nav className="sticky top-0 z-50 bg-white/20 backdrop-blur-xl border-b border-white/40 px-4 md:px-6 py-4 flex justify-between items-start md:items-center shadow-sm">
