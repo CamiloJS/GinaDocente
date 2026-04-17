@@ -146,6 +146,7 @@
           const [commentText, setCommentText] = useState("");
           const [commentImageUrl, setCommentImageUrl] = useState("");
           const [showCommentImageInput, setShowCommentImageInput] = useState(false);
+          const [showAttachmentMenu, setShowAttachmentMenu] = useState(false); // NUEVO ESTADO PARA EL MENÚ
 
           const [isProcessing, setIsProcessing] = useState(false);
           const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -280,6 +281,7 @@
             setCommentText("");
             setCommentImageUrl(""); 
             setShowCommentImageInput(false);
+            setShowAttachmentMenu(false); // CERRAR MENÚ AL PUBLICAR
             setShowEmojiPicker(false);
             setIsProcessing(false);
           };
@@ -509,16 +511,24 @@
                                     <SmileIcon size={20} />
                                 </button>
 
-                                {/* BOTÓN DE ENLACE */}
-                                <button type="button" onClick={() => setShowCommentImageInput(!showCommentImageInput)} className={`p-2 transition rounded-xl shadow-sm ${showCommentImageInput ? 'text-blue-500 ring-2 ring-blue-500/50 ' + (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600')}`} title="Pegar Enlace de Imagen">
-                                    <ImageIcon size={20} />
-                                </button>
+                                {/* BOTÓN UNIFICADO DE IMAGEN */}
+                                <div className="relative">
+                                    <button type="button" onClick={() => setShowAttachmentMenu(!showAttachmentMenu)} className={`p-2 transition rounded-xl shadow-sm ${(showCommentImageInput || showAttachmentMenu) ? 'text-blue-500 ring-2 ring-blue-500/50 ' + (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : (isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600')}`} title="Añadir Imagen">
+                                        <ImageIcon size={20} />
+                                    </button>
 
-                                {/* BOTÓN DE SUBIR ARCHIVO LOCAL */}
-                                <label className={`p-2 cursor-pointer transition rounded-xl shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-400 hover:text-blue-400' : 'bg-gray-100 text-gray-500 hover:text-blue-600'}`} title="Subir desde el dispositivo">
-                                    <UploadCloud size={20} />
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleLocalImageUpload} />
-                                </label>
+                                    {showAttachmentMenu && (
+                                        <div className={`absolute bottom-full left-0 mb-4 w-44 backdrop-blur-2xl border shadow-2xl rounded-2xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                            <button type="button" onClick={() => { setShowCommentImageInput(!showCommentImageInput); setShowAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                                <ImageIcon size={16} /> Enlace web
+                                            </button>
+                                            <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                                <UploadCloud size={16} /> Subir archivo
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleLocalImageUpload(e); setShowAttachmentMenu(false); }} />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {showEmojiPicker && (
                                     <div className={`absolute bottom-full left-0 mb-4 backdrop-blur-2xl border shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-3 z-50 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
@@ -622,6 +632,7 @@
           const [taskDesc, setTaskDesc] = useState("");
           const [postImageUrl, setPostImageUrl] = useState(""); 
           const [showImageInput, setShowImageInput] = useState(false); 
+          const [showPostAttachmentMenu, setShowPostAttachmentMenu] = useState(false); // NUEVO ESTADO PARA MENÚ DEL POST
           const [taskDate, setTaskDate] = useState(getToday());
           const [taskTime, setTaskTime] = useState("23:59");
           const [allowLate, setAllowLate] = useState(false);
@@ -1009,16 +1020,24 @@
                     <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
                     <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
 
-                    {/* BOTÓN PARA ACTIVAR ENLACE DE IMAGEN */}
-                    <button type="button" onClick={() => setShowImageInput(!showImageInput)} className={`bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 ${showImageInput ? 'text-blue-600 border-blue-300' : 'text-gray-800'}`} title="Añadir por enlace">
-                        <ImageIcon size={16} /> Enlace
-                    </button>
-
-                    {/* BOTÓN PARA SUBIR ARCHIVO LOCAL EN LA PUBLICACIÓN */}
-                    <label className="cursor-pointer bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 text-gray-800" title="Subir foto del computador">
-                        <UploadCloud size={16} /> Subir foto
-                        <input type="file" accept="image/*" className="hidden" onChange={handlePostLocalImageUpload} />
-                    </label>
+                    {/* BOTÓN UNIFICADO DE IMAGEN EN PUBLICACIONES */}
+                    <div className="relative">
+                        <button type="button" onClick={() => setShowPostAttachmentMenu(!showPostAttachmentMenu)} className={`bg-white/50 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 ${showImageInput || showPostAttachmentMenu ? 'text-blue-600 border-blue-300' : 'text-gray-800'}`} title="Añadir Imagen">
+                            <ImageIcon size={16} /> Imagen
+                        </button>
+                        
+                        {showPostAttachmentMenu && (
+                            <div className={`absolute top-full left-0 mt-2 w-44 backdrop-blur-2xl border shadow-xl rounded-xl p-2 flex flex-col gap-1 z-50 animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                <button type="button" onClick={() => { setShowImageInput(!showImageInput); setShowPostAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                    <ImageIcon size={16} /> Enlace web
+                                </button>
+                                <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                    <UploadCloud size={16} /> Subir archivo
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { handlePostLocalImageUpload(e); setShowPostAttachmentMenu(false); }} />
+                                </label>
+                            </div>
+                        )}
+                    </div>
 
                     {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
                   </div>
@@ -1039,7 +1058,7 @@
                             imageUrl: postImageUrl.trim(), // GUARDAR IMAGEN
                             dueDate: postType === 'task' ? taskDate : null, dueTime: postType === 'task' ? taskTime : null, allowLate: postType === 'task' ? allowLate : true, createdAt: Date.now(), comments: [], reactions: {} 
                         });
-                        setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setShowImageInput(false); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
+                        setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setShowImageInput(false); setShowPostAttachmentMenu(false); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
                       } else showMessage("Llena título y descripción.");
                     }} className={`${redButton} ml-auto ${postType === 'post' ? 'mt-0' : 'mt-4'}`}>Publicar</button>
                   </div>
