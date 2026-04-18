@@ -2594,7 +2594,7 @@
 
                               return (
                                   <div className="flex flex-col h-full w-full relative overflow-hidden">
-                                      <div className={`absolute inset-0 z-0 transition-colors duration-500 ${currentPrefs.gradient ? \`bg-gradient-to-br \${currentPrefs.gradient}\` : (isDarkMode ? 'bg-gray-900' : 'bg-gray-50')}`} />
+                                      <div className={`absolute inset-0 z-0 transition-colors duration-500 ${currentPrefs.gradient ? 'bg-gradient-to-br ' + currentPrefs.gradient : (isDarkMode ? 'bg-gray-900' : 'bg-gray-50')}`} />
                                       <div className="absolute inset-0 z-0 pointer-events-none mix-blend-overlay" style={{ ...activePattern, color: isDarkMode ? '#ffffff' : '#000000', opacity: 0.06 }} />
 
                                       <div className="relative z-10 flex flex-col h-full w-full">
@@ -2635,7 +2635,7 @@
                                                                       key={idx} 
                                                                       type="button"
                                                                       onClick={() => handleUpdateChatPreference(activeChat.id, 'gradient', grad)} 
-                                                                      className={`w-8 h-8 rounded-full border-2 transition-transform shadow-sm ${grad ? \`bg-gradient-to-br \${grad}\` : (isDarkMode ? 'bg-gray-700' : 'bg-gray-200')} ${currentPrefs.gradient === grad ? 'border-blue-500 scale-110' : 'border-transparent hover:scale-105'}`} 
+                                                                      className={`w-8 h-8 rounded-full border-2 transition-transform shadow-sm ${grad ? 'bg-gradient-to-br ' + grad : (isDarkMode ? 'bg-gray-700' : 'bg-gray-200')} ${currentPrefs.gradient === grad ? 'border-blue-500 scale-110' : 'border-transparent hover:scale-105'}`} 
                                                                       title={grad === "" ? "Por defecto" : "Color"}
                                                                   />
                                                               ))}
