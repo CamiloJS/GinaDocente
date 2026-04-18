@@ -2530,14 +2530,15 @@
                                       <div className={`flex items-center p-4 md:p-6 border-b shadow-sm shrink-0 gap-4 relative z-50 ${isDarkMode ? 'bg-gray-800/80 backdrop-blur-xl border-gray-700' : 'bg-white/80 backdrop-blur-xl border-gray-200'}`}>
                                           <button onClick={() => setActiveChat(null)} className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}><ArrowLeftIcon size={24} /></button>
                                           <div className="flex items-center gap-3 flex-1">
-                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
-                                                  {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
-                                              </div>
-                                              <h2 className={`text-xl font-extrabold truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
-                                          </div>
+                                              <div className="flex items-center gap-3 flex-1 min-w-0">
+    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
+        {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
+    </div>
+    <h2 className={`text-xl font-extrabold truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
+</div>
                                           
                                           {/* OPCIONES DE PERSONALIZACIÓN Y GRUPO */}
-                                          <div className="ml-auto flex gap-2 relative">
+                                            <div className="ml-auto flex gap-2 relative shrink-0">
                                               <button onClick={() => setShowChatSettings(!showChatSettings)} className={`p-2 rounded-full transition-colors ${showChatSettings ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-500/10 text-blue-600') : (isDarkMode ? 'text-gray-400 hover:bg-gray-700/50' : 'text-gray-500 hover:bg-gray-200/50')}`} title="Personalizar Chat">
                                                   <Palette size={20}/>
                                               </button>
