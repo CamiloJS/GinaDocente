@@ -1147,6 +1147,23 @@
 
           const handleDeleteAppMessage = async (msgId) => {
               await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages', msgId));
+              
+              // Actualizar la vista previa si borramos el último mensaje de la conversación
+              if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].id === msgId) {
+                  if (chatMessages.length > 1) {
+                      const prevMsg = chatMessages[chatMessages.length - 2];
+                      const msgPreviewText = prevMsg.text || (prevMsg.imageUrl ? '📷 Imagen' : '');
+                      const previewName = prevMsg.author === TEACHER_NAME ? 'Profesora' : prevMsg.author.split(' ')[0];
+                      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'lastMessages', activeChat.id), {
+                          text: msgPreviewText,
+                          author: previewName,
+                          createdAt: prevMsg.createdAt
+                      });
+                  } else {
+                      // Si era el único mensaje, borramos el registro para que vuelva a decir "Docente/Estudiante"
+                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'lastMessages', activeChat.id));
+                  }
+              }
           };
 
           const handleEditAppMessage = async () => {
@@ -2504,7 +2521,7 @@
                                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
                                                           {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
-                                                      {userPresence[u.id] && <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>}
+                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${userPresence[u.id] ? 'bg-green-500' : 'bg-gray-400'} ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
                                                       <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
@@ -2530,7 +2547,7 @@
                                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
                                                           {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
-                                                      {userPresence[u.id] && <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>}
+                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${userPresence[u.id] ? 'bg-green-500' : 'bg-gray-400'} ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
                                                       <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
