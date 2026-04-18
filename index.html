@@ -1076,30 +1076,22 @@
           }, [user, myChatId]);
             useEffect(() => {
               if (myChatId) {
-                  // Corregimos el ID de presencia para que siempre coincida con el directorio
                   const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
                   const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
                   
-                  // Marcar como conectado
+                  // Marcar como conectado al entrar
                   setDoc(presenceRef, { isOnline: true }, { merge: true });
 
-                  // Función para marcar como desconectado
+                  // Solo marcar como desconectado al cerrar la aplicación o desloguearse
                   const handleOffline = () => setDoc(presenceRef, { isOnline: false }, { merge: true });
 
-                  // Eventos de cierre de pestaña o ventana
                   window.addEventListener('beforeunload', handleOffline);
-                  window.addEventListener('visibilitychange', () => {
-                      if (document.visibilityState === 'hidden') handleOffline();
-                      else setDoc(presenceRef, { isOnline: true }, { merge: true });
-                  });
-
                   return () => { 
                       handleOffline(); 
                       window.removeEventListener('beforeunload', handleOffline); 
                   };
               }
           }, [myChatId, role]);
-
           useEffect(() => {
               if (isChatAppOpen && myChatId) {
                   setHasUnreadChat(false);
@@ -2609,7 +2601,7 @@
         <div className="flex flex-col min-w-0">
                                                   <h2 className={`text-xl font-extrabold truncate leading-tight ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
                                                   {activeChat.type === 'dm' && (() => {
-                                                      const targetId = activeChat.id.replace('dm_', '').replace(myChatId, '').replace('_', '');
+                                                      const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
                                                       const isTyping = typingStatus[activeChat.id]?.[targetId];
                                                       const isOnline = userPresence[targetId];
                                                       
