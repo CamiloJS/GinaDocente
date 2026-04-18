@@ -1076,13 +1076,29 @@
           }, [user, myChatId]);
             useEffect(() => {
               if (myChatId) {
-                  const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', myChatId);
+                  // Corregimos el ID de presencia para que siempre coincida con el directorio
+                  const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
+                  const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
+                  
+                  // Marcar como conectado
                   setDoc(presenceRef, { isOnline: true }, { merge: true });
+
+                  // Función para marcar como desconectado
                   const handleOffline = () => setDoc(presenceRef, { isOnline: false }, { merge: true });
+
+                  // Eventos de cierre de pestaña o ventana
                   window.addEventListener('beforeunload', handleOffline);
-                  return () => { handleOffline(); window.removeEventListener('beforeunload', handleOffline); };
+                  window.addEventListener('visibilitychange', () => {
+                      if (document.visibilityState === 'hidden') handleOffline();
+                      else setDoc(presenceRef, { isOnline: true }, { merge: true });
+                  });
+
+                  return () => { 
+                      handleOffline(); 
+                      window.removeEventListener('beforeunload', handleOffline); 
+                  };
               }
-          }, [myChatId]);
+          }, [myChatId, role]);
 
           useEffect(() => {
               if (isChatAppOpen && myChatId) {
