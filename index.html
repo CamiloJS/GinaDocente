@@ -734,6 +734,9 @@
           const [editAppMessageText, setEditAppMessageText] = useState("");
 
           const [chatPreferences, setChatPreferences] = useState({});
+            const [userPresence, setUserPresence] = useState({});
+            const [typingStatus, setTypingStatus] = useState({});
+            const typingTimeout = useRef(null);
           const [showChatSettings, setShowChatSettings] = useState(false);
 
           const notificationSound = useRef(typeof Audio !== "undefined" ? new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3') : null);
@@ -1062,8 +1065,24 @@
                 }
             });
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); };
+            const uPresence = onSnapshot(collection(db, ...base, 'presence'), s => {
+                const p = {}; s.docs.forEach(d => p[d.id] = d.data().isOnline); setUserPresence(p);
+            });
+            const uTyping = onSnapshot(collection(db, ...base, 'typing'), s => {
+                const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
+            });
+
+            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); };
           }, [user, myChatId]);
+            useEffect(() => {
+              if (myChatId) {
+                  const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', myChatId);
+                  setDoc(presenceRef, { isOnline: true }, { merge: true });
+                  const handleOffline = () => setDoc(presenceRef, { isOnline: false }, { merge: true });
+                  window.addEventListener('beforeunload', handleOffline);
+                  return () => { handleOffline(); window.removeEventListener('beforeunload', handleOffline); };
+              }
+          }, [myChatId]);
 
           useEffect(() => {
               if (isChatAppOpen && myChatId) {
@@ -1098,6 +1117,8 @@
           // FILTRAR POR BUSCADOR
           const filteredUsers = allChatUsers.filter(u => u.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
           const filteredGroups = myGroups.filter(g => g.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
+            const activeChatsUsers = filteredUsers.filter(u => lastMessages[`dm_${[myChatId, u.id].sort().join('_')}`]);
+          const otherContactsUsers = filteredUsers.filter(u => !lastMessages[`dm_${[myChatId, u.id].sort().join('_')}`]);
 
           const handleOpenChat = (chat) => {
               setActiveChat(chat);
@@ -2460,31 +2481,53 @@
                                       </div>
                                   </div>
                                   
-                                  {/* SECCIÓN CONTACTOS */}
-                                  <div>
-                                      <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Contactos</h3>
+                                  {/* SECCIÓN CHATS ACTIVOS */}
+                                  <div className="mb-6">
+                                      <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Chats Activos</h3>
                                       <div className="space-y-2">
-                                          {filteredUsers.length === 0 && <p className="text-sm italic text-gray-500">No se encontraron contactos.</p>}
-                                          {filteredUsers.map(u => {
+                                          {activeChatsUsers.length === 0 && <p className="text-sm italic text-gray-500">No hay chats recientes.</p>}
+                                          {activeChatsUsers.map(u => {
                                               const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
                                               const lastMsg = lastMessages[chatId];
                                               const isUnread = unreadChats[chatId];
                                               return (
                                                   <button key={u.id} onClick={() => handleOpenChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0 ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                                                          {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
+                                                      <div className="relative shrink-0">
+                                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                              {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
+                                                          </div>
+                                                          {userPresence[u.id] && <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>}
                                                       </div>
                                                       <div className="text-left flex-1 overflow-hidden">
                                                           <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
-                                                          {lastMsg ? (
-                                                              <p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-500' : 'text-gray-500')}`}>
-                                                                  {lastMsg.text}
-                                                              </p>
-                                                          ) : (
-                                                              <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
-                                                          )}
+                                                          <p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>{lastMsg.text}</p>
                                                       </div>
                                                       {isUnread && <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm ml-2 shrink-0"></div>}
+                                                  </button>
+                                              );
+                                          })}
+                                      </div>
+                                  </div>
+
+                                  {/* SECCIÓN CONTACTOS */}
+                                  <div>
+                                      <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Contactos</h3>
+                                      <div className="space-y-2">
+                                          {otherContactsUsers.length === 0 && <p className="text-sm italic text-gray-500">No hay contactos nuevos.</p>}
+                                          {otherContactsUsers.map(u => {
+                                              const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
+                                              return (
+                                                  <button key={u.id} onClick={() => handleOpenChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                                      <div className="relative shrink-0">
+                                                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                              {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
+                                                          </div>
+                                                          {userPresence[u.id] && <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>}
+                                                      </div>
+                                                      <div className="text-left flex-1 overflow-hidden">
+                                                          <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
+                                                          <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+                                                      </div>
                                                   </button>
                                               );
                                           })}
@@ -2547,7 +2590,18 @@
         <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
             {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
         </div>
-        <h2 className={`text-xl font-extrabold truncate ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
+        <div className="flex flex-col min-w-0">
+                                                  <h2 className={`text-xl font-extrabold truncate leading-tight ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
+                                                  {activeChat.type === 'dm' && (() => {
+                                                      const targetId = activeChat.id.replace('dm_', '').replace(myChatId, '').replace('_', '');
+                                                      const isTyping = typingStatus[activeChat.id]?.[targetId];
+                                                      const isOnline = userPresence[targetId];
+                                                      
+                                                      if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
+                                                      if (isOnline) return <span className="text-xs font-bold text-green-500">En línea</span>;
+                                                      return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
+                                                  })()}
+                                              </div>
     </div>
 
     {/* OPCIONES DE PERSONALIZACIÓN Y GRUPO */}
@@ -2677,7 +2731,16 @@
                                               </div>
 
                                               <input 
-                                                  value={chatAppInput} onChange={(e) => setChatAppInput(e.target.value)} 
+                                                  value={chatAppInput} 
+                                                  onChange={(e) => {
+                                                      setChatAppInput(e.target.value);
+                                                      const typingRef = doc(db, 'artifacts', appId, 'public', 'data', 'typing', activeChat.id);
+                                                      setDoc(typingRef, { [myChatId]: true }, { merge: true });
+                                                      clearTimeout(typingTimeout.current);
+                                                      typingTimeout.current = setTimeout(() => {
+                                                          setDoc(typingRef, { [myChatId]: false }, { merge: true });
+                                                      }, 2000);
+                                                  }} 
                                                   placeholder="Escribe un mensaje..." 
                                                   className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
                                               />
