@@ -1151,6 +1151,17 @@
               showMessage("🗑️ Grupo eliminado.");
           };
 
+            const handleDeleteEntireChat = async () => {
+              if (!activeChat) return;
+              const msgsSnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages'));
+              msgsSnapshot.forEach(async (d) => {
+                  await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages', d.id));
+              });
+              await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'lastMessages', activeChat.id));
+              setActiveChat(null);
+              showMessage("🗑️ Historial de chat eliminado.");
+          };
+
           const handleSendAppMessage = async (e) => {
               e.preventDefault();
               if (!chatAppInput.trim() && !chatAppImageUrl.trim()) return;
@@ -2571,12 +2582,14 @@
                                                   </div>
                                               )}
 
-                                              {activeChat.type === 'group' && (
+                                              {activeChat.type === 'group' ? (
                                                   chatGroups.find(g => `group_${g.id}` === activeChat.id)?.createdBy === myChatId ? (
                                                       <button onClick={() => confirmAction("¿Eliminar este grupo definitivamente?", handleDeleteGroup)} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-red-400 hover:bg-red-900/50' : 'text-red-500 hover:bg-red-50'}`} title="Eliminar Grupo"><Trash2 size={20}/></button>
                                                   ) : (
                                                       <button onClick={() => confirmAction("¿Seguro que deseas abandonar este grupo?", handleLeaveGroup)} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-orange-400 hover:bg-orange-900/50' : 'text-orange-500 hover:bg-orange-50'}`} title="Abandonar Grupo"><LogOutIcon size={20}/></button>
                                                   )
+                                              ) : (
+                                                  <button onClick={() => confirmAction("¿Seguro que deseas vaciar todo el historial de este chat?", handleDeleteEntireChat)} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-red-400 hover:bg-red-900/50' : 'text-red-500 hover:bg-red-50'}`} title="Vaciar Chat"><Trash2 size={20}/></button>
                                               )}
                                           </div>
                                       </div>
