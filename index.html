@@ -2428,10 +2428,11 @@
               )}
 
               {isChatAppOpen && ReactDOM.createPortal(
-                  <div className={`fixed inset-0 z-[99999] flex flex-col animate-in fade-in zoom-in-95 duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-                      
-                      {/* VISTA 1: LISTADO DE CHATS / DIRECTORIO */}
-                      {!activeChat && !isCreatingGroup && (
+                  <div className={`fixed inset-0 z-[99999] flex flex-col md:flex-row animate-in fade-in zoom-in-95 duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+
+        {/* --- PANEL IZQUIERDO: LISTA DE CHATS (35% en Desktop) --- */}
+        <div className={`w-full md:w-[35%] md:min-w-[320px] md:max-w-[400px] h-full flex flex-col border-r ${isDarkMode ? 'border-gray-800' : 'border-gray-200'} ${(activeChat || isCreatingGroup) ? 'hidden md:flex' : 'flex'}`}>
+            <div className="flex flex-col h-full w-full">
                           <div className="flex flex-col h-full">
                               <div className={`flex justify-between items-center p-4 md:p-6 border-b shadow-sm shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                                   <h2 className={`text-xl md:text-2xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
@@ -2543,7 +2544,19 @@
                                   </div>
                               </div>
                           </div>
-                      )}
+        </div>
+
+        {/* --- PANEL DERECHO: ÁREA DE CHAT (65% en Desktop) --- */}
+        <div className={`w-full md:flex-1 h-full flex flex-col relative ${(!activeChat && !isCreatingGroup) ? 'hidden md:flex items-center justify-center' : 'flex'}`}>
+
+            {/* Mensaje de reposo cuando no hay chat abierto en PC */}
+            {!activeChat && !isCreatingGroup && (
+                <div className={`hidden md:flex flex-col items-center justify-center text-center p-8 h-full ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <MessageCircle size={80} className="mb-6 opacity-20" />
+                    <h3 className="text-2xl font-bold mb-2">Tus Mensajes</h3>
+                    <p className="text-sm">Selecciona un chat o grupo del menú lateral para comenzar.</p>
+                </div>
+            )}
 
                       {/* VISTA 2: CREAR GRUPO */}
                       {isCreatingGroup && (
@@ -2782,7 +2795,8 @@
                           );
                       })()}
                   </div>
-              , document.body)}
+    </div> {/* Cierre del Panel Derecho que abrimos en el paso 2 */}
+  , document.body)}
 
               {showSugModal && (
                   <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
