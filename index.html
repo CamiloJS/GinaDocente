@@ -739,7 +739,49 @@ const handleSaveEditedTask = async () => {
               window.addEventListener('hashchange', handleHashChange);
               return () => window.removeEventListener('hashchange', handleHashChange);
           }, []);
+// --- SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA SILENCIOSA ---
+          useEffect(() => {
+              let idleMinutes = 0;
+              
+              const resetIdleTime = () => { idleMinutes = 0; };
+              const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+              events.forEach(e => window.addEventListener(e, resetIdleTime));
 
+              const checkUpdateInterval = setInterval(() => {
+                  idleMinutes += 1;
+                  
+                  // Si lleva 30 minutos inactivo Y es seguro recargar (campos vacíos, sin exámenes)
+                  if (idleMinutes >= 30) {
+                      const isSafeToReload = !taskTitle && !taskDesc && !activeTakingEval && !isCreatingEval && !chatAppInput && !chatInput && !sugText && !reviewTopic && !isCreatingGroup;
+                      if (isSafeToReload) {
+                          window.location.reload(true); // El 'true' fuerza limpiar la caché del navegador
+                      }
+                  }
+              }, 60000); // Revisa cada 1 minuto
+
+              // También comprobar cuando el usuario regresa a la pestaña tras minimizarla
+              let lastVisibleTime = Date.now();
+              const handleVisibility = () => {
+                  if (document.visibilityState === 'visible') {
+                      const hoursAway = (Date.now() - lastVisibleTime) / (1000 * 60 * 60);
+                      const isSafeToReload = !taskTitle && !taskDesc && !activeTakingEval && !isCreatingEval && !chatAppInput && !chatInput && !sugText && !reviewTopic && !isCreatingGroup;
+                      
+                      // Si estuvo fuera de la pestaña más de 1 hora y no hay riesgo de perder datos
+                      if (hoursAway >= 1 && isSafeToReload) {
+                          window.location.reload(true);
+                      }
+                      lastVisibleTime = Date.now();
+                  }
+              };
+              document.addEventListener('visibilitychange', handleVisibility);
+
+              return () => {
+                  clearInterval(checkUpdateInterval);
+                  events.forEach(e => window.removeEventListener(e, resetIdleTime));
+                  document.removeEventListener('visibilitychange', handleVisibility);
+              };
+          }, [taskTitle, taskDesc, activeTakingEval, isCreatingEval, chatAppInput, chatInput, sugText, reviewTopic, isCreatingGroup]);
+            
           // --- FUNCIÓN PARA CAMBIAR DE PESTAÑA ---
           const changeTab = (tab) => {
               window.location.hash = tab;
@@ -3036,7 +3078,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                                   </div>
 
                                                                   {/* Botones de acción (Aparecen abajo) */}
-                                                                  <div className={`hidden group-hover:flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity relative`}>
+                                                                  <div className={`flex items-center gap-1 invisible opacity-0 group-hover:visible group-hover:opacity-60 hover:!opacity-100 transition-all duration-200 relative`}>
                                                                       <button onClick={() => setActiveChatReactionMsgId(activeChatReactionMsgId === m.id ? null : m.id)} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Reaccionar"><SmileIcon size={14}/></button>
                                                                       
                                                                       {/* Picker de Emojis */}
