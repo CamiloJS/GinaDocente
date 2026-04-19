@@ -20,7 +20,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
+        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+        
         // Íconos de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
         const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const Plus = createIcon('➕'); 
@@ -104,7 +105,22 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app); // Inicializamos Storage
         
+        // --- FUNCIÓN PARA SUBIR IMÁGENES A STORAGE ---
+        const uploadImageToStorage = async (base64String, folderName) => {
+            // Generamos un nombre único para que las imágenes no se sobreescriban
+            const fileName = `${appId}/${folderName}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+            const storageRef = ref(storage, fileName);
+            
+            // Subimos el string Base64 directamente a Storage
+            await uploadString(storageRef, base64String, 'data_url');
+            
+            // Obtenemos y retornamos la URL pública
+            const downloadURL = await getDownloadURL(storageRef);
+            return downloadURL;
+        };
+
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
         const secondaryAuth = getAuth(secondaryApp);
 
@@ -308,7 +324,8 @@ const handleSaveEditedTask = async () => {
               try {
                   setIsProcessing(true);
                   const compressed = await compressImage(file, 800, 800, 0.6);
-                  setCommentImageUrl(compressed);
+                  const firebaseURL = await uploadImageToStorage(compressed, 'comments'); // Subimos a Storage
+                  setCommentImageUrl(firebaseURL); // Guardamos solo la URL corta
                   setIsProcessing(false);
               } catch (error) {
                   showMessage("Hubo un error al procesar tu imagen.");
@@ -1511,8 +1528,11 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               const file = e.target.files[0];
               if (!file) return;
               try {
+                  showMessage("⏳ Subiendo imagen..."); // Mensajito para que el usuario sepa que está cargando
                   const compressed = await compressImage(file, 800, 800, 0.6);
-                  setChatAppImageUrl(compressed);
+                  const firebaseURL = await uploadImageToStorage(compressed, 'chats'); // Subimos a Storage
+                  setChatAppImageUrl(firebaseURL); // Guardamos solo la URL corta
+                  showMessage("✅ Imagen lista para enviar");
               } catch (error) {
                   showMessage("Hubo un error al procesar tu imagen.");
               }
@@ -1524,7 +1544,8 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               try {
                   setIsAiLoading(true);
                   const compressed = await compressImage(file, 800, 800, 0.6);
-                  setPostImageUrl(compressed);
+                  const firebaseURL = await uploadImageToStorage(compressed, 'posts'); // Subimos a Storage
+                  setPostImageUrl(firebaseURL); // Guardamos solo la URL corta
                   setIsAiLoading(false);
               } catch (error) {
                   showMessage("Hubo un error al procesar tu imagen.");
