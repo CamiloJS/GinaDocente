@@ -1175,7 +1175,7 @@ const handleSaveEditedTask = async () => {
             });
 
             const uPresence = onSnapshot(collection(db, ...base, 'presence'), s => {
-                const p = {}; s.docs.forEach(d => p[d.id] = d.data().isOnline); setUserPresence(p);
+                const p = {}; s.docs.forEach(d => p[d.id] = d.data()); setUserPresence(p);
             });
             const uTyping = onSnapshot(collection(db, ...base, 'typing'), s => {
                 const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
@@ -1188,14 +1188,57 @@ const handleSaveEditedTask = async () => {
                   const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
                   const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
                   
-                  // Marcar como conectado al entrar
-                  setDoc(presenceRef, { isOnline: true }, { merge: true });
+                  let awayTimer;
+                  let busyTimer;
+                  let currentStatus = 'offline';
+
+                  const setOnline = () => {
+                      if (currentStatus !== 'online') {
+                          currentStatus = 'online';
+                          setDoc(presenceRef, { isOnline: true, status: 'online' }, { merge: true });
+                      }
+                      // Reiniciar los temporizadores
+                      clearTimeout(awayTimer);
+                      clearTimeout(busyTimer);
+                      
+                      awayTimer = setTimeout(() => {
+                          currentStatus = 'away';
+                          setDoc(presenceRef, { isOnline: true, status: 'away' }, { merge: true });
+                      }, 5 * 60 * 1000); // 5 minutos sin hacer nada -> Ausente
+
+                      busyTimer = setTimeout(() => {
+                          currentStatus = 'busy';
+                          setDoc(presenceRef, { isOnline: true, status: 'busy' }, { merge: true });
+                      }, 30 * 60 * 1000); // 30 minutos sin hacer nada -> Ocupado
+                  };
+
+                  // Iniciar al entrar
+                  setOnline();
+
+                  // Detectar cualquier actividad del usuario
+                  const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+                  let throttleTimer;
+                  
+                  const handleActivity = () => {
+                      if (throttleTimer) return;
+                      // Evitar saturar el navegador, solo reinicia los timers si pasa 1 segundo entre movimientos
+                      throttleTimer = setTimeout(() => {
+                          setOnline();
+                          throttleTimer = null;
+                      }, 1000);
+                  };
+
+                  events.forEach(e => window.addEventListener(e, handleActivity));
 
                   // Solo marcar como desconectado al cerrar la aplicación o desloguearse
-                  const handleOffline = () => setDoc(presenceRef, { isOnline: false }, { merge: true });
-
+                  const handleOffline = () => setDoc(presenceRef, { isOnline: false, status: 'offline' }, { merge: true });
                   window.addEventListener('beforeunload', handleOffline);
+
                   return () => { 
+                      clearTimeout(awayTimer);
+                      clearTimeout(busyTimer);
+                      clearTimeout(throttleTimer);
+                      events.forEach(e => window.removeEventListener(e, handleActivity));
                       handleOffline(); 
                       window.removeEventListener('beforeunload', handleOffline); 
                   };
@@ -2703,7 +2746,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
                                                           {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
-                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id] ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
                                                       <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
@@ -2729,7 +2772,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
                                                           {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
                                                       </div>
-                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id] ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                      <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
                                                       <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
@@ -2818,11 +2861,15 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                   {activeChat.type === 'dm' && (() => {
                                                       const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
                                                       const isTyping = typingStatus[activeChat.id]?.[targetId];
-                                                      const isOnline = userPresence[targetId];
+                                                        const presenceData = userPresence[targetId] || {};
+                                                        const isOnline = presenceData.isOnline;
+                                                        const userStatus = presenceData.status;
 
-                                                      if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
-                                                      if (isOnline) return <span className="text-xs font-bold text-green-500">En línea</span>;
-                                                      return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
+                                                        if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
+                                                        if (isOnline && userStatus === 'online') return <span className="text-xs font-bold text-green-500">En línea</span>;
+                                                        if (isOnline && userStatus === 'away') return <span className="text-xs font-bold text-orange-400">Ausente</span>;
+                                                        if (isOnline && userStatus === 'busy') return <span className="text-xs font-bold text-red-500">Ocupado</span>;
+                                                        return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                   })()}
 
                                                   {activeChat.type === 'group' && (() => {
