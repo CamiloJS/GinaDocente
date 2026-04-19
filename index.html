@@ -35,6 +35,7 @@
         // Íconos SVG
         const Trash2 = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
         const CheckLine = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="20 6 9 17 4 12"/></svg>;
+        const ReplyIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>;
         const XLine = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
         const Edit3 = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
         const Palette = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="13.5" cy="6.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="1.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="1.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="1.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>;
@@ -889,6 +890,7 @@ const handleSaveEditedTask = async () => {
           const [newGroupMembers, setNewGroupMembers] = useState([]);
           
           const [chatAppInput, setChatAppInput] = useState("");
+            const [replyingTo, setReplyingTo] = useState(null);
           const [chatAppImageUrl, setChatAppImageUrl] = useState("");
           const [showChatAppAttachmentMenu, setShowChatAppAttachmentMenu] = useState(false);
           const [showChatAppImageInput, setShowChatAppImageInput] = useState(false);
@@ -1338,7 +1340,21 @@ const handleSaveEditedTask = async () => {
                   chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
               }
           }, [chatMessages, isChatAppOpen, activeChat]);
+            
+// NUEVO: Efecto para compartir en qué chat estamos actualmente
+          useEffect(() => {
+              if (!myChatId) return;
+              const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
+              const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
 
+              const currentView = (isChatAppOpen && activeChat) ? activeChat.id : null;
+              setDoc(presenceRef, { currentChatId: currentView }, { merge: true }).catch(() => {});
+
+              return () => {
+                  setDoc(presenceRef, { currentChatId: null }, { merge: true }).catch(() => {});
+              };
+          }, [activeChat, isChatAppOpen, myChatId, role, db, appId]);
+            
           const allChatUsers = [
               { id: 'teacher', name: TEACHER_NAME, role: 'teacher' },
               ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role })),
@@ -1357,6 +1373,7 @@ const handleSaveEditedTask = async () => {
               setActiveChat(chat);
               setShowChatSettings(false);
               setShowGroupInfo(false);
+              setReplyingTo(null); // <--- PEGA ESTA LÍNEA AQUÍ
               if (unreadChats[chat.id]) {
                   const alertRef = doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId);
                   updateDoc(alertRef, { [`chats.${chat.id}`]: false }).then(() => {
@@ -1469,7 +1486,8 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                   author: authorName,
                   authorId: myChatId,
                   uid: user.uid,
-                  status: 'sent', // <-- ¡Nueva línea agregada!
+                  status: 'sent',
+                  replyTo: replyingTo ? { id: replyingTo.id, text: replyingTo.text || '', author: replyingTo.author || '', imageUrl: replyingTo.imageUrl || '' } : null,
                   createdAt: Date.now()
               });
 
@@ -1504,6 +1522,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               setShowChatAppAttachmentMenu(false);
               setShowChatAppImageInput(false);
               setShowChatAppEmojiPicker(false);
+              setReplyingTo(null); // <--- PEGA ESTA LÍNEA AQUÍ
           };
 
           const handleCreateGroup = async (e) => {
@@ -2438,7 +2457,14 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
                 .dark-mode input, .dark-mode textarea { color: #ffffff !important; }
                 .dark-mode input::placeholder, .dark-mode textarea::placeholder { color: #9ca3af !important; }
-                
+
+                @keyframes text-glow-green {
+                    0%, 100% { text-shadow: 0 0 5px rgba(34, 197, 94, 0.4), 0 0 10px rgba(34, 197, 94, 0.2); color: #22c55e; }
+                    50% { text-shadow: 0 0 8px rgba(34, 197, 94, 0.8), 0 0 15px rgba(34, 197, 94, 0.5); color: #4ade80; }
+                }
+                .animate-text-glow-green {
+                    animation: text-glow-green 2.5s ease-in-out infinite;
+                }
                 @keyframes breathe-scale {
                     0%   { transform: scale(1); }
                     50%  { transform: scale(1.05); }
@@ -2926,9 +2952,15 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       const isTyping = typingStatus[activeChat.id]?.[targetId];
                                                         const presenceData = userPresence[targetId] || {};
                                                         const userStatus = presenceData.status;
+const targetCurrentChatId = presenceData.currentChatId;
 
 if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
-if (userStatus === 'online') return <span className="text-xs font-bold text-green-500">En línea</span>;
+if (userStatus === 'online') {
+    if (targetCurrentChatId === activeChat.id) {
+        return <span className="text-xs font-bold animate-text-glow-green">En este chat</span>;
+    }
+    return <span className="text-xs font-bold text-green-500">En línea</span>;
+}
 if (userStatus === 'away') return <span className="text-xs font-bold text-orange-400">Ausente</span>;
 if (userStatus === 'busy') return <span className="text-xs font-bold text-red-500">Ocupado</span>;
 return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
@@ -3041,12 +3073,21 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                               }
 
                                                   return (
-                                                      <div key={m.id} className={`flex flex-col w-full group ${isMe ? 'items-end' : 'items-start'}`}>
+                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group ${isMe ? 'items-end' : 'items-start'}`}>
                                                           {!isMe && activeChat.type === 'group' && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
                                                           
                                                           {/* Contenedor de la burbuja del mensaje SOLO */}
                                                               <div className={`max-w-[85%] md:max-w-[70%]`}>
                                                                   <div className={isTransparent ? 'relative' : `p-3 md:p-4 rounded-2xl shadow-lg relative backdrop-blur-xl border ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white rounded-tr-sm' : (isDarkMode ? 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/50' : 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100 rounded-tl-sm' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 rounded-tl-sm border-gray-700/50' : 'bg-white/80 text-gray-800 rounded-tl-sm border-gray-200/50'))}`}>
+                                                                      {m.replyTo && (
+    <div className={`mb-2 pl-3 border-l-4 rounded-r-lg py-1.5 ${isMe ? 'border-blue-300 bg-black/10' : 'border-gray-400 bg-gray-500/10'} text-xs opacity-90 cursor-pointer`} onClick={() => {
+        const el = document.getElementById(`msg-${m.replyTo.id}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }}>
+        <p className="font-bold opacity-90">{m.replyTo.author}</p>
+        <p className="truncate max-w-[200px] opacity-80">{m.replyTo.text || (m.replyTo.imageUrl ? '📷 Imagen' : '')}</p>
+    </div>
+)}
                                                                       {isEditingThis ? (
                                                                           <div className="flex gap-3 items-center min-w-[200px] bg-black/40 p-2 rounded-xl backdrop-blur-md">
                                                                               <input className="py-1 px-2 text-sm flex-1 rounded bg-white/20 outline-none text-white placeholder-white/50" value={editAppMessageText} onChange={e => setEditAppMessageText(e.target.value)} autoFocus />
@@ -3100,6 +3141,9 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                                   {/* Botones de acción (Aparecen abajo) */}
                                                                   <div className={`flex items-center gap-1 invisible opacity-0 group-hover:visible group-hover:opacity-60 hover:!opacity-100 transition-all duration-200 relative`}>
                                                                       <button onClick={() => setActiveChatReactionMsgId(activeChatReactionMsgId === m.id ? null : m.id)} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Reaccionar"><SmileIcon size={14}/></button>
+                                                                        <button onClick={() => setReplyingTo(m)} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Responder">
+                                                                        <ReplyIcon size={14}/>
+                                                                        </button>
                                                                       
                                                                       {/* Picker de Emojis */}
                                                                       {activeChatReactionMsgId === m.id && (
@@ -3125,6 +3169,15 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                           </div>
 
                                           <form onSubmit={handleSendAppMessage} className={`p-4 border-t shrink-0 flex flex-col gap-3 pb-safe ${isDarkMode ? 'bg-gray-800/80 backdrop-blur-xl border-gray-700' : 'bg-white/80 backdrop-blur-xl border-gray-200'}`}>
+                                              {replyingTo && (
+                                                  <div className={`flex justify-between items-center px-4 py-2 rounded-xl border-l-4 border-blue-500 text-sm shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'}`}>
+                                                      <div className="flex flex-col min-w-0">
+                                                          <span className="font-bold text-blue-500 truncate">Respondiendo a {replyingTo.author}</span>
+                                                          <span className="truncate opacity-80">{replyingTo.text || (replyingTo.imageUrl ? '📷 Imagen' : '')}</span>
+                                                      </div>
+                                                      <button type="button" onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-red-500 ml-3 p-1 rounded-full"><X size={16}/></button>
+                                                  </div>
+                                              )}
                                               <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
                                                   
                                                   <div className="relative">
