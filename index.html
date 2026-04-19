@@ -2845,10 +2845,15 @@ const handleSaveEditedTask = async () => {
                                               {chatMessages.length === 0 && <p className={`text-center italic mt-10 ${currentPrefs.gradient ? 'text-gray-800 dark:text-white font-medium' : 'text-gray-500'}`}>Envía un mensaje para iniciar la conversación.</p>}
                                               {chatMessages.map(m => {
                                                   const isMe = m.authorId === myChatId;
-                                              const isTeacher = m.author === TEACHER_NAME;
-                                              const isEditingThis = editingAppMessageId === m.id;
+                                                  const isTeacher = m.author === TEACHER_NAME;
+                                                  const isEditingThis = editingAppMessageId === m.id;
+                                                  
+                                                  // Detectar si es solo emoji o solo imagen
+                                                  const isEmojiOnly = m.text && !m.imageUrl && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+$/u.test(m.text.trim());
+                                                  const isImageOnly = m.imageUrl && !m.text;
+                                                  const isTransparent = isEmojiOnly || isImageOnly;
 
-                                              // Lógica de los Ticks
+                                                  // Lógica de los Ticks
                                               let tickIcon = null;
                                               if (isMe) {
                                                   if (m.status === 'read') {
@@ -2870,20 +2875,20 @@ const handleSaveEditedTask = async () => {
                                                           {!isMe && activeChat.type === 'group' && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
                                                           
                                                           <div className={`flex items-center gap-2 max-w-[85%] md:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                              <div className={`p-3 md:p-4 rounded-2xl shadow-lg relative backdrop-blur-xl border ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white rounded-tr-sm' : (isDarkMode ? 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/50' : 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100 rounded-tl-sm' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 rounded-tl-sm border-gray-700/50' : 'bg-white/80 text-gray-800 rounded-tl-sm border-gray-200/50'))}`}>
-                                                                  {isEditingThis ? (
-                                                                              <div className="flex gap-3 items-center min-w-[200px]">
-                                                                                  <input className="py-1 px-2 text-sm flex-1 rounded bg-white/20 outline-none text-white placeholder-white/50" value={editAppMessageText} onChange={e => setEditAppMessageText(e.target.value)} autoFocus />
-                                                                                  <button onClick={handleEditAppMessage} className="text-green-300 hover:text-green-400 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={20}/></button>
-                                                                                  <button onClick={() => setEditingAppMessageId(null)} className="text-red-300 hover:text-red-400 hover:scale-110 transition-transform" title="Cancelar"><XLine size={20}/></button>
-                                                                              </div>
-                                                                          ) : (
-                                                                      <>
-                                                                          {m.text && <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{m.text}</p>}
-                                                                          {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className="mt-2 rounded-xl max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-black/10 border border-white/20" />}
-                                                                      </>
-                                                                  )}
-                                                              </div>
+                                                              <div className={isTransparent ? 'relative' : `p-3 md:p-4 rounded-2xl shadow-lg relative backdrop-blur-xl border ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white rounded-tr-sm' : (isDarkMode ? 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/50' : 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100 rounded-tl-sm' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 rounded-tl-sm border-gray-700/50' : 'bg-white/80 text-gray-800 rounded-tl-sm border-gray-200/50'))}`}>
+                                                              {isEditingThis ? (
+                                                                  <div className="flex gap-3 items-center min-w-[200px] bg-black/40 p-2 rounded-xl backdrop-blur-md">
+                                                                      <input className="py-1 px-2 text-sm flex-1 rounded bg-white/20 outline-none text-white placeholder-white/50" value={editAppMessageText} onChange={e => setEditAppMessageText(e.target.value)} autoFocus />
+                                                                      <button onClick={handleEditAppMessage} className="text-green-300 hover:text-green-400 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={20}/></button>
+                                                                      <button onClick={() => setEditingAppMessageId(null)} className="text-red-300 hover:text-red-400 hover:scale-110 transition-transform" title="Cancelar"><XLine size={20}/></button>
+                                                                  </div>
+                                                              ) : (
+                                                                  <>
+                                                                      {m.text && <p className={isEmojiOnly ? "text-5xl md:text-6xl drop-shadow-lg leading-none" : "text-sm md:text-base leading-relaxed whitespace-pre-wrap"}>{m.text}</p>}
+                                                                      {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className={isImageOnly ? "rounded-2xl max-h-72 object-contain cursor-pointer hover:opacity-90 transition-opacity drop-shadow-lg" : "mt-2 rounded-xl max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-black/10 border border-white/20"} />}
+                                                                  </>
+                                                              )}
+                                                          </div>
                                                               
                                                               {isMe && !isEditingThis && (
                                                                   <div className="hidden group-hover:flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
