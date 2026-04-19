@@ -2447,6 +2447,42 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                 }
 
                 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+
+                /* --- SCROLLBAR LIQUID GLASS --- */
+                ::-webkit-scrollbar {
+                    width: 12px;
+                    height: 12px;
+                }
+                ::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: rgba(150, 150, 150, 0.3);
+                    border-radius: 10px;
+                    border: 3px solid transparent;
+                    background-clip: padding-box;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(150, 150, 150, 0.5);
+                    background-clip: padding-box;
+                }
+                
+                /* Adaptación al Modo Oscuro */
+                .dark-mode ::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.15);
+                }
+                .dark-mode ::-webkit-scrollbar-thumb:hover {
+                    background: rgba(255, 255, 255, 0.25);
+                }
+                
+                /* Soporte para Firefox */
+                * {
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(150, 150, 150, 0.3) transparent;
+                }
+                .dark-mode * {
+                    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+                }
               `}</style>
               
               <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
