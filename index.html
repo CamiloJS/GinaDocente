@@ -176,6 +176,14 @@
         };
 
         const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode, confirmAction }) => {
+          const [isEditingTask, setIsEditingTask] = useState(false);
+          const [editTaskData, setEditTaskData] = useState({
+            title: task.title,
+            description: task.description,
+            dueDate: task.dueDate || '',
+            dueTime: task.dueTime || '',
+            allowLate: task.allowLate || false
+          });
           const [commentText, setCommentText] = useState("");
           const [commentImageUrl, setCommentImageUrl] = useState("");
           const [showCommentImageInput, setShowCommentImageInput] = useState(false);
@@ -254,7 +262,25 @@
               }
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
           };
-
+const handleSaveEditedTask = async () => {
+              if (!editTaskData.title.trim() || !editTaskData.description.trim()) return showMessage("El título y la descripción no pueden estar vacíos.");
+              try {
+                  const updates = {
+                      title: editTaskData.title.trim(),
+                      description: editTaskData.description.trim()
+                  };
+                  if (task.type !== 'post') {
+                      updates.dueDate = editTaskData.dueDate;
+                      updates.dueTime = editTaskData.dueTime;
+                      updates.allowLate = editTaskData.allowLate;
+                  }
+                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), updates);
+                  setIsEditingTask(false);
+                  showMessage("✅ Publicación actualizada.");
+              } catch (error) {
+                  showMessage("Hubo un error al actualizar.");
+              }
+          };
           const saveEditedComment = async () => {
               if (!editCommentText.trim()) return;
               const updatedComments = task.comments.map((c, i) => {
@@ -357,7 +383,7 @@
           return (
             <div className={`${cardStyle} group ${!isLocked && 'hover:bg-white/30'}`}>
               <div className="flex justify-between items-start">
-                <div>
+                <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2 mb-1">
                       {task.type !== 'post' && (
                           <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-[#AD3333]/20 text-[#AD3333]">
@@ -365,23 +391,59 @@
                           </span>
                       )}
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
-                  </h3>
+                  {isEditingTask ? (
+                      <input value={editTaskData.title} onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} className={`${glassInput} text-xl font-bold mb-2 p-2`} placeholder="Título..." />
+                  ) : (
+                      <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
+                      </h3>
+                  )}
                   {task.type !== 'post' && (
-                      <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
-                        <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
-                        {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
-                      </p>
+                      isEditingTask ? (
+                          <div className="flex flex-wrap gap-2 mt-2 items-center">
+                              <input type="date" value={editTaskData.dueDate} onChange={e => setEditTaskData({...editTaskData, dueDate: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
+                              <input type="time" value={editTaskData.dueTime} onChange={e => setEditTaskData({...editTaskData, dueTime: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
+                              <label className="flex items-center gap-1 cursor-pointer text-sm font-bold text-gray-700 ml-2">
+                                  <input type="checkbox" checked={editTaskData.allowLate} onChange={e => setEditTaskData({...editTaskData, allowLate: e.target.checked})} className="w-4 h-4 accent-[#AD3333]" />
+                                  Entregas tardías
+                              </label>
+                          </div>
+                      ) : (
+                          <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
+                            <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
+                            {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
+                          </p>
+                      )
                   )}
                 </div>
                 {role === 'teacher' && (
-                  <button onClick={() => confirmAction("¿Desea eliminar esta publicación definitivamente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)))} className="text-gray-400 hover:text-red-600 transition relative z-10">
-                    <Trash2 size={20} />
-                  </button>
+                  <div className="flex items-center gap-2 relative z-10 shrink-0">
+                    {isEditingTask ? (
+                        <>
+                            <button onClick={handleSaveEditedTask} className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition" title="Guardar"><CheckCheck size={18}/></button>
+                            <button onClick={() => {
+                                setIsEditingTask(false);
+                                setEditTaskData({title: task.title, description: task.description, dueDate: task.dueDate || '', dueTime: task.dueTime || '', allowLate: task.allowLate || false});
+                            }} className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition" title="Cancelar"><X size={18}/></button>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => setIsEditingTask(true)} className="text-gray-400 hover:text-blue-600 transition" title="Editar">
+                                <Edit3 size={20} />
+                            </button>
+                            <button onClick={() => confirmAction("¿Desea eliminar esta publicación definitivamente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)))} className="text-gray-400 hover:text-red-600 transition">
+                              <Trash2 size={20} />
+                            </button>
+                        </>
+                    )}
+                  </div>
                 )}
               </div>
-              <p className="mt-4 text-gray-800 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+              {isEditingTask ? (
+                  <textarea value={editTaskData.description} onChange={e => setEditTaskData({...editTaskData, description: e.target.value})} className={`${glassInput} mt-4 min-h-[120px] resize-none p-3`} placeholder="Descripción..."/>
+              ) : (
+                  <p className="mt-4 text-gray-800 whitespace-pre-wrap leading-relaxed">{task.description}</p>
+              )}
               
               {task.imageUrl && (
                   <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
