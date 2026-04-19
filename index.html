@@ -771,6 +771,7 @@
             const [typingStatus, setTypingStatus] = useState({});
             const typingTimeout = useRef(null);
           const [showChatSettings, setShowChatSettings] = useState(false);
+            const [showGroupInfo, setShowGroupInfo] = useState(false);
 
           const notificationSound = useRef(typeof Audio !== "undefined" ? new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3') : null);
 
@@ -1178,6 +1179,7 @@
           const handleOpenChat = (chat) => {
               setActiveChat(chat);
               setShowChatSettings(false);
+              setShowGroupInfo(false);
               if (unreadChats[chat.id]) {
                   const alertRef = doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId);
                   updateDoc(alertRef, { [`chats.${chat.id}`]: false }).then(() => {
@@ -2679,18 +2681,57 @@
                                                   <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
                                                       {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
                                                   </div>
-                                                  <div className="flex flex-col min-w-0">
-                                                      <h2 className={`text-xl font-extrabold truncate leading-tight ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{activeChat.name}</h2>
-                                                      {activeChat.type === 'dm' && (() => {
-                                                          const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
-                                                          const isTyping = typingStatus[activeChat.id]?.[targetId];
-                                                          const isOnline = userPresence[targetId];
-                                                          
-                                                          if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
-                                                          if (isOnline) return <span className="text-xs font-bold text-green-500">En línea</span>;
-                                                          return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
-                                                      })()}
-                                                  </div>
+                                                  <div className="flex flex-col min-w-0 relative">
+                                                  <button 
+                                                      onClick={() => { if (activeChat.type === 'group') setShowGroupInfo(!showGroupInfo); }}
+                                                      className={`text-xl font-extrabold truncate leading-tight text-left transition-colors ${activeChat.type === 'group' ? (isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600') : ''} ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}
+                                                      title={activeChat.type === 'group' ? "Ver miembros del grupo" : ""}
+                                                  >
+                                                      {activeChat.name}
+                                                  </button>
+
+                                                  {activeChat.type === 'dm' && (() => {
+                                                      const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
+                                                      const isTyping = typingStatus[activeChat.id]?.[targetId];
+                                                      const isOnline = userPresence[targetId];
+
+                                                      if (isTyping) return <span className="text-xs font-bold text-blue-500 animate-pulse">Escribiendo...</span>;
+                                                      if (isOnline) return <span className="text-xs font-bold text-green-500">En línea</span>;
+                                                      return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
+                                                  })()}
+
+                                                  {activeChat.type === 'group' && (() => {
+                                                      const group = chatGroups.find(g => `group_${g.id}` === activeChat.id);
+                                                      return <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{group?.members?.length || 0} miembros</p>;
+                                                  })()}
+
+                                                  {/* Modal de miembros del grupo */}
+                                                  {showGroupInfo && activeChat.type === 'group' && (
+                                                      <div className={`absolute top-full left-0 mt-3 w-72 p-4 rounded-2xl shadow-2xl backdrop-blur-3xl border z-[99999] animate-in fade-in slide-in-from-top-4 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                                          <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-500/30">
+                                                              <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Miembros del grupo</h4>
+                                                              <button onClick={() => setShowGroupInfo(false)} className="text-gray-500 hover:text-red-500 transition-colors"><X size={16}/></button>
+                                                          </div>
+                                                          <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
+                                                              {chatGroups.find(g => `group_${g.id}` === activeChat.id)?.members.map(memberId => {
+                                                                  const isMe = memberId === myChatId;
+                                                                  const member = allChatUsers.find(u => u.id === memberId) || (isMe ? {name: loggedInName, role: role} : {name: 'Usuario desconocido', role: 'student'});
+                                                                  return (
+                                                                      <div key={memberId} className="flex items-center gap-3">
+                                                                          <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${member.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828]' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                                              {member.role === 'teacher' ? <TeacherIcon size={14}/> : <UserIcon size={14}/>}
+                                                                          </div>
+                                                                          <div className="flex flex-col min-w-0">
+                                                                              <span className={`text-sm font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{isMe ? 'Tú' : member.name}</span>
+                                                                              <span className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{member.role === 'teacher' ? 'Docente' : 'Estudiante'}</span>
+                                                                          </div>
+                                                                      </div>
+                                                                  );
+                                                              })}
+                                                          </div>
+                                                      </div>
+                                                  )}
+                                              </div>
                                               </div>
 
                                               <div className="ml-auto flex gap-2 relative shrink-0">
