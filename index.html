@@ -709,6 +709,17 @@ const handleSaveEditedTask = async () => {
           
           const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)') ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
           const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: "", onConfirm: null });
+            useEffect(() => {
+              if (isDarkMode) {
+                  document.body.classList.add('bg-gray-900', 'dark-mode');
+                  document.body.classList.remove('bg-gray-100');
+                  document.documentElement.style.colorScheme = 'dark'; // Le avisa al navegador que la web es oscura
+              } else {
+                  document.body.classList.add('bg-gray-100');
+                  document.body.classList.remove('bg-gray-900', 'dark-mode');
+                  document.documentElement.style.colorScheme = 'light';
+              }
+          }, [isDarkMode]);
 
           // --- DETECTOR DE NAVEGACIÓN (HISTORIAL) ---
           useEffect(() => {
@@ -2449,60 +2460,36 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
 
                 /* --- SCROLLBAR LIQUID GLASS GLOBAL --- */
-                html::-webkit-scrollbar,
-                body::-webkit-scrollbar,
-                *::-webkit-scrollbar {
+                ::-webkit-scrollbar {
                     width: 14px;
                     height: 14px;
                 }
-                
-                html::-webkit-scrollbar-track,
-                body::-webkit-scrollbar-track,
-                *::-webkit-scrollbar-track {
+                ::-webkit-scrollbar-track {
                     background: transparent;
                 }
-                
-                html::-webkit-scrollbar-thumb,
-                body::-webkit-scrollbar-thumb,
-                *::-webkit-scrollbar-thumb {
+                ::-webkit-scrollbar-thumb {
                     background-color: rgba(150, 150, 150, 0.4);
                     border-radius: 20px;
-                    border: 4px solid rgba(0, 0, 0, 0);
+                    border: 4px solid transparent;
                     background-clip: padding-box;
                 }
-                
-                html::-webkit-scrollbar-thumb:hover,
-                body::-webkit-scrollbar-thumb:hover,
-                *::-webkit-scrollbar-thumb:hover {
+                ::-webkit-scrollbar-thumb:hover {
                     background-color: rgba(150, 150, 150, 0.6);
                 }
                 
                 /* Adaptación al Modo Oscuro */
-                .dark-mode html::-webkit-scrollbar-thumb,
-                .dark-mode body::-webkit-scrollbar-thumb,
-                .dark-mode *::-webkit-scrollbar-thumb {
-                    background-color: rgba(255, 255, 255, 0.2);
+                .dark-mode::-webkit-scrollbar-thumb,
+                .dark-mode ::-webkit-scrollbar-thumb {
+                    background-color: rgba(255, 255, 255, 0.25);
                 }
-                .dark-mode html::-webkit-scrollbar-thumb:hover,
-                .dark-mode body::-webkit-scrollbar-thumb:hover,
-                .dark-mode *::-webkit-scrollbar-thumb:hover {
-                    background-color: rgba(255, 255, 255, 0.3);
+                .dark-mode::-webkit-scrollbar-thumb:hover,
+                .dark-mode ::-webkit-scrollbar-thumb:hover {
+                    background-color: rgba(255, 255, 255, 0.4);
                 }
 
-                /* Ocultar las flechitas por defecto de las esquinas */
-                html::-webkit-scrollbar-button,
-                body::-webkit-scrollbar-button,
-                *::-webkit-scrollbar-button {
+                /* Ocultar las flechitas por defecto */
+                ::-webkit-scrollbar-button {
                     display: none !important;
-                }
-                
-                /* Soporte para Firefox */
-                * {
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(150, 150, 150, 0.4) transparent;
-                }
-                .dark-mode * {
-                    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
                 }
               `}</style>
               
