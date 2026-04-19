@@ -2908,7 +2908,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
                                                               {/* Renderizado de Reacciones (Flotantes, sin fondo) */}
                                                               {m.reactions && Object.keys(m.reactions).length > 0 && (
-                                                                  <div className={`absolute -top-4 ${isMe ? '-left-2' : '-right-2'} flex gap-0.5 z-20`}>
+                                                                  <div className={`absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'} flex gap-1 z-20`}>
                                                                       {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
                                                                           const count = Object.values(m.reactions).filter(e => e === emoji).length;
                                                                           return (
