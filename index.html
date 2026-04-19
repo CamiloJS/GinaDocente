@@ -1342,18 +1342,29 @@ const handleSaveEditedTask = async () => {
           }, [chatMessages, isChatAppOpen, activeChat]);
             
 // NUEVO: Efecto para compartir en qué chat estamos actualmente
-          useEffect(() => {
-              if (!myChatId) return;
-              const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
-              const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
+useEffect(() => {
+    if (!myChatId) return;
+    const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
+    const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', finalPresenceId);
 
-              const currentView = (isChatAppOpen && activeChat) ? activeChat.id : null;
-              setDoc(presenceRef, { currentChatId: currentView }, { merge: true }).catch(() => {});
+    const updateChatPresence = () => {
+        // Detectamos si la ventana está visible
+        const isVisible = document.visibilityState === 'visible';
+        const currentView = (isChatAppOpen && activeChat && isVisible) ? activeChat.id : null;
+        setDoc(presenceRef, { currentChatId: currentView }, { merge: true }).catch(() => {});
+    };
 
-              return () => {
-                  setDoc(presenceRef, { currentChatId: null }, { merge: true }).catch(() => {});
-              };
-          }, [activeChat, isChatAppOpen, myChatId, role, db, appId]);
+    // Lo ejecutamos al instante
+    updateChatPresence();
+
+    // Escuchamos si el usuario minimiza el navegador o cambia de pestaña
+    document.addEventListener('visibilitychange', updateChatPresence);
+
+    return () => {
+        document.removeEventListener('visibilitychange', updateChatPresence);
+        setDoc(presenceRef, { currentChatId: null }, { merge: true }).catch(() => {});
+    };
+}, [activeChat, isChatAppOpen, myChatId, role, db, appId]);
             
           const allChatUsers = [
               { id: 'teacher', name: TEACHER_NAME, role: 'teacher' },
