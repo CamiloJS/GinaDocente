@@ -56,7 +56,20 @@
         const ArrowLeftIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
         const TeacherIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
         const SearchIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>;
-// Nuevos Íconos para los Ticks de Mensajes
+        const AnimatedEyesIcon = (p) => (
+            <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}>
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor" className="animate-looking" />
+            </svg>
+        );
+
+        const AnimatedWritingIcon = (p) => (
+            <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`${p.className || ''} animate-writing-pencil`}>
+                <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                <path d="m15 5 4 4"/>
+            </svg>
+        );
+        // Nuevos Íconos para los Ticks de Mensajes
         const SingleTick = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M20 6 9 17l-5-5"/></svg>;
         const DoubleTick = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>;
         
@@ -2468,6 +2481,20 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
                 .dark-mode input, .dark-mode textarea { color: #ffffff !important; }
                 .dark-mode input::placeholder, .dark-mode textarea::placeholder { color: #9ca3af !important; }
+                @keyframes looking {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-3.5px); }
+                    75% { transform: translateX(3.5px); }
+                }
+                .animate-looking { animation: looking 2.5s ease-in-out infinite; }
+
+                @keyframes writing {
+                    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+                    25% { transform: translate(2px, -2px) rotate(-5deg); }
+                    50% { transform: translate(3px, 0) rotate(0deg); }
+                    75% { transform: translate(1px, 2px) rotate(5deg); }
+                }
+                .animate-writing-pencil { animation: writing 0.5s linear infinite; transform-origin: bottom left; }
 
                 @keyframes text-glow-green {
                     0%, 100% { text-shadow: 0 0 5px rgba(34, 197, 94, 0.4), 0 0 10px rgba(34, 197, 94, 0.2); color: #22c55e; }
@@ -2840,12 +2867,16 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                           const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
                                           const lastMsg = lastMessages[chatId];
                                           const isUnread = unreadChats[chatId];
+                                          
+                                          const isTyping = typingStatus[chatId]?.[u.id];
+                                          const inThisChat = userPresence[u.id]?.status === 'online' && userPresence[u.id]?.currentChatId === chatId;
+                                          
                                           return (
                                               <button key={u.id} onClick={() => handleOpenChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                                                   <div className="relative shrink-0">
-                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                                                          {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
-                                                      </div>
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm transition-all duration-300 ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                      {isTyping ? <AnimatedWritingIcon size={20}/> : (inThisChat ? <AnimatedEyesIcon size={20}/> : (u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>))}
+                                                  </div>
                                                       <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
@@ -2865,13 +2896,15 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                   <div className="space-y-2">
                                       {otherContactsUsers.length === 0 && <p className="text-sm italic text-gray-500">No hay contactos nuevos.</p>}
                                       {otherContactsUsers.map(u => {
-                                          const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
-                                          return (
+                                        const chatId = `dm_${[myChatId, u.id].sort().join('_')}`;
+                                        const isTyping = typingStatus[chatId]?.[u.id];
+                                      const inThisChat = userPresence[u.id]?.status === 'online' && userPresence[u.id]?.currentChatId === chatId;
+                                        return (
                                               <button key={u.id} onClick={() => handleOpenChat({ id: chatId, name: u.name, type: 'dm', role: u.role })} className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all shadow-sm border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                                                   <div className="relative shrink-0">
-                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
-                                                          {u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>}
-                                                      </div>
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm transition-all duration-300 ${u.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500'}`}>
+                                                        {isTyping ? <AnimatedWritingIcon size={20}/> : (inThisChat ? <AnimatedEyesIcon size={20}/> : (u.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>))}
+                                                        </div>
                                                       <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
@@ -2946,9 +2979,17 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                               </button>
 
                                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
-                                                      {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>)}
-                                                  </div>
+                                                  <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm transition-all duration-300 ${activeChat.type === 'group' ? 'bg-gradient-to-br from-indigo-400 to-purple-500' : (activeChat.role === 'teacher' ? 'bg-gradient-to-br from-[#AD3333] to-[#8a2828] border border-white/20' : 'bg-gradient-to-br from-blue-400 to-indigo-500')}`}>
+    {activeChat.type === 'group' ? <UsersGroupIcon size={20}/> : (() => {
+        const tId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
+        const isTyping = typingStatus[activeChat.id]?.[tId];
+        const inThisChat = userPresence[tId]?.status === 'online' && userPresence[tId]?.currentChatId === activeChat.id;
+        
+        if (isTyping) return <AnimatedWritingIcon size={20}/>;
+        if (inThisChat) return <AnimatedEyesIcon size={20}/>;
+        return activeChat.role === 'teacher' ? <TeacherIcon size={20}/> : <UserIcon size={20}/>;
+    })()}
+</div>
                                                   <div className="flex flex-col min-w-0 relative">
                                                   <button 
                                                       onClick={() => { if (activeChat.type === 'group') setShowGroupInfo(!showGroupInfo); }}
