@@ -635,7 +635,8 @@
           const [role, setRole] = useState('student');
           
           // --- INICIALIZACIÓN DE PESTAÑA CON HASH ---
-          const [activeTab, setActiveTab] = useState(window.location.hash ? window.location.hash.replace('#', '') : 'tasks');
+          const initialHash = window.location.hash ? window.location.hash.replace('#', '') : 'tasks';
+          const [activeTab, setActiveTab] = useState(['tasks', 'reviews', 'syllabus', 'evaluations', 'directory', 'inbox'].includes(initialHash) ? initialHash : 'tasks');
           
           const [loginError, setLoginError] = useState("");
           
@@ -646,10 +647,15 @@
           useEffect(() => {
               const handleHashChange = () => {
                   const hash = window.location.hash.replace('#', '');
-                  if (hash && ['tasks', 'reviews', 'syllabus', 'evaluations', 'directory', 'inbox'].includes(hash)) {
-                      setActiveTab(hash);
-                  } else if (!hash) {
-                      setActiveTab('tasks');
+                  if (hash === 'chat') {
+                      setIsChatAppOpen(true);
+                  } else {
+                      setIsChatAppOpen(false);
+                      if (hash && ['tasks', 'reviews', 'syllabus', 'evaluations', 'directory', 'inbox'].includes(hash)) {
+                          setActiveTab(hash);
+                      } else if (!hash) {
+                          setActiveTab('tasks');
+                      }
                   }
               };
               window.addEventListener('hashchange', handleHashChange);
@@ -734,7 +740,7 @@
           const [isChatLoading, setIsChatLoading] = useState(false);
 
           // --- ESTADOS DE MENSAJERÍA DIRECTA Y GRUPOS ---
-          const [isChatAppOpen, setIsChatAppOpen] = useState(false);
+          const [isChatAppOpen, setIsChatAppOpen] = useState(initialHash === 'chat');
           const [hasUnreadChat, setHasUnreadChat] = useState(false);
           const [unreadChats, setUnreadChats] = useState({});
           const [lastMessages, setLastMessages] = useState({});
@@ -1165,7 +1171,7 @@
           };
 
           const openChatApp = () => {
-              setIsChatAppOpen(true);
+              window.location.hash = 'chat';
               setChatSearchTerm(""); 
           };
 
@@ -2460,7 +2466,7 @@
                               <h2 className={`text-xl md:text-2xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                                   <MessageCircle className="text-blue-500" /> Mensajes
                               </h2>
-                              <button onClick={() => setIsChatAppOpen(false)} className={`p-3 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}>
+                              <button onClick={() => window.location.hash = activeTab} className={`p-3 rounded-full transition-all shadow-sm ${isDarkMode ? 'bg-gray-700 text-gray-300 hover:text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}>
                                   <X size={24} />
                               </button>
                           </div>
