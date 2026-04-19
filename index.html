@@ -1281,7 +1281,24 @@ const handleSaveEditedTask = async () => {
               await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages', editingAppMessageId), { text: editAppMessageText.trim(), isEdited: true }, { merge: true });
               setEditingAppMessageId(null);
           };
+const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
+          const toggleChatAppReaction = async (msgId, emoji) => {
+              if (!activeChat) return;
+              const msgRef = doc(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages', msgId);
+              const msgObj = chatMessages.find(m => m.id === msgId);
+              if (!msgObj) return;
 
+              const currentReactions = msgObj.reactions || {};
+              const userReaction = currentReactions[myChatId];
+              let newReactions = { ...currentReactions };
+
+              if (userReaction === emoji) delete newReactions[myChatId]; // Quita la reacción si toca el mismo emoji
+              else newReactions[myChatId] = emoji; // Agrega o cambia la reacción
+
+              await updateDoc(msgRef, { reactions: newReactions });
+              setActiveChatReactionMsgId(null);
+          };
+            
           const handleUpdateChatPreference = async (chatId, key, value) => {
               const newPrefs = { ...chatPreferences };
               if (!newPrefs[chatId]) newPrefs[chatId] = { gradient: '', pattern: 'none' };
@@ -2888,15 +2905,44 @@ const handleSaveEditedTask = async () => {
                                                                       {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className={isImageOnly ? "rounded-2xl max-h-72 object-contain cursor-pointer hover:opacity-90 transition-opacity drop-shadow-lg" : "mt-2 rounded-xl max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-black/10 border border-white/20"} />}
                                                                   </>
                                                               )}
-                                                          </div>
-                                                              
-                                                              {isMe && !isEditingThis && (
-                                                                  <div className="hidden group-hover:flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-                                                                      <button onClick={() => {setEditingAppMessageId(m.id); setEditAppMessageText(m.text || "");}} className={`p-1.5 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}><Edit3 size={14}/></button>
-                                                                      <button onClick={() => confirmAction("¿Deseas eliminar este mensaje para todos?", () => handleDeleteAppMessage(m.id))} className={`p-1.5 rounded-full ${isDarkMode ? 'hover:bg-red-900/50 text-red-400' : 'hover:bg-red-100 text-red-600'}`}><Trash2 size={14}/></button>
+
+                                                              {/* Renderizado de Reacciones (Flotantes, sin fondo) */}
+                                                              {m.reactions && Object.keys(m.reactions).length > 0 && (
+                                                                  <div className={`absolute -top-4 ${isMe ? '-left-2' : '-right-2'} flex gap-0.5 z-20`}>
+                                                                      {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
+                                                                          const count = Object.values(m.reactions).filter(e => e === emoji).length;
+                                                                          return (
+                                                                              <div key={idx} className="relative inline-flex items-center">
+                                                                                  <span className="text-2xl drop-shadow-md">{emoji}</span>
+                                                                                  {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
+                                                                              </div>
+                                                                          );
+                                                                      })}
                                                                   </div>
                                                               )}
                                                           </div>
+                                                          
+                                                          {/* Botones de acción (Reaccionar, Editar, Borrar) */}
+                                                          <div className={`hidden group-hover:flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity relative`}>
+                                                              <button onClick={() => setActiveChatReactionMsgId(activeChatReactionMsgId === m.id ? null : m.id)} className={`p-1.5 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Reaccionar"><SmileIcon size={14}/></button>
+                                                              
+                                                              {/* Picker de Emojis */}
+                                                              {activeChatReactionMsgId === m.id && (
+                                                                  <div className={`absolute bottom-full mb-1 ${isMe ? 'right-0' : 'left-0'} flex gap-1.5 rounded-full px-3 py-1.5 border shadow-lg z-50 animate-in fade-in zoom-in-95 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                                                      {['❤️','👍','😂','😲', '🙏', '🔥'].map(emj => (
+                                                                          <button key={emj} onClick={() => toggleChatAppReaction(m.id, emj)} className="hover:scale-125 transition-transform text-lg">{emj}</button>
+                                                                      ))}
+                                                                  </div>
+                                                              )}
+
+                                                              {isMe && !isEditingThis && (
+                                                                  <>
+                                                                      <button onClick={() => {setEditingAppMessageId(m.id); setEditAppMessageText(m.text || "");}} className={`p-1.5 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Editar"><Edit3 size={14}/></button>
+                                                                      <button onClick={() => confirmAction("¿Deseas eliminar este mensaje para todos?", () => handleDeleteAppMessage(m.id))} className={`p-1.5 rounded-full ${isDarkMode ? 'hover:bg-red-900/50 text-red-400' : 'hover:bg-red-100 text-red-600'}`} title="Eliminar"><Trash2 size={14}/></button>
+                                                                  </>
+                                                              )}
+                                                          </div>
+                                                      </div>
                                                           
                                                           <div className="flex items-center gap-1 mt-1 px-1 justify-end">
     <span className={`text-[10px] drop-shadow-sm ${currentPrefs.gradient ? 'text-white font-medium' : (isDarkMode ? 'text-gray-500' : 'text-gray-400')}`}>{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
