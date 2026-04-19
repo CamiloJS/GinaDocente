@@ -2910,9 +2910,21 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                               {m.reactions && Object.keys(m.reactions).length > 0 && (
                                                                   <div className={`absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'} flex gap-1 z-20`}>
                                                                       {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
-                                                                          const count = Object.values(m.reactions).filter(e => e === emoji).length;
+                                                                          const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
+                                                                          const count = reactorsIds.length;
+                                                                          
+                                                                          // Obtener los nombres solo si es un grupo
+                                                                          let tooltipText = "";
+                                                                          if (activeChat.type === 'group') {
+                                                                              tooltipText = reactorsIds.map(uid => {
+                                                                                  if (uid === myChatId) return "Tú";
+                                                                                  const user = allChatUsers.find(u => u.id === uid);
+                                                                                  return user ? user.name.split(' ')[0] : "Alguien"; // Solo el primer nombre
+                                                                              }).join(', ');
+                                                                          }
+
                                                                           return (
-                                                                              <div key={idx} className="relative inline-flex items-center">
+                                                                              <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
                                                                                   <span className="text-2xl drop-shadow-md">{emoji}</span>
                                                                                   {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
                                                                               </div>
