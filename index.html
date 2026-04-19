@@ -52,7 +52,10 @@
         const ArrowLeftIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
         const TeacherIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
         const SearchIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>;
-
+// Nuevos Íconos para los Ticks de Mensajes
+        const SingleTick = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M20 6 9 17l-5-5"/></svg>;
+        const DoubleTick = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>;
+        
         const NavNotebook = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>;
         const NavSlides = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>;
         const NavCalendar = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>;
@@ -1137,7 +1140,21 @@
               });
               return () => unsubscribe();
           }, [activeChat, user]);
+            // NUEVO: Efecto para marcar los mensajes como leídos cuando entras al chat
+          useEffect(() => {
+              if (!activeChat || !user || chatMessages.length === 0) return;
 
+              const markAsRead = async () => {
+                  const unreadMessages = chatMessages.filter(m => m.authorId !== myChatId && m.status !== 'read');
+                  
+                  for (const msg of unreadMessages) {
+                      const msgRef = doc(db, 'artifacts', appId, 'public', 'data', 'chats', activeChat.id, 'messages', msg.id);
+                      await updateDoc(msgRef, { status: 'read' });
+                  }
+              };
+
+              markAsRead();
+          }, [chatMessages, activeChat, user, myChatId, db, appId]);
           useEffect(() => {
               if (activeChat && isChatAppOpen) {
                   chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1240,6 +1257,7 @@
                   author: authorName,
                   authorId: myChatId,
                   uid: user.uid,
+                  status: 'sent', // <-- ¡Nueva línea agregada!
                   createdAt: Date.now()
               });
 
@@ -2223,6 +2241,14 @@
 
                 .unread-pulse-dark { animation: pulse-unread-dark 2s infinite !important; }
                 .unread-pulse-light { animation: pulse-unread-light 2s infinite !important; }
+                @keyframes tick-glow {
+                    0% { filter: drop-shadow(0 0 0 rgba(59, 130, 246, 0)); transform: scale(1); }
+                    50% { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.9)); transform: scale(1.3); color: #60a5fa; }
+                    100% { filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.5)); transform: scale(1); }
+                }
+                .animate-tick-glow {
+                    animation: tick-glow 0.8s ease-out forwards;
+                }
                 
                 @keyframes spin-glow {
                     0%   { transform: rotate(0deg); }
@@ -2698,8 +2724,25 @@
                                               {chatMessages.length === 0 && <p className={`text-center italic mt-10 ${currentPrefs.gradient ? 'text-gray-800 dark:text-white font-medium' : 'text-gray-500'}`}>Envía un mensaje para iniciar la conversación.</p>}
                                               {chatMessages.map(m => {
                                                   const isMe = m.authorId === myChatId;
-                                                  const isTeacher = m.author === TEACHER_NAME;
-                                                  const isEditingThis = editingAppMessageId === m.id;
+                                              const isTeacher = m.author === TEACHER_NAME;
+                                              const isEditingThis = editingAppMessageId === m.id;
+
+                                              // Lógica de los Ticks
+                                              let tickIcon = null;
+                                              if (isMe) {
+                                                  if (m.status === 'read') {
+                                                      tickIcon = <DoubleTick size={15} className="text-blue-400 animate-tick-glow" />;
+                                                  } else {
+                                                      const targetId = activeChat.type === 'dm' ? activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId) : null;
+                                                      const isDelivered = targetId && userPresence[targetId]; // Si está online, asumimos entregado
+
+                                                      if (isDelivered || activeChat.type === 'group') {
+                                                          tickIcon = <DoubleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                      } else {
+                                                          tickIcon = <SingleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                      }
+                                                  }
+                                              }
 
                                                   return (
                                                       <div key={m.id} className={`flex flex-col w-full group ${isMe ? 'items-end' : 'items-start'}`}>
@@ -2729,10 +2772,11 @@
                                                               )}
                                                           </div>
                                                           
-                                                          <div className="flex items-center gap-1 mt-1 px-1">
-                                                              <span className={`text-[10px] drop-shadow-sm ${currentPrefs.gradient ? 'text-white font-medium' : (isDarkMode ? 'text-gray-500' : 'text-gray-400')}`}>{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                              {m.isEdited && <span className={`text-[9px] italic drop-shadow-sm ${currentPrefs.gradient ? 'text-white/80' : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>(editado)</span>}
-                                                          </div>
+                                                          <div className="flex items-center gap-1 mt-1 px-1 justify-end">
+    <span className={`text-[10px] drop-shadow-sm ${currentPrefs.gradient ? 'text-white font-medium' : (isDarkMode ? 'text-gray-500' : 'text-gray-400')}`}>{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+    {m.isEdited && <span className={`text-[9px] italic drop-shadow-sm ${currentPrefs.gradient ? 'text-white/80' : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>(editado)</span>}
+    {tickIcon} {/* <-- Aquí se renderizan los ticks mágicamente ✨ */}
+</div>
                                                       </div>
                                                   );
                                               })}
