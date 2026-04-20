@@ -1258,12 +1258,17 @@ const handleSaveEditedTask = async () => {
             }
         }
     }
-} // <--- ESTA ES LA LLAVE QUE TE FALTABA CERRAR
+                    } // <--- ESTA LLAVE FALTABA PARA CERRAR EL IF
+                    setHasUnreadChat(!!data.hasUnread);
+                    setUnreadChats(data.chats || {});
+                }
+            });
 
-setHasUnreadChat(!!data.hasUnread);
-setUnreadChats(data.chats || {});
-}
-});
+            const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
+                const msgs = {};
+                s.docs.forEach(d => msgs[d.id] = d.data());
+                setLastMessages(msgs);
+            });
 
             const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => {
                 if (d.exists()) {
@@ -3290,7 +3295,7 @@ tickIcon = (
                                               <div ref={chatMessagesEndRef} />
                                           </div>
 
-                                         <form onSubmit={handleSendAppMessage} className={`p-4 border-t shrink-0 flex flex-col gap-3 pb-8 md:pb-4 ${isDarkMode ? 'bg-gray-800/80 backdrop-blur-xl border-gray-700' : 'bg-white/80 backdrop-blur-xl border-gray-200'}`}>
+                                          <form onSubmit={handleSendAppMessage} className={`p-4 border-t shrink-0 flex flex-col gap-3 pb-8 md:pb-4 ${isDarkMode ? 'bg-gray-800/80 backdrop-blur-xl border-gray-700' : 'bg-white/80 backdrop-blur-xl border-gray-200'}`}>
                                               {replyingTo && (
                                                   <div className={`flex justify-between items-center px-4 py-2 rounded-xl border-l-4 border-blue-500 text-sm shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'}`}>
                                                       <div className="flex flex-col min-w-0">
