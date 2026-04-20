@@ -25,7 +25,8 @@
         // Íconos de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
         const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const Plus = createIcon('➕'); 
-        const X = createIcon('❌'); const Sparkles = createIcon('✨');
+        const X = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const Sparkles = createIcon('✨');
         const CheckCheck = createIcon('✅'); const Loader2 = createIcon('⏳'); const Undo2 = createIcon('↩️'); 
         const Clock = createIcon('⏰'); const Lock = createIcon('🔒'); const Mail = createIcon('📥'); 
         const AlertTriangle = createIcon('⚠️'); const ChevronRight = createIcon('➡️'); const ChevronLeft = createIcon('⬅️'); 
@@ -3177,28 +3178,32 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                                   )}
 
                                                                   {/* Reacciones */}
-                                                                  {m.reactions && Object.keys(m.reactions).length > 0 && (
-                                                                      <div className={`absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'} flex gap-1 z-20`}>
-                                                                          {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
-                                                                              const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
-                                                                              const count = reactorsIds.length;
-                                                                              let tooltipText = "";
-                                                                              if (activeChat.type === 'group') {
-                                                                                  tooltipText = reactorsIds.map(uid => {
-                                                                                      if (uid === myChatId) return "Tú";
-                                                                                      const user = allChatUsers.find(u => u.id === uid);
-                                                                                      return user ? user.name.split(' ')[0] : "Alguien";
-                                                                                  }).join(', ');
-                                                                              }
-                                                                              return (
-                                                                                  <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
-                                                                                      <span className="text-2xl drop-shadow-md">{emoji}</span>
-                                                                                      {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
-                                                                                  </div>
-                                                                              );
-                                                                          })}
-                                                                      </div>
-                                                                  )}
+{m.reactions && Object.keys(m.reactions).length > 0 && (
+    <div className={`flex gap-1 z-20 transition-all duration-300 ${
+        isLastInGroup 
+            ? `absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'}` 
+            : `absolute top-1/2 -translate-y-1/2 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} bg-white/60 dark:bg-gray-800/80 backdrop-blur-md rounded-full px-1.5 shadow-sm border border-white/40 dark:border-gray-600 scale-90`
+    }`}>
+        {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
+            const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
+            const count = reactorsIds.length;
+            let tooltipText = "";
+            if (activeChat.type === 'group') {
+                tooltipText = reactorsIds.map(uid => {
+                    if (uid === myChatId) return "Tú";
+                    const user = allChatUsers.find(u => u.id === uid);
+                    return user ? user.name.split(' ')[0] : "Alguien";
+                }).join(', ');
+            }
+            return (
+                <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
+                    <span className="text-2xl drop-shadow-md">{emoji}</span>
+                    {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
+                </div>
+            );
+        })}
+    </div>
+)}
                                                               </div>
 
                                                               {/* Botones de Acción (Flotantes afuera de la burbuja, no ocupan espacio) */}
