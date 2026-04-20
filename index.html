@@ -264,7 +264,15 @@ const storage = getStorage(app); // Inicializamos Storage
             'ginadocente': { email: 'ginamarcelaquintana19@gmail.com', name: 'La profe', role: 'teacher' },
             'camilopruebas': { email: 'edwincamilojaimes1@gmail.com', name: 'Edwin Camilo Jaimes Castañeda', role: 'student' }
         };
-
+const formatChatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return "Hoy";
+    if (date.toDateString() === yesterday.toDateString()) return "Ayer";
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+};
         const formatTime = (seconds) => {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
             const s = (seconds % 60).toString().padStart(2, '0');
@@ -845,11 +853,16 @@ const handleSaveEditedTask = async () => {
           
           const [loginError, setLoginError] = useState("");
           
-          const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)') ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
+          const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('englishTech_theme');
+    if (saved !== null) return saved === 'dark';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+});
           const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: "", onConfirm: null });
           const [globalGifCallback, setGlobalGifCallback] = useState(null);
                 window.openGifPicker = (cb) => setGlobalGifCallback(() => cb);
             useEffect(() => {
+                localStorage.setItem('englishTech_theme', isDarkMode ? 'dark' : 'light');
               if (isDarkMode) {
                   document.body.classList.add('bg-gray-900', 'dark-mode');
                   document.body.classList.remove('bg-gray-100');
@@ -2758,6 +2771,14 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
                 .animate-tick-glow {
                     animation: tick-glow 0.8s ease-out forwards;
                 }
+                @keyframes heartbeat-slow {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.25); }
+                }
+                .animate-heartbeat { 
+                    animation: heartbeat-slow 2s ease-in-out infinite; 
+                    display: inline-block; 
+                }
                 
                 @keyframes spin-glow {
                     0%   { transform: rotate(0deg); }
@@ -3264,9 +3285,23 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                   })()}
 
                                                   {activeChat.type === 'group' && (() => {
-                                                      const group = chatGroups.find(g => `group_${g.id}` === activeChat.id);
-                                                      return <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{group?.members?.length || 0} miembros</p>;
-                                                  })()}
+    const group = chatGroups.find(g => `group_${g.id}` === activeChat.id);
+    
+    // Filtramos quién está escribiendo (que no sea yo)
+    const typingMembers = Object.keys(typingStatus[activeChat.id] || {}).filter(uid => uid !== myChatId && typingStatus[activeChat.id][uid]);
+    
+    if (typingMembers.length > 0) {
+        const firstTypingUser = allChatUsers.find(u => u.id === typingMembers[0]);
+        const firstName = firstTypingUser ? firstTypingUser.name.split(' ')[0] : 'Alguien';
+        const textInfo = typingMembers.length === 1 
+            ? `${firstName} está escribiendo...` 
+            : `${firstName} y ${typingMembers.length - 1} más están escribiendo...`;
+            
+        return <span className="text-[10px] font-bold text-blue-500 animate-pulse block mt-0.5">{textInfo}</span>;
+    }
+
+    return <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{group?.members?.length || 0} miembros</p>;
+})()}
 
                                                   {/* Modal de miembros del grupo */}
                                                   {showGroupInfo && activeChat.type === 'group' && (
@@ -3349,7 +3384,8 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                   
                                                   const isFirstInGroup = !prevMsg || prevMsg.authorId !== m.authorId;
                                                   const isLastInGroup = !nextMsg || nextMsg.authorId !== m.authorId;
-
+                                                  const showDateSeparator = !prevMsg || new Date(prevMsg.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
+                                      
                                                   const isMe = m.authorId === myChatId;
                                                   const isTeacher = m.author === TEACHER_NAME;
                                                   const isEditingThis = editingAppMessageId === m.id;
@@ -3385,7 +3421,15 @@ tickIcon = (
                                                   }
 
                                                   return (
-                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group relative transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-4' : 'mb-[2px]'}`}>
+    <React.Fragment key={m.id}>
+        {showDateSeparator && (
+            <div className="flex justify-center my-4 z-10 relative">
+                <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-sm backdrop-blur-md ${currentPrefs.gradient ? 'bg-black/20 text-white border border-white/20' : (isDarkMode ? 'bg-gray-800 text-gray-300 border border-gray-700' : 'bg-white text-gray-500 border border-gray-200')}`}>
+                    {formatChatDate(m.createdAt)}
+                </span>
+            </div>
+        )}
+        <div id={`msg-${m.id}`} className={`flex flex-col w-full group relative transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-4' : 'mb-[2px]'}`}>
                                                           
                                                           {/* Nombre en Grupos (Solo encima del primer mensaje del grupo) */}
                                                           {!isMe && activeChat.type === 'group' && isFirstInGroup && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
@@ -3452,7 +3496,7 @@ tickIcon = (
                                                                               }
                                                                               return (
                                                                                   <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
-                                                                                      <span className="text-2xl drop-shadow-lg">{emoji}</span>
+                                                                                      <span className={`text-2xl drop-shadow-lg ${emoji === '❤️' ? 'animate-heartbeat' : ''}`}>{emoji}</span>
                                                                                       {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-md border border-gray-200">{count}</span>}
                                                                                   </div>
                                                                               );
