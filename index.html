@@ -1257,16 +1257,12 @@ const handleSaveEditedTask = async () => {
                 });
             }
         }
-    }
-                    setHasUnreadChat(!!data.hasUnread);
-                    setUnreadChats(data.chats || {});
-                }
-            });
+    }
+} // <--- ESTA ES LA LLAVE QUE TE FALTABA CERRAR
 
-            const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => { // <-- Agregar 'd => {' aquí
-    if (d.exists()) {
-        // ...resto del código
-    }
+setHasUnreadChat(!!data.hasUnread);
+setUnreadChats(data.chats || {});
+}
 });
 
             const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => {
