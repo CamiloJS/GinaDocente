@@ -739,7 +739,9 @@ const handleSaveEditedTask = async () => {
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
           const [showPassword, setShowPassword] = useState(false);
-          const [savedAccounts, setSavedAccounts] = useState([]); 
+          const [savedAccounts, setSavedAccounts] = useState([]);
+          const [editingUserLabelId, setEditingUserLabelId] = useState(null);
+          const [editUserLabelValue, setEditUserLabelValue] = useState("");
           
           const [user, setUser] = useState(null);
           const [role, setRole] = useState('student');
@@ -1448,8 +1450,8 @@ useEffect(() => {
             
           const allChatUsers = [
               { id: 'teacher', name: TEACHER_NAME, role: 'teacher' },
-              ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role })),
-              ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ id, name: data.name, role: data.role }))
+              ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role, customLabel: data.customLabel })),
+              ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ id, name: data.name, role: data.role, customLabel: data.customLabel }))
           ].filter(u => u.id !== myChatId); 
 
           const myGroups = chatGroups.filter(g => g.members?.includes(myChatId));
@@ -2083,13 +2085,33 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                        {Object.keys(userMappings).length === 0 && <p className="text-sm text-gray-500 italic">No hay estudiantes extra.</p>}
                        {Object.entries(userMappings).map(([userKey, data]) => (
-                           <div key={userKey} className="bg-white/50 p-3 rounded-xl flex justify-between items-center border border-white/60 shadow-sm">
-                               <div>
+                           <div key={userKey} className="bg-white/50 p-3 rounded-xl flex justify-between items-start border border-white/60 shadow-sm">
+                               <div className="flex-1 pr-2">
                                    <p className="font-bold text-sm text-gray-800">{data.fullName}</p>
                                    <p className="text-xs text-gray-600">Usuario: @{userKey}</p>
                                    <p className="text-xs text-gray-500">Correo: {data.email}</p>
+                                   
+                                   {/* CAMPO DE EDICIÓN DEL ROL */}
+                                   {editingUserLabelId === userKey ? (
+                                       <div className="flex gap-2 mt-2 items-center">
+                                           <input value={editUserLabelValue} onChange={(e) => setEditUserLabelValue(e.target.value)} placeholder="Ej: Monitor..." className={`${glassInput} !py-1 px-2 text-xs h-8`} />
+                                           <button onClick={async () => {
+                                               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey), { customLabel: editUserLabelValue.trim() });
+                                               setEditingUserLabelId(null);
+                                           }} className="text-green-600 hover:text-green-700"><CheckCircle2 size={18}/></button>
+                                           <button onClick={() => setEditingUserLabelId(null)} className="text-red-500 hover:text-red-600"><X size={18}/></button>
+                                       </div>
+                                   ) : (
+                                       <p className="text-xs font-bold text-blue-600 mt-1">Etiqueta: {data.customLabel || 'Estudiante'}</p>
+                                   )}
                                </div>
-                               <button onClick={() => confirmAction("¿Desea eliminar a este estudiante del directorio?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey)))} className="text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
+                               
+                               <div className="flex gap-3 items-start shrink-0">
+                                   {!editingUserLabelId && (
+                                       <button onClick={() => { setEditingUserLabelId(userKey); setEditUserLabelValue(data.customLabel || ""); }} className="text-gray-500 hover:text-blue-600 transition-colors mt-1" title="Cambiar Etiqueta"><Edit3 size={16}/></button>
+                                   )}
+                                   <button onClick={() => confirmAction("¿Desea eliminar a este estudiante del directorio?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey)))} className="text-gray-500 hover:text-red-600 transition-colors mt-1"><Trash2 size={16}/></button>
+                               </div>
                            </div>
                        ))}
                    </div>
@@ -2999,7 +3021,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 ) : inThisChat ? (
     <span className="text-[10px] font-bold text-green-500 block">En este chat</span>
 ) : null}
-<p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'} ${isTyping || inThisChat ? 'mt-0.5' : ''}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+<p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'} ${isTyping || inThisChat ? 'mt-0.5' : ''}`}>{u.customLabel || (u.role === 'teacher' ? 'Docente' : 'Estudiante')}</p>
                                                   </div>
                                               </button>
                                           );
@@ -3042,7 +3064,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                           if (e.target.checked) setNewGroupMembers([...newGroupMembers, u.id]);
                                                           else setNewGroupMembers(newGroupMembers.filter(id => id !== u.id));
                                                       }} className="w-5 h-5 accent-blue-600" />
-                                                      <span className={`font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name} <span className="text-xs font-normal text-gray-500">({u.role === 'teacher' ? 'Docente' : 'Estudiante'})</span></span>
+                                                      <span className={`font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name} <span className="text-xs font-normal text-gray-500">({u.customLabel || (u.role === 'teacher' ? 'Docente' : 'Estudiante')})</span></span>
                                                   </label>
                                               ))}
                                           </div>
@@ -3137,7 +3159,7 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                                           </div>
                                                                           <div className="flex flex-col min-w-0">
                                                                               <span className={`text-sm font-bold truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{isMe ? 'Tú' : member.name}</span>
-                                                                              <span className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{member.role === 'teacher' ? 'Docente' : 'Estudiante'}</span>
+                                                                              <span className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{member.customLabel || (member.role === 'teacher' ? 'Docente' : 'Estudiante')}</span>
                                                                           </div>
                                                                       </div>
                                                                   );
