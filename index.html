@@ -2930,8 +2930,13 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
-                                                      <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
-                                                      <p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>{lastMsg.text}</p>
+                                                      <p className={`font-bold text-base truncate leading-tight ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
+{isTyping ? (
+    <span className="text-[10px] font-bold text-blue-500 animate-pulse block">Escribiendo...</span>
+) : inThisChat ? (
+    <span className="text-[10px] font-bold text-green-500 block">En este chat</span>
+) : null}
+<p className={`text-xs truncate ${isUnread ? (isDarkMode ? 'text-blue-400 font-bold' : 'text-blue-600 font-bold') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')} ${isTyping || inThisChat ? 'mt-0.5' : ''}`}>{lastMsg.text}</p>
                                                   </div>
                                                   {isUnread && <div className="w-3 h-3 bg-red-500 rounded-full shadow-sm ml-2 shrink-0"></div>}
                                               </button>
@@ -2958,8 +2963,13 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'} ${userPresence[u.id]?.status === 'online' ? 'bg-green-500' : userPresence[u.id]?.status === 'away' ? 'bg-orange-400' : userPresence[u.id]?.status === 'busy' ? 'bg-red-500' : 'bg-gray-400'}`}></div>
                                                   </div>
                                                   <div className="text-left flex-1 overflow-hidden">
-                                                      <p className={`font-bold text-base truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
-                                                      <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+                                                      <p className={`font-bold text-base truncate leading-tight ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{u.name}</p>
+{isTyping ? (
+    <span className="text-[10px] font-bold text-blue-500 animate-pulse block">Escribiendo...</span>
+) : inThisChat ? (
+    <span className="text-[10px] font-bold text-green-500 block">En este chat</span>
+) : null}
+<p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'} ${isTyping || inThisChat ? 'mt-0.5' : ''}`}>{u.role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
                                                   </div>
                                               </button>
                                           );
@@ -3315,7 +3325,7 @@ tickIcon = (
                                                       <button type="button" onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-red-500 ml-3 p-1 rounded-full"><X size={16}/></button>
                                                   </div>
                                               )}
-                                              <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
+                                              <div className={`flex gap-2 items-center rounded-3xl pl-2 pr-3 py-1.5 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
                                                   
                                                   <div className="relative">
                                                       <button type="button" onClick={() => setShowChatAppEmojiPicker(!showChatAppEmojiPicker)} className={`p-2 transition rounded-xl ${showChatAppEmojiPicker ? (isDarkMode ? 'text-blue-500 bg-gray-800' : 'text-blue-500 bg-gray-200') : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`}>
@@ -3364,7 +3374,7 @@ tickIcon = (
                                                       className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
                                                   />
                                                   
-                                                  <button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`p-2.5 rounded-xl transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
+                                                  <button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`p-2.5 rounded-xl shrink-0 transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
                                                     <MinimalSendIcon size={20} />
                                                         </button>
                                               </div>
