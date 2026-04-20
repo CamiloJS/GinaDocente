@@ -415,30 +415,7 @@ const handleSaveEditedTask = async () => {
             setIsProcessing(false);
         };
 
-            if (containsBadWords(commentText)) {
-                showMessage("⚠️ Comentario bloqueado: Lenguaje inapropiado.");
-                setIsProcessing(false);
-                return;
-            }
 
-            const newComment = { 
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
-                author: role === 'teacher' ? TEACHER_NAME : loggedInName, 
-                text: commentText.trim(),
-                imageUrl: commentImageUrl.trim(),
-                isDeleted: false,
-                reactions: {}
-            };
-            
-            const newComments = [...(task.comments || []), newComment];
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
-            setCommentText("");
-            setCommentImageUrl(""); 
-            setShowCommentImageInput(false);
-            setShowAttachmentMenu(false);
-            setShowEmojiPicker(false);
-            setIsProcessing(false);
-          };
 
           const renderReactions = () => {
             const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
