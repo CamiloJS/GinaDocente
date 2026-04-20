@@ -1334,9 +1334,17 @@ const handleSaveEditedTask = async () => {
 
                   events.forEach(e => window.addEventListener(e, handleActivity));
 
-                  // Solo marcar como desconectado al cerrar la aplicación o desloguearse
+                  // Marcar como desconectado al cerrar la app, cambiar de pestaña o bloquear el celular
                   const handleOffline = () => setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true });
+                  
+                  const handleVisibilityForPresence = () => {
+                      if (document.visibilityState === 'hidden') handleOffline();
+                      else setOnline();
+                  };
+
                   window.addEventListener('beforeunload', handleOffline);
+                  window.addEventListener('pagehide', handleOffline); // <--- Clave para celulares (Especialmente iPhone)
+                  document.addEventListener('visibilitychange', handleVisibilityForPresence); // <--- Clave para cuando se minimiza
 
                   return () => { 
                       clearTimeout(awayTimer);
@@ -1345,6 +1353,8 @@ const handleSaveEditedTask = async () => {
                       events.forEach(e => window.removeEventListener(e, handleActivity));
                       handleOffline(); 
                       window.removeEventListener('beforeunload', handleOffline); 
+                      window.removeEventListener('pagehide', handleOffline);
+                      document.removeEventListener('visibilitychange', handleVisibilityForPresence);
                   };
               }
           }, [myChatId, role]);
@@ -3305,7 +3315,7 @@ tickIcon = (
                                                       <button type="button" onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-red-500 ml-3 p-1 rounded-full"><X size={16}/></button>
                                                   </div>
                                               )}
-                                              <div className={`flex gap-2 items-center rounded-full px-2 py-1.5 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
+                                              <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-900 border-gray-700 focus-within:ring-blue-500/50' : 'bg-gray-50 border-gray-300 focus-within:ring-blue-400/50'}`}>
                                                   
                                                   <div className="relative">
                                                       <button type="button" onClick={() => setShowChatAppEmojiPicker(!showChatAppEmojiPicker)} className={`p-2 transition rounded-xl ${showChatAppEmojiPicker ? (isDarkMode ? 'text-blue-500 bg-gray-800' : 'text-blue-500 bg-gray-200') : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`}>
@@ -3354,7 +3364,7 @@ tickIcon = (
                                                       className={`flex-1 bg-transparent border-none outline-none py-3 px-2 text-base md:text-lg font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
                                                   />
                                                   
-                                                  <button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`p-2.5 rounded-full transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
+                                                  <button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`p-2.5 rounded-xl transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
                                                     <MinimalSendIcon size={20} />
                                                         </button>
                                               </div>
