@@ -3539,9 +3539,10 @@ tickIcon = (
                                                           )}
 
                                                       </div>
-                                                  );
-                                              })}
-                                              <div ref={chatMessagesEndRef} />
+                                                              </React.Fragment>
+                                                              );
+                                                          })}
+                                                          <div ref={chatMessagesEndRef} />
                                           </div>
 
                                           <form onSubmit={handleSendAppMessage} className={`p-4 border-t shrink-0 flex flex-col gap-3 pb-8 md:pb-4 ${isDarkMode ? 'bg-gray-800/80 backdrop-blur-xl border-gray-700' : 'bg-white/80 backdrop-blur-xl border-gray-200'}`}>
