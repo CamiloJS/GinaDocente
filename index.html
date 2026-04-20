@@ -1096,6 +1096,8 @@ const handleSaveEditedTask = async () => {
                 setSavedAccounts(updatedAccs);
 
                 setLoginError("");
+                // Pedir permiso para notificaciones
+                if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
                 changeTab('tasks');
             } catch (error) {
                 setLoginError("Contraseña incorrecta.");
@@ -1106,6 +1108,7 @@ const handleSaveEditedTask = async () => {
               try {
                   setLoginType(acc.role); 
                   await signInWithEmailAndPassword(auth, acc.email, acc.password);
+                  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
                   changeTab('tasks');
               } catch(e) {
                   setLoginError("La sesión expiró o la contraseña cambió. Ingresa manualmente.");
@@ -1229,6 +1232,17 @@ const handleSaveEditedTask = async () => {
                     const data = d.data();
                     if (data.hasUnread && !hasUnreadChat) {
                         notificationSound.current?.play().catch(e => console.log('Auto-play evitado'));
+                        
+                        // --- NUEVO: NOTIFICACIÓN NATIVA DE ESCRITORIO/CELULAR ---
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            // document.hidden verifica que el usuario NO esté mirando la pestaña actual
+                            if (document.hidden) {
+                                new Notification('English TECH', {
+                                    body: '💬 ¡Tienes nuevos mensajes sin leer!',
+                                    icon: 'favicon.ico'
+                                });
+                            }
+                        }
                     }
                     setHasUnreadChat(!!data.hasUnread);
                     setUnreadChats(data.chats || {});
@@ -1411,6 +1425,7 @@ useEffect(() => {
           const openChatApp = () => {
               window.location.hash = 'chat';
               setChatSearchTerm(""); 
+              if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
           };
 
           const handleDeleteAppMessage = async (msgId) => {
@@ -3178,32 +3193,32 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                                   )}
 
                                                                   {/* Reacciones */}
-{m.reactions && Object.keys(m.reactions).length > 0 && (
-    <div className={`flex gap-1 z-20 transition-all duration-300 ${
-        isLastInGroup 
-            ? `absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'}` 
-            : `absolute top-1/2 -translate-y-1/2 ${isMe ? 'right-full mr-2' : 'left-full ml-2'} bg-white/60 dark:bg-gray-800/80 backdrop-blur-md rounded-full px-1.5 shadow-sm border border-white/40 dark:border-gray-600 scale-90`
-    }`}>
-        {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
-            const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
-            const count = reactorsIds.length;
-            let tooltipText = "";
-            if (activeChat.type === 'group') {
-                tooltipText = reactorsIds.map(uid => {
-                    if (uid === myChatId) return "Tú";
-                    const user = allChatUsers.find(u => u.id === uid);
-                    return user ? user.name.split(' ')[0] : "Alguien";
-                }).join(', ');
-            }
-            return (
-                <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
-                    <span className="text-2xl drop-shadow-md">{emoji}</span>
-                    {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
-                </div>
-            );
-        })}
-    </div>
-)}
+                                                                  {m.reactions && Object.keys(m.reactions).length > 0 && (
+                                                                      <div className={`flex gap-1 z-20 transition-all duration-300 ${
+                                                                          isLastInGroup 
+                                                                              ? `absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'}` 
+                                                                              : `absolute top-1/2 -translate-y-1/2 ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`
+                                                                      }`}>
+                                                                          {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
+                                                                              const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
+                                                                              const count = reactorsIds.length;
+                                                                              let tooltipText = "";
+                                                                              if (activeChat.type === 'group') {
+                                                                                  tooltipText = reactorsIds.map(uid => {
+                                                                                      if (uid === myChatId) return "Tú";
+                                                                                      const user = allChatUsers.find(u => u.id === uid);
+                                                                                      return user ? user.name.split(' ')[0] : "Alguien";
+                                                                                  }).join(', ');
+                                                                              }
+                                                                              return (
+                                                                                  <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
+                                                                                      <span className="text-2xl drop-shadow-lg">{emoji}</span>
+                                                                                      {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-md border border-gray-200">{count}</span>}
+                                                                                  </div>
+                                                                              );
+                                                                          })}
+                                                                      </div>
+                                                                  )}
                                                               </div>
 
                                                               {/* Botones de Acción (Flotantes afuera de la burbuja, no ocupan espacio) */}
