@@ -1335,12 +1335,15 @@ const handleSaveEditedTask = async () => {
                   events.forEach(e => window.addEventListener(e, handleActivity));
 
                   // Marcar como desconectado al cerrar la app, cambiar de pestaña o bloquear el celular
-                  const handleOffline = () => setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true });
-                  
-                  const handleVisibilityForPresence = () => {
-                      if (document.visibilityState === 'hidden') handleOffline();
-                      else setOnline();
-                  };
+const handleOffline = () => {
+    currentStatus = 'offline';
+    setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true });
+};
+
+const handleVisibilityForPresence = () => {
+    if (document.visibilityState === 'hidden') handleOffline();
+    else setOnline();
+};
 
                   window.addEventListener('beforeunload', handleOffline);
                   window.addEventListener('pagehide', handleOffline); // <--- Clave para celulares (Especialmente iPhone)
