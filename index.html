@@ -1059,6 +1059,8 @@ const handleSaveEditedTask = async () => {
 
           const handleLogin = async (e) => {
             e.preventDefault();
+            // Pedimos permiso ANTES de cualquier proceso 'await' para que Safari no lo bloquee
+            if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
             const rawUser = e.target.username.value.trim(); 
             const password = e.target.password.value;
             const cleanUser = rawUser.toLowerCase().replace('@', '');
@@ -1104,7 +1106,9 @@ const handleSaveEditedTask = async () => {
             }
           };
 
-          const handleQuickLogin = async (acc) => {
+         const handleQuickLogin = async (acc) => {
+              // Pedimos permiso ANTES de cualquier proceso 'await' para que Safari no lo bloquee
+              if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
               try {
                   setLoginType(acc.role); 
                   await signInWithEmailAndPassword(auth, acc.email, acc.password);
@@ -1230,15 +1234,20 @@ const handleSaveEditedTask = async () => {
             const uUnread = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), d => {
                 if (d.exists()) {
                     const data = d.data();
-                    if (data.hasUnread && !hasUnreadChat) {
+                    
+                    // Usamos el window para recordar el último timestamp y notificar por CADA mensaje nuevo (no solo el primero)
+                    const lastTimestamp = window.lastNotifTime || 0;
+                    
+                    if (data.hasUnread && data.timestamp > lastTimestamp) {
+                        window.lastNotifTime = data.timestamp;
                         notificationSound.current?.play().catch(e => console.log('Auto-play evitado'));
                         
-                        // --- NUEVO: NOTIFICACIÓN NATIVA DE ESCRITORIO/CELULAR ---
                         if ('Notification' in window && Notification.permission === 'granted') {
-                            // document.hidden verifica que el usuario NO esté mirando la pestaña actual
                             if (document.hidden) {
-                                new Notification('English TECH', {
-                                    body: '💬 ¡Tienes nuevos mensajes sin leer!',
+                                const sender = data.previewSender || 'Alguien';
+                                const text = data.previewText || 'Te envió un mensaje';
+                                new Notification('Mensaje de ' + sender, {
+                                    body: text,
                                     icon: 'favicon.ico'
                                 });
                             }
@@ -1550,9 +1559,9 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                       const alertRef = doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', tId);
                       const alertSnap = await getDoc(alertRef);
                       if (alertSnap.exists()) {
-                          await updateDoc(alertRef, { hasUnread: true, timestamp: Date.now(), [`chats.${activeChat.id}`]: true });
+                          await updateDoc(alertRef, { hasUnread: true, timestamp: Date.now(), [`chats.${activeChat.id}`]: true, previewSender: previewName, previewText: msgPreviewText });
                       } else {
-                          await setDoc(alertRef, { hasUnread: true, timestamp: Date.now(), chats: { [activeChat.id]: true } });
+                          await setDoc(alertRef, { hasUnread: true, timestamp: Date.now(), chats: { [activeChat.id]: true }, previewSender: previewName, previewText: msgPreviewText });
                       }
                   }
               });
