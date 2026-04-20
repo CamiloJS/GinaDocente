@@ -29,12 +29,13 @@
         // --- IMPORTACIONES FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeFirestore, persistentLocalCache, getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
         
         // Íconos de Lucide
         const createIcon = (emoji) => (p) => <span style={{fontSize: p.size||16}} className={p.className}>{emoji}</span>;
-        const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅'); const Plus = createIcon('➕'); 
+        const BookOpen = createIcon('📖'); const CalendarEmoji = createIcon('📅');
+        const Plus = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>; 
         const X = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
         const Sparkles = createIcon('✨');
         const CheckCheck = createIcon('✅'); const Loader2 = createIcon('⏳'); const Undo2 = createIcon('↩️'); 
@@ -168,9 +169,14 @@
           measurementId: "G-6QKYMFPRHH"
         };
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app); // Inicializamos Storage
+const auth = getAuth(app);
+
+// 👇 ESTO ENCIENDE LA MEMORIA LOCAL (OFFLINE) AUTOMÁTICA 👇
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache()
+});
+
+const storage = getStorage(app); // Inicializamos Storage
         
         // --- FUNCIÓN PARA SUBIR IMÁGENES A STORAGE ---
         const uploadImageToStorage = async (base64String, folderName) => {
