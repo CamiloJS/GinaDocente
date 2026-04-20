@@ -2414,9 +2414,9 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                                       {acc.role === 'teacher' ? 'Gina' : acc.name}
                                                   </span>
                                               </button>
-                                              <button onClick={(e) => { e.stopPropagation(); removeSavedAccount(acc.username); }} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
-                                                  <X size={12}/>
-                                              </button>
+                                              <button onClick={(e) => { e.stopPropagation(); removeSavedAccount(acc.username); }} className="absolute -top-2 -right-2 text-red-500 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 drop-shadow-sm">
+    <X size={16}/>
+</button>
                                           </div>
                                       ))}
                                   </div>
