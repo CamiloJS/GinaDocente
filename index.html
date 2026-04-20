@@ -3095,42 +3095,54 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                               </div>
                                           </div>
 
-                                          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 scroll-smooth">
+                                          <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col scroll-smooth">
                                               {chatMessages.length === 0 && <p className={`text-center italic mt-10 ${currentPrefs.gradient ? 'text-gray-800 dark:text-white font-medium' : 'text-gray-500'}`}>Envía un mensaje para iniciar la conversación.</p>}
-                                              {chatMessages.map(m => {
+                                              {chatMessages.map((m, index) => {
+                                                  // 1. Lógica para agrupar mensajes
+                                                  const prevMsg = index > 0 ? chatMessages[index - 1] : null;
+                                                  const nextMsg = index < chatMessages.length - 1 ? chatMessages[index + 1] : null;
+                                                  const isFirstInGroup = !prevMsg || prevMsg.authorId !== m.authorId;
+                                                  const isLastInGroup = !nextMsg || nextMsg.authorId !== m.authorId;
+
                                                   const isMe = m.authorId === myChatId;
                                                   const isTeacher = m.author === TEACHER_NAME;
                                                   const isEditingThis = editingAppMessageId === m.id;
                                                   
+                                                  // 2. Diseño de bordes según posición en el grupo
+                                                  const bubbleRadius = isMe
+                                                      ? `rounded-l-2xl ${isFirstInGroup ? 'rounded-tr-2xl' : 'rounded-tr-md'} ${isLastInGroup ? 'rounded-br-sm' : 'rounded-br-md'}`
+                                                      : `rounded-r-2xl ${isFirstInGroup ? 'rounded-tl-2xl' : 'rounded-tl-md'} ${isLastInGroup ? 'rounded-bl-sm' : 'rounded-bl-md'}`;
+
                                                   // Detectar si es solo emoji o solo imagen
                                                   const isEmojiOnly = m.text && !m.imageUrl && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+$/u.test(m.text.trim());
                                                   const isImageOnly = m.imageUrl && !m.text;
                                                   const isTransparent = isEmojiOnly || isImageOnly;
 
                                                   // Lógica de los Ticks
-                                              let tickIcon = null;
-                                              if (isMe) {
-                                                  if (m.status === 'read') {
-                                                      tickIcon = <DoubleTick size={15} className="text-blue-400 animate-tick-glow" />;
-                                                  } else {
-                                                      const targetId = activeChat.type === 'dm' ? activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId) : null;
-                                                      const isDelivered = targetId && userPresence[targetId]; // Si está online, asumimos entregado
-
-                                                      if (isDelivered || activeChat.type === 'group') {
-                                                          tickIcon = <DoubleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                  let tickIcon = null;
+                                                  if (isMe) {
+                                                      if (m.status === 'read') {
+                                                          tickIcon = <DoubleTick size={15} className="text-blue-400 animate-tick-glow" />;
                                                       } else {
-                                                          tickIcon = <SingleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                          const targetId = activeChat.type === 'dm' ? activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId) : null;
+                                                          const isDelivered = targetId && userPresence[targetId];
+
+                                                          if (isDelivered || activeChat.type === 'group') {
+                                                              tickIcon = <DoubleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                          } else {
+                                                              tickIcon = <SingleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                          }
                                                       }
                                                   }
-                                              }
 
                                                   return (
-                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group ${isMe ? 'items-end' : 'items-start'}`}>
-                                                          {!isMe && activeChat.type === 'group' && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
+                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-4' : 'mb-1'}`}>
+                                                          {/* Mostrar nombre SOLO si es el primer mensaje de un grupo en un chat grupal */}
+                                                          {!isMe && activeChat.type === 'group' && isFirstInGroup && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
                                                           
                                                           {/* Contenedor de la burbuja del mensaje SOLO */}
                                                               <div className={`max-w-[85%] md:max-w-[70%]`}>
-                                                                  <div className={isTransparent ? 'relative' : `p-3 md:p-4 rounded-2xl shadow-lg relative backdrop-blur-xl border ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white rounded-tr-sm' : (isDarkMode ? 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/50' : 'bg-blue-600/90 text-white rounded-tr-sm border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100 rounded-tl-sm' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 rounded-tl-sm border-gray-700/50' : 'bg-white/80 text-gray-800 rounded-tl-sm border-gray-200/50'))}`}>
+                                                                  <div className={isTransparent ? 'relative' : `p-3 md:p-4 shadow-lg relative backdrop-blur-xl border transition-all duration-300 ease-out ${bubbleRadius} ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white' : (isDarkMode ? 'bg-blue-600/90 text-white border-blue-500/50' : 'bg-blue-600/90 text-white border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 border-gray-700/50' : 'bg-white/80 text-gray-800 border-gray-200/50'))}`}>
                                                                       {m.replyTo && (
     <div className={`mb-2 pl-3 border-l-4 rounded-r-lg py-1.5 ${isMe ? 'border-blue-300 bg-black/10' : 'border-gray-400 bg-gray-500/10'} text-xs opacity-90 cursor-pointer`} onClick={() => {
         const el = document.getElementById(`msg-${m.replyTo.id}`);
