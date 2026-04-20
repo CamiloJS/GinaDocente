@@ -1351,6 +1351,11 @@ const handleSaveEditedTask = async () => {
                       clearTimeout(awayTimer); // Fundamental: Matar los temporizadores para que no "revivan" al volver
                       clearTimeout(busyTimer);
                       setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true });
+                      
+                      // FIX BUG "Escribiendo...": Apagar si cierran la app mientras teclean
+                      if (window.currentChatViewId) {
+                          setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'typing', window.currentChatViewId), { [myChatId]: false }, { merge: true }).catch(()=>{});
+                      }
                   };
 
                   const handleVisibilityForPresence = () => {
@@ -1617,7 +1622,11 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               setShowChatAppAttachmentMenu(false);
               setShowChatAppImageInput(false);
               setShowChatAppEmojiPicker(false);
-              setReplyingTo(null); // <--- PEGA ESTA LÍNEA AQUÍ
+              setReplyingTo(null);
+              
+              // FIX BUG "Escribiendo...": Apagar inmediatamente al darle al botón Enviar
+              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'typing', activeChat.id), { [myChatId]: false }, { merge: true }).catch(()=>{});
+              clearTimeout(typingTimeout.current);
           };
 
           const handleCreateGroup = async (e) => {
