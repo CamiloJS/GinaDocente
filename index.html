@@ -1264,7 +1264,7 @@ const handleSaveEditedTask = async () => {
             });
 
             const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
-                const msgs = {};
+                const msgs = {};}
                 s.docs.forEach(d => msgs[d.id] = d.data());
                 setLastMessages(msgs);
             });
