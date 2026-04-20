@@ -1263,11 +1263,11 @@ const handleSaveEditedTask = async () => {
                 }
             });
 
-            const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
-                const msgs = {};}
-                s.docs.forEach(d => msgs[d.id] = d.data());
-                setLastMessages(msgs);
-            });
+            const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => { // <-- Agregar 'd => {' aquí
+    if (d.exists()) {
+        // ...resto del código
+    }
+});
 
             const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => {
                 if (d.exists()) {
