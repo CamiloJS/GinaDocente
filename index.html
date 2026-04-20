@@ -3098,9 +3098,10 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                           <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col scroll-smooth">
                                               {chatMessages.length === 0 && <p className={`text-center italic mt-10 ${currentPrefs.gradient ? 'text-gray-800 dark:text-white font-medium' : 'text-gray-500'}`}>Envía un mensaje para iniciar la conversación.</p>}
                                               {chatMessages.map((m, index) => {
-                                                  // 1. Lógica para agrupar mensajes
+                                                  // 1. Lógica para agrupar mensajes de forma fluida
                                                   const prevMsg = index > 0 ? chatMessages[index - 1] : null;
                                                   const nextMsg = index < chatMessages.length - 1 ? chatMessages[index + 1] : null;
+                                                  
                                                   const isFirstInGroup = !prevMsg || prevMsg.authorId !== m.authorId;
                                                   const isLastInGroup = !nextMsg || nextMsg.authorId !== m.authorId;
 
@@ -3108,124 +3109,131 @@ return <span className="text-xs font-medium text-gray-400">Desconectado</span>;
                                                   const isTeacher = m.author === TEACHER_NAME;
                                                   const isEditingThis = editingAppMessageId === m.id;
                                                   
-                                                  // 2. Diseño de bordes según posición en el grupo
+                                                  // 2. Animación de bordes: Curvos en los extremos, chatos donde se unen
                                                   const bubbleRadius = isMe
-                                                      ? `rounded-l-2xl ${isFirstInGroup ? 'rounded-tr-2xl' : 'rounded-tr-md'} ${isLastInGroup ? 'rounded-br-sm' : 'rounded-br-md'}`
-                                                      : `rounded-r-2xl ${isFirstInGroup ? 'rounded-tl-2xl' : 'rounded-tl-md'} ${isLastInGroup ? 'rounded-bl-sm' : 'rounded-bl-md'}`;
+                                                      ? `rounded-l-2xl ${isFirstInGroup ? 'rounded-tr-2xl' : 'rounded-tr-[4px]'} ${isLastInGroup ? 'rounded-br-2xl' : 'rounded-br-[4px]'}`
+                                                      : `rounded-r-2xl ${isFirstInGroup ? 'rounded-tl-2xl' : 'rounded-tl-[4px]'} ${isLastInGroup ? 'rounded-bl-2xl' : 'rounded-bl-[4px]'}`;
 
-                                                  // Detectar si es solo emoji o solo imagen
                                                   const isEmojiOnly = m.text && !m.imageUrl && /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+$/u.test(m.text.trim());
                                                   const isImageOnly = m.imageUrl && !m.text;
                                                   const isTransparent = isEmojiOnly || isImageOnly;
 
-                                                  // Lógica de los Ticks
+                                                  // 3. Ticks de lectura
                                                   let tickIcon = null;
                                                   if (isMe) {
                                                       if (m.status === 'read') {
-                                                          tickIcon = <DoubleTick size={15} className="text-blue-400 animate-tick-glow" />;
+                                                          tickIcon = <DoubleTick size={14} className="text-blue-400 animate-tick-glow" />;
                                                       } else {
                                                           const targetId = activeChat.type === 'dm' ? activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId) : null;
                                                           const isDelivered = targetId && userPresence[targetId];
-
                                                           if (isDelivered || activeChat.type === 'group') {
-                                                              tickIcon = <DoubleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                              tickIcon = <DoubleTick size={14} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-300'} />;
                                                           } else {
-                                                              tickIcon = <SingleTick size={15} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-400'} />;
+                                                              tickIcon = <SingleTick size={14} className={currentPrefs.gradient ? 'text-white/70' : 'text-gray-300'} />;
                                                           }
                                                       }
                                                   }
 
                                                   return (
-                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-4' : 'mb-1'}`}>
-                                                          {/* Mostrar nombre SOLO si es el primer mensaje de un grupo en un chat grupal */}
+                                                      <div id={`msg-${m.id}`} key={m.id} className={`flex flex-col w-full group relative transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${isMe ? 'items-end' : 'items-start'} ${isLastInGroup ? 'mb-4' : 'mb-[2px]'}`}>
+                                                          
+                                                          {/* Nombre en Grupos (Solo encima del primer mensaje del grupo) */}
                                                           {!isMe && activeChat.type === 'group' && isFirstInGroup && <span className={`text-[11px] font-bold mb-1 px-1 drop-shadow-sm ${isTeacher ? 'text-[#AD3333] dark:text-[#ff6b6b]' : (currentPrefs.gradient ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-600'))}`}>{m.author}</span>}
                                                           
-                                                          {/* Contenedor de la burbuja del mensaje SOLO */}
-                                                              <div className={`max-w-[85%] md:max-w-[70%]`}>
-                                                                  <div className={isTransparent ? 'relative' : `p-3 md:p-4 shadow-lg relative backdrop-blur-xl border transition-all duration-300 ease-out ${bubbleRadius} ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white' : (isDarkMode ? 'bg-blue-600/90 text-white border-blue-500/50' : 'bg-blue-600/90 text-white border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 border-gray-700/50' : 'bg-white/80 text-gray-800 border-gray-200/50'))}`}>
-                                                                      {m.replyTo && (
-    <div className={`mb-2 pl-3 border-l-4 rounded-r-lg py-1.5 ${isMe ? 'border-blue-300 bg-black/10' : 'border-gray-400 bg-gray-500/10'} text-xs opacity-90 cursor-pointer`} onClick={() => {
-        const el = document.getElementById(`msg-${m.replyTo.id}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }}>
-        <p className="font-bold opacity-90">{m.replyTo.author}</p>
-        <p className="truncate max-w-[200px] opacity-80">{m.replyTo.text || (m.replyTo.imageUrl ? '📷 Imagen' : '')}</p>
-    </div>
-)}
-                                                                      {isEditingThis ? (
-                                                                          <div className="flex gap-3 items-center min-w-[200px] bg-black/40 p-2 rounded-xl backdrop-blur-md">
-                                                                              <input className="py-1 px-2 text-sm flex-1 rounded bg-white/20 outline-none text-white placeholder-white/50" value={editAppMessageText} onChange={e => setEditAppMessageText(e.target.value)} autoFocus />
-                                                                              <button onClick={handleEditAppMessage} className="text-green-300 hover:text-green-400 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={20}/></button>
-                                                                              <button onClick={() => setEditingAppMessageId(null)} className="text-red-300 hover:text-red-400 hover:scale-110 transition-transform" title="Cancelar"><XLine size={20}/></button>
-                                                                          </div>
-                                                                      ) : (
-                                                                          <>
-                                                                              {m.text && <p className={isEmojiOnly ? "text-5xl md:text-6xl drop-shadow-lg leading-none" : "text-sm md:text-base leading-relaxed whitespace-pre-wrap"}>{m.text}</p>}
-                                                                              {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className={isImageOnly ? "rounded-2xl max-h-72 object-contain cursor-pointer hover:opacity-90 transition-opacity drop-shadow-lg" : "mt-2 rounded-xl max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-black/10 border border-white/20"} />}
-                                                                          </>
-                                                                      )}
-
-                                                                      {/* Renderizado de Reacciones (Flotantes, sin fondo) */}
-                                                                      {m.reactions && Object.keys(m.reactions).length > 0 && (
-                                                                          <div className={`absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'} flex gap-1 z-20`}>
-                                                                              {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
-                                                                                  const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
-                                                                                  const count = reactorsIds.length;
-                                                                                  
-                                                                                  let tooltipText = "";
-                                                                                  if (activeChat.type === 'group') {
-                                                                                      tooltipText = reactorsIds.map(uid => {
-                                                                                          if (uid === myChatId) return "Tú";
-                                                                                          const user = allChatUsers.find(u => u.id === uid);
-                                                                                          return user ? user.name.split(' ')[0] : "Alguien";
-                                                                                      }).join(', ');
-                                                                                  }
-
-                                                                                  return (
-                                                                                      <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
-                                                                                          <span className="text-2xl drop-shadow-md">{emoji}</span>
-                                                                                          {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
-                                                                                      </div>
-                                                                                  );
-                                                                              })}
-                                                                          </div>
-                                                                      )}
-                                                                  </div>
-                                                              </div>
+                                                          <div className={`relative max-w-[85%] md:max-w-[70%] flex items-center ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                               
-                                                              {/* Contenedor Inferior: Botones + Hora/Ticks */}
-                                                              <div className={`flex items-center gap-3 mt-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                              {/* Burbuja Principal */}
+                                                              <div className={isTransparent ? 'relative' : `px-3 py-2 sm:px-4 sm:py-2.5 shadow-sm relative backdrop-blur-xl border transition-all duration-300 ease-out ${bubbleRadius} ${isMe ? (currentPrefs.gradient ? 'bg-black/30 border-white/20 text-white' : (isDarkMode ? 'bg-blue-600/90 text-white border-blue-500/50' : 'bg-blue-600/90 text-white border-blue-500/20')) : (currentPrefs.gradient ? 'bg-white/30 border-white/40 text-gray-900 dark:bg-black/20 dark:border-white/10 dark:text-gray-100' : (isDarkMode ? 'bg-gray-800/80 text-gray-100 border-gray-700/50' : 'bg-white/80 text-gray-800 border-gray-200/50'))}`}>
                                                                   
-                                                                  <div className="flex items-center gap-1">
-                                                                      <span className={`text-[10px] drop-shadow-sm ${currentPrefs.gradient ? 'text-white font-medium' : (isDarkMode ? 'text-gray-500' : 'text-gray-400')}`}>{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                                      {m.isEdited && <span className={`text-[9px] italic drop-shadow-sm ${currentPrefs.gradient ? 'text-white/80' : (isDarkMode ? 'text-gray-600' : 'text-gray-400')}`}>(editado)</span>}
-                                                                      {tickIcon}
-                                                                  </div>
+                                                                  {/* Referencia a Mensaje Respondido */}
+                                                                  {m.replyTo && (
+                                                                      <div className={`mb-2 pl-3 border-l-4 rounded-r-lg py-1.5 ${isMe ? 'border-blue-300 bg-black/10' : 'border-gray-400 bg-gray-500/10'} text-xs opacity-90 cursor-pointer`} onClick={() => { const el = document.getElementById(`msg-${m.replyTo.id}`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>
+                                                                          <p className="font-bold opacity-90">{m.replyTo.author}</p>
+                                                                          <p className="truncate max-w-[200px] opacity-80">{m.replyTo.text || (m.replyTo.imageUrl ? '📷 Imagen' : '')}</p>
+                                                                      </div>
+                                                                  )}
+                                                                  
+                                                                  {isEditingThis ? (
+                                                                      <div className="flex gap-3 items-center min-w-[200px] bg-black/40 p-2 rounded-xl backdrop-blur-md">
+                                                                          <input className="py-1 px-2 text-sm flex-1 rounded bg-white/20 outline-none text-white placeholder-white/50" value={editAppMessageText} onChange={e => setEditAppMessageText(e.target.value)} autoFocus />
+                                                                          <button onClick={handleEditAppMessage} className="text-green-300 hover:text-green-400 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={20}/></button>
+                                                                          <button onClick={() => setEditingAppMessageId(null)} className="text-red-300 hover:text-red-400 hover:scale-110 transition-transform" title="Cancelar"><XLine size={20}/></button>
+                                                                      </div>
+                                                                  ) : (
+                                                                      <div className="flex flex-col">
+                                                                          {/* Texto y/o Imagen */}
+                                                                          {m.text && <p className={isEmojiOnly ? "text-5xl md:text-6xl drop-shadow-lg leading-none" : "text-sm md:text-base leading-relaxed whitespace-pre-wrap pr-10"}>{m.text}</p>}
+                                                                          {m.imageUrl && <img src={m.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(m.imageUrl)} className={isImageOnly ? "rounded-2xl max-h-72 object-contain cursor-pointer hover:opacity-90 transition-opacity drop-shadow-lg" : "mt-2 rounded-xl max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-black/10 border border-white/20"} />}
+                                                                          
+                                                                          {/* Hora y Ticks INCRUSTADOS dentro de la burbuja en la esquina */}
+                                                                          {!isTransparent && (
+                                                                              <div className={`flex items-center justify-end gap-1 mt-0.5 opacity-80 ${isMe ? 'text-blue-100' : (isDarkMode || currentPrefs.gradient ? 'text-gray-400' : 'text-gray-500')} ${isEmojiOnly ? 'relative' : '-mb-1 -mr-1'}`}>
+                                                                                  <span className="text-[10px] font-medium leading-none">{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                                  {m.isEdited && <span className="text-[9px] italic leading-none">(editado)</span>}
+                                                                                  {tickIcon}
+                                                                              </div>
+                                                                          )}
+                                                                      </div>
+                                                                  )}
 
-                                                                  {/* Botones de acción (Aparecen abajo) */}
-                                                                  <div className={`flex items-center gap-1 invisible opacity-0 group-hover:visible group-hover:opacity-60 hover:!opacity-100 transition-all duration-200 relative`}>
-                                                                      <button onClick={() => setActiveChatReactionMsgId(activeChatReactionMsgId === m.id ? null : m.id)} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Reaccionar"><SmileIcon size={14}/></button>
-                                                                        <button onClick={() => setReplyingTo(m)} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Responder">
-                                                                        <ReplyIcon size={14}/>
-                                                                        </button>
-                                                                      
-                                                                      {/* Picker de Emojis */}
-                                                                      {activeChatReactionMsgId === m.id && (
-                                                                          <div className={`absolute bottom-full mb-1 ${isMe ? 'right-0' : 'left-0'} flex gap-1.5 rounded-full px-3 py-1.5 border shadow-lg z-50 animate-in fade-in zoom-in-95 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-                                                                              {['❤️','👍','😂','😲', '🙏', '🔥'].map(emj => (
-                                                                                  <button key={emj} onClick={() => toggleChatAppReaction(m.id, emj)} className="hover:scale-125 transition-transform text-lg">{emj}</button>
-                                                                              ))}
-                                                                          </div>
-                                                                      )}
-
-                                                                      {isMe && !isEditingThis && (
-                                                                          <>
-                                                                              <button onClick={() => {setEditingAppMessageId(m.id); setEditAppMessageText(m.text || "");}} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`} title="Editar"><Edit3 size={14}/></button>
-                                                                              <button onClick={() => confirmAction("¿Deseas eliminar este mensaje para todos?", () => handleDeleteAppMessage(m.id))} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-red-900/50 text-red-400' : 'hover:bg-red-100 text-red-600'}`} title="Eliminar"><Trash2 size={14}/></button>
-                                                                          </>
-                                                                      )}
-                                                                  </div>
+                                                                  {/* Reacciones */}
+                                                                  {m.reactions && Object.keys(m.reactions).length > 0 && (
+                                                                      <div className={`absolute -bottom-3 ${isMe ? '-left-3' : '-right-3'} flex gap-1 z-20`}>
+                                                                          {Array.from(new Set(Object.values(m.reactions))).map((emoji, idx) => {
+                                                                              const reactorsIds = Object.keys(m.reactions).filter(uid => m.reactions[uid] === emoji);
+                                                                              const count = reactorsIds.length;
+                                                                              let tooltipText = "";
+                                                                              if (activeChat.type === 'group') {
+                                                                                  tooltipText = reactorsIds.map(uid => {
+                                                                                      if (uid === myChatId) return "Tú";
+                                                                                      const user = allChatUsers.find(u => u.id === uid);
+                                                                                      return user ? user.name.split(' ')[0] : "Alguien";
+                                                                                  }).join(', ');
+                                                                              }
+                                                                              return (
+                                                                                  <div key={idx} className="relative inline-flex items-center cursor-help" title={tooltipText}>
+                                                                                      <span className="text-2xl drop-shadow-md">{emoji}</span>
+                                                                                      {count > 1 && <span className="absolute -bottom-1 -right-1 bg-white/90 text-gray-800 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm border border-gray-200">{count}</span>}
+                                                                                  </div>
+                                                                              );
+                                                                          })}
+                                                                      </div>
+                                                                  )}
                                                               </div>
+
+                                                              {/* Botones de Acción (Flotantes afuera de la burbuja, no ocupan espacio) */}
+                                                              <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-10 ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                                                                  <button onClick={() => setActiveChatReactionMsgId(activeChatReactionMsgId === m.id ? null : m.id)} className={`p-1.5 rounded-full shadow-md bg-white/90 text-gray-700 hover:bg-white dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`} title="Reaccionar"><SmileIcon size={14}/></button>
+                                                                  <button onClick={() => setReplyingTo(m)} className={`p-1.5 rounded-full shadow-md bg-white/90 text-gray-700 hover:bg-white dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`} title="Responder"><ReplyIcon size={14}/></button>
+                                                                  
+                                                                  {/* Picker de Emojis Flotante */}
+                                                                  {activeChatReactionMsgId === m.id && (
+                                                                      <div className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} flex gap-1.5 rounded-full px-3 py-1.5 border shadow-lg z-[99999] animate-in fade-in zoom-in-95 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                                                          {['❤️','👍','😂','😲', '🙏', '🔥'].map(emj => (
+                                                                              <button key={emj} onClick={() => toggleChatAppReaction(m.id, emj)} className="hover:scale-125 transition-transform text-lg">{emj}</button>
+                                                                          ))}
+                                                                      </div>
+                                                                  )}
+
+                                                                  {isMe && !isEditingThis && (
+                                                                      <>
+                                                                          <button onClick={() => {setEditingAppMessageId(m.id); setEditAppMessageText(m.text || "");}} className={`p-1.5 rounded-full shadow-md bg-white/90 text-gray-700 hover:bg-white dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`} title="Editar"><Edit3 size={14}/></button>
+                                                                          <button onClick={() => confirmAction("¿Deseas eliminar este mensaje para todos?", () => handleDeleteAppMessage(m.id))} className={`p-1.5 rounded-full shadow-md bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/50 dark:text-red-400`} title="Eliminar"><Trash2 size={14}/></button>
+                                                                      </>
+                                                                  )}
+                                                              </div>
+
+                                                          </div>
+
+                                                          {/* HORA Y TICKS (Solo si envían un Emoji o Imagen suelta sin burbuja) */}
+                                                          {isTransparent && !isEditingThis && (
+                                                              <div className={`flex items-center gap-1 mt-1 px-1 opacity-70 ${isMe ? 'flex-row-reverse text-gray-500' : 'flex-row text-gray-500'}`}>
+                                                                  <span className="text-[10px] drop-shadow-sm font-medium">{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                  {m.isEdited && <span className="text-[9px] italic drop-shadow-sm">(editado)</span>}
+                                                                  {tickIcon}
+                                                              </div>
+                                                          )}
+
                                                       </div>
                                                   );
                                               })}
