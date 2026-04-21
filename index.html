@@ -860,7 +860,12 @@ const handleSaveEditedTask = async () => {
 
         function App() {
           const [hasEntered, setHasEntered] = useState(false); 
-          const [loginType, setLoginType] = useState(null); 
+          const [loginType, setLoginType] = useState(null);
+          const [showUserMenu, setShowUserMenu] = useState(false);
+            const [userPosts, setUserPosts] = useState([]);
+            const [profilePostText, setProfilePostText] = useState("");
+            const [profilePostImage, setProfilePostImage] = useState("");
+            const [isPublishingProfile, setIsPublishingProfile] = useState(false);
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
@@ -1370,6 +1375,7 @@ const handleSaveEditedTask = async () => {
             if (!user || !myChatId) return; // FIX: Prevenir que la vista móvil se ponga en blanco si no se ha cargado el user id aún
             const base = ['artifacts', appId, 'public', 'data'];
             const uTasks = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+            const uUserPosts = onSnapshot(collection(db, ...base, 'userPosts'), s => setUserPosts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uSyllabus = onSnapshot(collection(db, ...base, 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
             const uEvals = onSnapshot(collection(db, ...base, 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
             const uGrades = onSnapshot(collection(db, ...base, 'grades'), s => setGrades(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
@@ -1434,7 +1440,7 @@ const handleSaveEditedTask = async () => {
                 const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
             });
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); };
+            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uUserPosts(); };
           }, [user, myChatId]);
             useEffect(() => {
               if (myChatId) {
@@ -1905,6 +1911,98 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               showMessage("✅ Nota actualizada.");
           };
 
+            const handleProfileImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsPublishingProfile(true);
+    try {
+        const compressed = await compressImage(file, 800, 800, 0.7);
+        const url = await uploadImageToStorage(compressed, 'userPosts');
+        setProfilePostImage(url);
+    } catch(err) { showMessage("Error al subir foto."); }
+    setIsPublishingProfile(false);
+};
+
+const publishProfilePost = async (e) => {
+    e.preventDefault();
+    if(!profilePostText.trim() && !profilePostImage) return;
+    setIsPublishingProfile(true);
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'userPosts'), {
+        authorId: user.uid,
+        authorName: loggedInName,
+        text: profilePostText.trim(),
+        imageUrl: profilePostImage,
+        createdAt: Date.now()
+    });
+    setProfilePostText(""); setProfilePostImage(""); setIsPublishingProfile(false);
+    showMessage("✅ Publicado en tu perfil.");
+};
+
+const renderProfile = () => {
+    const myPosts = userPosts.filter(p => p.authorId === user.uid);
+    
+    return (
+        <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
+            {/* Cabecera del Perfil */}
+            <div className={`${glassCard} flex flex-col md:flex-row items-center gap-6 mb-8 relative overflow-hidden`}>
+                <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-400 to-purple-500 opacity-20"></div>
+                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-xl border-4 border-white z-10">
+                    <UserIcon size={50} />
+                </div>
+                <div className="text-center md:text-left z-10">
+                    <h2 className={`text-3xl font-extrabold drop-shadow-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{loggedInName}</h2>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+                </div>
+            </div>
+
+            {/* Crear Publicación */}
+            <form onSubmit={publishProfilePost} className={`${glassCard} flex flex-col gap-4 mb-8`}>
+                <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                    <Sparkles className="text-blue-500" /> Crear nueva publicación
+                </h3>
+                <textarea 
+                    value={profilePostText} onChange={e => setProfilePostText(e.target.value)} 
+                    placeholder="¿Qué quieres compartir en tu perfil hoy?" 
+                    className={`${glassInput} h-20 resize-none`} 
+                />
+                
+                {profilePostImage && (
+                    <div className="relative w-fit">
+                        <img src={profilePostImage} alt="Preview" className="h-32 rounded-xl object-cover border border-white/50 shadow-sm" />
+                        <button type="button" onClick={() => setProfilePostImage("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md"><X size={14}/></button>
+                    </div>
+                )}
+                
+                <div className="flex justify-between items-center mt-2">
+                    <label className={`cursor-pointer px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border ${isDarkMode ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 text-gray-300' : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'}`}>
+                        <ImageIcon size={18} /> Añadir Foto
+                        <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isPublishingProfile} />
+                    </label>
+                    <button type="submit" disabled={isPublishingProfile || (!profilePostText && !profilePostImage)} className={`${redButton} disabled:opacity-50`}>
+                        {isPublishingProfile ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>} Publicar
+                    </button>
+                </div>
+            </form>
+
+            {/* Cuadrícula Estilo Pinterest */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {myPosts.length === 0 ? <p className="text-gray-500 italic col-span-full text-center">Aún no tienes publicaciones en tu perfil.</p> : null}
+                {myPosts.map(post => (
+                    <div key={post.id} className={`${glassCard} !p-4 flex flex-col gap-3 group break-inside-avoid relative`}>
+                        <button onClick={() => confirmAction("¿Eliminar publicación de tu perfil?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userPosts', post.id)))} className="absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <Trash2 size={16}/>
+                        </button>
+                        {post.imageUrl && (
+                            <img src={post.imageUrl} onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />
+                        )}
+                        {post.text && <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{post.text}</p>}
+                        <span className="text-[10px] text-gray-400 font-bold mt-auto pt-2 border-t border-gray-500/20">{new Date(post.createdAt).toLocaleDateString()}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
           const renderTasks = () => (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Muro de Clase</h2>
@@ -2970,15 +3068,43 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
                     {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                   </button>
                   
-                  {role === 'student' ? (
-                    <button onClick={() => setShowSugModal(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md font-bold px-3 py-2 rounded-full hover:scale-105 transition flex items-center gap-1 text-sm"><Mail size={16}/><span className="hidden sm:inline">Sugerencias</span></button>
+                  {/* ESTO FUE ELIMINADO PARA PASARLO AL MENÚ DEL PERFIL, ASÍ QUEDA MÁS LIMPIO */}
+  
+  {/* MENÚ DE PERFIL EN LA ESQUINA SUPERIOR DERECHA */}
+  <div className="relative ml-2">
+      <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md transition-transform hover:scale-105 bg-gradient-to-br from-blue-600 to-indigo-700 border-2 border-white/40 z-50 relative">
+          <UserIcon size={20} />
+      </button>
+
+      {showUserMenu && (
+          <div className={`absolute right-0 top-12 mt-2 w-56 rounded-2xl shadow-2xl border backdrop-blur-2xl z-[99999] animate-in fade-in slide-in-from-top-4 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
+              <div className="p-4 border-b border-gray-500/20 flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-2">
+                      <UserIcon size={30} />
+                  </div>
+                  <p className={`font-bold text-base truncate w-full text-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{loggedInName}</p>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+              </div>
+              <div className="p-2 flex flex-col gap-1">
+                  <button onClick={() => { changeTab('profile'); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <UserIcon size={18} /> Mi Perfil
+                  </button>
+                  {role === 'teacher' ? (
+                      <button onClick={() => { changeTab('inbox'); setShowUserMenu(false); }} className={`w-full flex items-center justify-between px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                          <div className="flex items-center gap-2"><Mail size={18} /> Buzón</div>
+                          {alerts.length > 0 && <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>}
+                      </button>
                   ) : (
-                    <button onClick={() => changeTab('inbox')} className={`px-4 py-2 rounded-full transition-all flex items-center gap-1 text-sm ${getTabClass('inbox')}`}>
-                      <Mail size={16}/><span className="hidden sm:inline">Buzón</span> {alerts.length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-                    </button>
+                      <button onClick={() => { setShowSugModal(true); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                          <Mail size={18} /> Sugerencias
+                      </button>
                   )}
-                </div>
-              </nav>
+              </div>
+          </div>
+      )}
+  </div>
+</div>
+</nav>
 
               <main className="max-w-5xl mx-auto p-4 md:p-8 pb-48 md:pb-8 relative z-10">
                 {activeTab === 'tasks' && renderTasks()}
@@ -2987,6 +3113,7 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
                 {activeTab === 'evaluations' && renderEvaluations()}
                 {activeTab === 'directory' && role === 'teacher' && renderDirectory()}
                 {activeTab === 'inbox' && role === 'teacher' && renderInbox()}
+                {activeTab === 'profile' && renderProfile()}
               </main>
 
               <nav className={`fixed bottom-0 left-0 w-full backdrop-blur-xl border-t flex justify-around items-center pt-3 pb-safe md:hidden z-50 transition-colors duration-500 ${isDarkMode ? 'bg-gray-900/80 border-gray-800 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : 'bg-white/90 border-gray-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]'}`}>
