@@ -62,7 +62,7 @@
         const ImageIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
         const PaperclipIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>;
         const FileDocIcon = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
-        const Send = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
+        const Send = (p) => <svg width={p.size||20} height={p.size||20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>;
         const MinimalSendIcon = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>;
         const UploadCloud = (p) => <svg width={p.size||16} height={p.size||16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="16 16 12 12 8 16"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>;
         const MessageCircle = (p) => <svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>;
@@ -279,590 +279,481 @@ const formatChatDate = (timestamp) => {
             return `${m}:${s}`;
         };
 
-        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode, confirmAction }) => {
-          const [isEditingTask, setIsEditingTask] = useState(false);
-          const [editTaskData, setEditTaskData] = useState({
-            title: task.title,
-            description: task.description,
-            dueDate: task.dueDate || '',
-            dueTime: task.dueTime || '',
-            allowLate: task.allowLate || false
-          });
-          const [commentText, setCommentText] = useState("");
-          const [commentImageUrl, setCommentImageUrl] = useState("");
-          const [commentFileUrl, setCommentFileUrl] = useState("");
-          const [commentFileName, setCommentFileName] = useState("");
-          const [showCommentImageInput, setShowCommentImageInput] = useState(false);
-          const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+        const TaskCard = ({ task, role, db, appId, glassInput, callGemini, currentUser, showMessage, loggedInName, isDarkMode, confirmAction, handleOpenProfileByName }) => {
+    const [isEditingTask, setIsEditingTask] = useState(false);
+    const [editTaskData, setEditTaskData] = useState({ title: task.title, description: task.description, dueDate: task.dueDate || '', dueTime: task.dueTime || '', allowLate: task.allowLate || false });
+    const [commentText, setCommentText] = useState("");
+    const [commentImageUrl, setCommentImageUrl] = useState("");
+    const [commentFileUrl, setCommentFileUrl] = useState("");
+    const [commentFileName, setCommentFileName] = useState("");
+    const [showCommentImageInput, setShowCommentImageInput] = useState(false);
+    const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [activeReactionCommentId, setActiveReactionCommentId] = useState(null);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editCommentText, setEditCommentText] = useState("");
+    const [revealedComments, setRevealedComments] = useState({}); 
+    const [historyOpenCid, setHistoryOpenCid] = useState(null); 
+    const [showCommentModal, setShowCommentModal] = useState(false); 
+    const [fullScreenImage, setFullScreenImage] = useState(null);
+    const [replyingTo, setReplyingTo] = useState(null);
 
-          const [isProcessing, setIsProcessing] = useState(false);
-          const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-          const [activeReactionCommentId, setActiveReactionCommentId] = useState(null);
-          
-          const [editingCommentId, setEditingCommentId] = useState(null);
-          const [editCommentText, setEditCommentText] = useState("");
-          const [revealedComments, setRevealedComments] = useState({}); 
-          const [historyOpenCid, setHistoryOpenCid] = useState(null); 
-          const [showCommentModal, setShowCommentModal] = useState(false); 
-          
-          const [fullScreenImage, setFullScreenImage] = useState(null);
+    const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
+    const isExpired = new Date() > deadline;
+    const isLocked = task.type !== 'post' && isExpired && !task.allowLate;
+    const cardStyle = isExpired && task.type !== 'post' ? "bg-red-900/10 backdrop-blur-2xl border border-red-500/40 shadow-[0_8px_32px_0_rgba(220,38,38,0.15)] rounded-3xl p-6 transition-all duration-300" : glassCard;
 
-          const deadline = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`);
-          const isExpired = new Date() > deadline;
-          const isLocked = task.type !== 'post' && isExpired && !task.allowLate;
-
-          const cardStyle = isExpired && task.type !== 'post'
-            ? "bg-red-900/10 backdrop-blur-2xl border border-red-500/40 shadow-[0_8px_32px_0_rgba(220,38,38,0.15)] rounded-3xl p-6 transition-all duration-300"
-            : glassCard;
-
-          const handleTranslate = async (lang) => {
-            if (!commentText) return;
-            setIsProcessing(true);
-            const prompt = `Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`;
-            const result = await callGemini(prompt);
-            if (result) setCommentText(result);
-            setIsProcessing(false);
-          };
-
-          const toggleReaction = async (type) => {
-            if (isLocked || !currentUser) return;
-            const newReactions = { ...(task.reactions || {}) };
-            const currentReactionData = newReactions[currentUser.uid];
-            const currentType = typeof currentReactionData === 'object' ? currentReactionData.type : currentReactionData;
-
-            if (currentType === type) delete newReactions[currentUser.uid];
-            else newReactions[currentUser.uid] = { type: type, name: loggedInName };
-            
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions });
-          };
-
-          const toggleCommentReaction = async (commentId, emoji) => {
-            if (isLocked || !currentUser) return;
-            const updatedComments = (task.comments || []).map((c, i) => {
-                const currentCid = c.id || `old-${i}`; 
-                if (currentCid === commentId) {
-                    const reactions = { ...(c.reactions || {}) };
-                    const currentReact = reactions[currentUser.uid];
-                    const currentEmoji = typeof currentReact === 'object' ? currentReact.emoji : currentReact;
-                    
-                    if (currentEmoji === emoji) {
-                        delete reactions[currentUser.uid];
-                    } else {
-                        reactions[currentUser.uid] = { emoji: emoji, name: loggedInName };
-                    }
-                    return { ...c, reactions };
-                }
-                return c; 
-            });
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
-          };
-
-          const handleDeleteComment = async (commentId, authorName) => {
-              let updatedComments;
-              if (role === 'teacher') {
-                  updatedComments = task.comments.filter((c, i) => (c.id || `old-${i}`) !== commentId);
-              } else {
-                  updatedComments = task.comments.map((c, i) => 
-                      (c.id || `old-${i}`) === commentId ? { ...c, isDeleted: true } : c
-                  );
-              }
-              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
-          };
-const handleSaveEditedTask = async () => {
-              if (!editTaskData.title.trim() || !editTaskData.description.trim()) return showMessage("El título y la descripción no pueden estar vacíos.");
-              try {
-                  const updates = {
-                      title: editTaskData.title.trim(),
-                      description: editTaskData.description.trim()
-                  };
-                  if (task.type !== 'post') {
-                      updates.dueDate = editTaskData.dueDate;
-                      updates.dueTime = editTaskData.dueTime;
-                      updates.allowLate = editTaskData.allowLate;
-                  }
-                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), updates);
-                  setIsEditingTask(false);
-                  showMessage("✅ Publicación actualizada.");
-              } catch (error) {
-                  showMessage("Hubo un error al actualizar.");
-              }
-          };
-          const saveEditedComment = async () => {
-              if (!editCommentText.trim()) return;
-              const updatedComments = task.comments.map((c, i) => {
-                  const cid = c.id || `old-${i}`;
-                  if (cid === editingCommentId) {
-                      const history = c.editHistory || [];
-                      return { 
-                          ...c, 
-                          text: editCommentText.trim(), 
-                          isEdited: true, 
-                          editHistory: [{ text: c.text, date: Date.now() }, ...history] 
-                      };
-                  }
-                  return c;
-              });
-              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
-              setEditingCommentId(null);
-          };
-
-          const handleLocalFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
+    const handleTranslate = async (lang) => {
+        if (!commentText) return;
         setIsProcessing(true);
-        if (file.type.startsWith('image/') && file.type !== 'image/gif') {
-            const compressed = await compressImage(file, 800, 800, 0.6);
-            const firebaseURL = await uploadImageToStorage(compressed, 'comments');
-            setCommentImageUrl(firebaseURL);
-        } else {
-            const firebaseURL = await uploadRawFileToStorage(file, 'comments');
-            if (file.type.startsWith('image/')) {
-                setCommentImageUrl(firebaseURL);
-            } else {
-                setCommentFileUrl(firebaseURL);
-                setCommentFileName(file.name);
-            }
-        }
+        const result = await callGemini(`Traduce el siguiente comentario al ${lang} de forma profesional y natural. Devuelve ÚNICAMENTE la traducción, sin explicaciones ni comillas:\n\n${commentText}`);
+        if (result) setCommentText(result);
         setIsProcessing(false);
-    } catch (error) {
-        showMessage("Hubo un error al subir el archivo.");
-        setIsProcessing(false);
-    }
-};
+    };
 
-          const handleAddComment = async (e) => {
-            e.preventDefault();
-            if(!commentText.trim() && !commentImageUrl && !commentFileUrl) return;
+    const toggleReaction = async (type) => {
+        if (isLocked || !currentUser) return;
+        const newReactions = { ...(task.reactions || {}) };
+        const currentReactionData = newReactions[currentUser.uid];
+        const currentType = typeof currentReactionData === 'object' ? currentReactionData.type : currentReactionData;
+        if (currentType === type) delete newReactions[currentUser.uid];
+        else newReactions[currentUser.uid] = { type: type, name: loggedInName };
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, reactions: newReactions });
+    };
+
+    const toggleCommentReaction = async (commentId, emoji) => {
+        if (isLocked || !currentUser) return;
+        const updatedComments = (task.comments || []).map((c, i) => {
+            const currentCid = c.id || `old-${i}`; 
+            if (currentCid === commentId) {
+                const reactions = { ...(c.reactions || {}) };
+                const currentReact = reactions[currentUser.uid];
+                const currentEmoji = typeof currentReact === 'object' ? currentReact.emoji : currentReact;
+                if (currentEmoji === emoji) delete reactions[currentUser.uid];
+                else reactions[currentUser.uid] = { emoji: emoji, name: loggedInName };
+                return { ...c, reactions };
+            }
+            return c; 
+        });
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+    };
+
+    const handleDeleteComment = async (commentId, authorName) => {
+        let updatedComments;
+        if (role === 'teacher') updatedComments = task.comments.filter((c, i) => (c.id || `old-${i}`) !== commentId);
+        else updatedComments = task.comments.map((c, i) => (c.id || `old-${i}`) === commentId ? { ...c, isDeleted: true } : c);
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+    };
+
+    const handleSaveEditedTask = async () => {
+        if (!editTaskData.title.trim() || !editTaskData.description.trim()) return showMessage("El título y la descripción no pueden estar vacíos.");
+        try {
+            const updates = { title: editTaskData.title.trim(), description: editTaskData.description.trim() };
+            if (task.type !== 'post') { updates.dueDate = editTaskData.dueDate; updates.dueTime = editTaskData.dueTime; updates.allowLate = editTaskData.allowLate; }
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), updates);
+            setIsEditingTask(false); showMessage("✅ Publicación actualizada.");
+        } catch (error) { showMessage("Hubo un error al actualizar."); }
+    };
+
+    const saveEditedComment = async () => {
+        if (!editCommentText.trim()) return;
+        const updatedComments = task.comments.map((c, i) => {
+            const cid = c.id || `old-${i}`;
+            if (cid === editingCommentId) {
+                const history = c.editHistory || [];
+                return { ...c, text: editCommentText.trim(), isEdited: true, editHistory: [{ text: c.text, date: Date.now() }, ...history] };
+            }
+            return c;
+        });
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: updatedComments });
+        setEditingCommentId(null);
+    };
+
+    const handleLocalFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
             setIsProcessing(true);
-
-            if (containsBadWords(commentText)) {
-                showMessage("⚠️ Comentario bloqueado: Lenguaje inapropiado detectado.");
-                setIsProcessing(false);
-                return;
+            if (file.type.startsWith('image/') && file.type !== 'image/gif') {
+                const compressed = await compressImage(file, 800, 800, 0.6);
+                setCommentImageUrl(await uploadImageToStorage(compressed, 'comments'));
+            } else {
+                const firebaseURL = await uploadRawFileToStorage(file, 'comments');
+                if (file.type.startsWith('image/')) setCommentImageUrl(firebaseURL);
+                else { setCommentFileUrl(firebaseURL); setCommentFileName(file.name); }
             }
-
-            const newComment = { 
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
-                author: role === 'teacher' ? TEACHER_NAME : loggedInName, 
-                text: commentText.trim(),
-                imageUrl: commentImageUrl.trim(),
-                fileUrl: commentFileUrl,
-                fileName: commentFileName,
-                isDeleted: false,
-                reactions: {}
-            };
-            
-            const newComments = [...(task.comments || []), newComment];
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: newComments });
-            
-            setCommentText("");
-            setCommentImageUrl(""); 
-            setCommentFileUrl("");
-            setCommentFileName("");
-            setShowCommentImageInput(false);
-            setShowAttachmentMenu(false);
-            setShowEmojiPicker(false);
             setIsProcessing(false);
+        } catch (error) { showMessage("Hubo un error al subir el archivo."); setIsProcessing(false); }
+    };
+
+    const handleAddComment = async (e) => {
+        e.preventDefault();
+        if(!commentText.trim() && !commentImageUrl && !commentFileUrl) return;
+        setIsProcessing(true);
+        if (containsBadWords(commentText)) { showMessage("⚠️ Comentario bloqueado: Lenguaje inapropiado."); setIsProcessing(false); return; }
+
+        const newComment = { 
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5), 
+            author: role === 'teacher' ? TEACHER_NAME : loggedInName, 
+            text: commentText.trim(), imageUrl: commentImageUrl.trim(), fileUrl: commentFileUrl, fileName: commentFileName, isDeleted: false, reactions: {},
+            replyTo: replyingTo ? { id: replyingTo.id, text: replyingTo.text || '', author: replyingTo.author || '', imageUrl: replyingTo.imageUrl || '' } : null
         };
+        
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { ...task, comments: [...(task.comments || []), newComment] });
+        
+        setCommentText(""); setCommentImageUrl(""); setCommentFileUrl(""); setCommentFileName("");
+        setShowCommentImageInput(false); setShowAttachmentMenu(false); setShowEmojiPicker(false); setReplyingTo(null); setIsProcessing(false);
+    };
 
+    const renderReactions = () => {
+        const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
+        const namesByType = { like: [], love: [], sad: [], happy: [], wow: [] };
+        Object.values(task.reactions || {}).forEach(r => { 
+            const rType = typeof r === 'object' ? r.type : r;
+            let rName = typeof r === 'object' ? r.name : 'Un usuario';
+            if (rName === 'Profesora' || rName === 'La profe') rName = TEACHER_NAME;
+            if (counts[rType] !== undefined) { counts[rType]++; namesByType[rType].push(rName); } 
+        });
+        return (
+          <div className="flex gap-2 mt-4 flex-wrap">
+            {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => {
+              const rData = task.reactions?.[currentUser?.uid];
+              const isSelected = (typeof rData === 'object' ? rData.type : rData) === key;
+              const hoverText = namesByType[key].length > 0 ? `${namesByType[key].join(', ')} reaccionó así` : "";
+              return (
+                <button key={key} onClick={() => toggleReaction(key)} disabled={isLocked} title={hoverText} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
+                </button>
+              );
+            })}
+          </div>
+        );
+    };
 
-
-          const renderReactions = () => {
-            const counts = { like: 0, love: 0, sad: 0, happy: 0, wow: 0 };
-            const namesByType = { like: [], love: [], sad: [], happy: [], wow: [] };
-
-            Object.values(task.reactions || {}).forEach(r => { 
-                const rType = typeof r === 'object' ? r.type : r;
-                let rName = typeof r === 'object' ? r.name : 'Un usuario';
-                if (rName === 'Profesora' || rName === 'La profe') rName = TEACHER_NAME;
-
-                if (counts[rType] !== undefined) { 
-                    counts[rType]++; 
-                    namesByType[rType].push(rName);
-                } 
-            });
-
-            return (
-              <div className="flex gap-2 mt-4 flex-wrap">
-                {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => {
-                  const rData = task.reactions?.[currentUser?.uid];
-                  const userReactionType = typeof rData === 'object' ? rData.type : rData;
-                  const isSelected = userReactionType === key;
-                  const hoverText = namesByType[key].length > 0 ? `${namesByType[key].join(', ')} reaccionó así` : "";
-
-                  return (
-                    <button 
-                      key={key} onClick={() => toggleReaction(key)} disabled={isLocked} title={hoverText}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold transition-all border ${isSelected ? 'bg-white/60 border-[#AD3333] shadow-sm scale-105' : 'bg-white/30 border-white/40 hover:bg-white/50'} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {emoji} {counts[key] > 0 && <span className="text-gray-800">{counts[key]}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          };
-
-          return (
-            <div className={`${cardStyle} group ${!isLocked && 'hover:bg-white/30'}`}>
-              <div className="flex justify-between items-start">
+    return (
+        <div className={`${cardStyle} group ${!isLocked && 'hover:bg-white/30'}`}>
+            <div className="flex justify-between items-start">
                 <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2 mb-1">
-                      {task.type !== 'post' && (
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-[#AD3333]/20 text-[#AD3333]">
-                              Tarea
-                          </span>
-                      )}
-                  </div>
-                  {isEditingTask ? (
-                      <input value={editTaskData.title} onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} className={`${glassInput} text-xl font-bold mb-2 p-2`} placeholder="Título..." />
-                  ) : (
-                      <div className="flex flex-col">
-    <span className={`text-[11px] font-black uppercase tracking-wider mb-0.5 ${isDarkMode ? 'text-red-500' : 'text-blue-600'}`}>
-        {task.authorName || "Gina Marcela Quintana Delgado"}
-    </span>
-    <h3 className={`text-xl font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-      {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
-    </h3>
-</div>
-                  )}
-                  {task.type !== 'post' && (
-                      isEditingTask ? (
-                          <div className="flex flex-wrap gap-2 mt-2 items-center">
-                              <input type="date" value={editTaskData.dueDate} onChange={e => setEditTaskData({...editTaskData, dueDate: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
-                              <input type="time" value={editTaskData.dueTime} onChange={e => setEditTaskData({...editTaskData, dueTime: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
-                              <label className="flex items-center gap-1 cursor-pointer text-sm font-bold text-gray-700 ml-2">
-                                  <input type="checkbox" checked={editTaskData.allowLate} onChange={e => setEditTaskData({...editTaskData, allowLate: e.target.checked})} className="w-4 h-4 accent-[#AD3333]" />
-                                  Entregas tardías
-                              </label>
-                          </div>
-                      ) : (
-                          <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
-                            <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
-                            {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
-                          </p>
-                      )
-                  )}
+                    <div className="flex items-center gap-2 mb-1">
+                        {task.type !== 'post' && <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-[#AD3333]/20 text-[#AD3333]">Tarea</span>}
+                    </div>
+                    {isEditingTask ? (
+                        <input value={editTaskData.title} onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} className={`${glassInput} text-xl font-bold mb-2 p-2`} placeholder="Título..." />
+                    ) : (
+                        <div className="flex flex-col">
+                            <button onClick={() => handleOpenProfileByName(task.authorName)} className={`text-[11px] font-black uppercase tracking-wider mb-0.5 text-left hover:underline w-fit ${isDarkMode ? 'text-red-500' : 'text-blue-600'}`}>
+                                {task.authorName || "Gina Marcela Quintana Delgado"}
+                            </button>
+                            <h3 className={`text-xl font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                              {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
+                            </h3>
+                        </div>
+                    )}
+                    {task.type !== 'post' && (
+                        isEditingTask ? (
+                            <div className="flex flex-wrap gap-2 mt-2 items-center">
+                                <input type="date" value={editTaskData.dueDate} onChange={e => setEditTaskData({...editTaskData, dueDate: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
+                                <input type="time" value={editTaskData.dueTime} onChange={e => setEditTaskData({...editTaskData, dueTime: e.target.value})} className={`${glassInput} !py-1 px-2 text-sm w-auto`} />
+                                <label className="flex items-center gap-1 cursor-pointer text-sm font-bold text-gray-700 ml-2">
+                                    <input type="checkbox" checked={editTaskData.allowLate} onChange={e => setEditTaskData({...editTaskData, allowLate: e.target.checked})} className="w-4 h-4 accent-[#AD3333]" />
+                                    Entregas tardías
+                                </label>
+                            </div>
+                        ) : (
+                            <p className={`text-sm font-bold mt-1 flex items-center gap-1 ${isExpired ? 'text-red-600' : 'text-[#AD3333]'}`}>
+                              <Clock size={14} /> Vence: {task.dueDate} a las {task.dueTime || '23:59'} 
+                              {isExpired && (task.allowLate ? " (Se aceptan entregas tardías)" : " (Cerrado)")}
+                            </p>
+                        )
+                    )}
                 </div>
                 {role === 'teacher' && (
-                  <div className="flex items-center gap-3 relative z-10 shrink-0">
-                    {isEditingTask ? (
-                        <>
-                            <button onClick={handleSaveEditedTask} className="text-green-600 hover:text-green-700 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={22}/></button>
-                            <button onClick={() => {
-                                setIsEditingTask(false);
-                                setEditTaskData({title: task.title, description: task.description, dueDate: task.dueDate || '', dueTime: task.dueTime || '', allowLate: task.allowLate || false});
-                            }} className="text-gray-400 hover:text-red-500 hover:scale-110 transition-transform" title="Cancelar"><XLine size={22}/></button>
-                        </>
-                    ) : (
-                        <>
-                            <button onClick={() => setIsEditingTask(true)} className="text-gray-400 hover:text-blue-600 transition" title="Editar">
-                                <Edit3 size={20} />
-                            </button>
-                            <button onClick={() => confirmAction("¿Desea eliminar esta publicación definitivamente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)))} className="text-gray-400 hover:text-red-600 transition">
-                              <Trash2 size={20} />
-                            </button>
-                        </>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-3 relative z-10 shrink-0">
+                        {isEditingTask ? (
+                            <>
+                                <button onClick={handleSaveEditedTask} className="text-green-600 hover:text-green-700 hover:scale-110 transition-transform" title="Guardar"><CheckLine size={22}/></button>
+                                <button onClick={() => { setIsEditingTask(false); setEditTaskData({title: task.title, description: task.description, dueDate: task.dueDate || '', dueTime: task.dueTime || '', allowLate: task.allowLate || false}); }} className="text-gray-400 hover:text-red-500 hover:scale-110 transition-transform" title="Cancelar"><XLine size={22}/></button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={() => setIsEditingTask(true)} className="text-gray-400 hover:text-blue-600 transition" title="Editar"><Edit3 size={20} /></button>
+                                <button onClick={() => confirmAction("¿Desea eliminar esta publicación definitivamente?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id)))} className="text-gray-400 hover:text-red-600 transition"><Trash2 size={20} /></button>
+                            </>
+                        )}
+                    </div>
                 )}
-              </div>
-              {isEditingTask ? (
-                  <textarea value={editTaskData.description} onChange={e => setEditTaskData({...editTaskData, description: e.target.value})} className={`${glassInput} mt-4 min-h-[120px] resize-none p-3`} placeholder="Descripción..."/>
-              ) : (
-                  <p className="mt-4 text-gray-800 whitespace-pre-wrap leading-relaxed">{task.description}</p>
-              )}
-              
-              {task.imageUrl && (
-    <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
-        <img src={task.imageUrl} loading="lazy" alt="Adjunto" onClick={() => setFullScreenImage(task.imageUrl)} className="w-full h-auto max-h-96 object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity" onError={(e) => e.target.style.display = 'none'} />
-    </div>
-)}
-{task.fileUrl && (
-    <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-4 rounded-2xl border mt-4 w-fit transition-colors shadow-sm ${isDarkMode ? 'bg-gray-800/50 border-gray-600 hover:bg-gray-800' : 'bg-white/60 border-gray-300 hover:bg-white'}`}>
-        <div className="p-2 bg-red-100 rounded-xl"><FileDocIcon size={28} className="text-red-600" /></div>
-        <div className="flex flex-col">
-            <span className={`text-sm font-bold truncate max-w-[200px] md:max-w-[300px] ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{task.fileName || 'Documento adjunto'}</span>
-            <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Haga clic para descargar</span>
-        </div>
-    </a>
-)}
-                
-              {renderReactions()}
+            </div>
+            
+            {isEditingTask ? (
+                <textarea value={editTaskData.description} onChange={e => setEditTaskData({...editTaskData, description: e.target.value})} className={`${glassInput} mt-4 min-h-[120px] resize-none p-3`} placeholder="Descripción..."/>
+            ) : (
+                <p className={`mt-4 whitespace-pre-wrap leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{task.description}</p>
+            )}
+            
+            {task.imageUrl && (
+                <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
+                    <img src={task.imageUrl} loading="lazy" alt="Adjunto" onClick={() => setFullScreenImage(task.imageUrl)} className="w-full h-auto max-h-96 object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity" onError={(e) => e.target.style.display = 'none'} />
+                </div>
+            )}
+            {task.fileUrl && (
+                <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-4 rounded-2xl border mt-4 w-fit transition-colors shadow-sm ${isDarkMode ? 'bg-gray-800/50 border-gray-600 hover:bg-gray-800' : 'bg-white/60 border-gray-300 hover:bg-white'}`}>
+                    <div className="p-2 bg-red-100 rounded-xl"><FileDocIcon size={28} className="text-red-600" /></div>
+                    <div className="flex flex-col">
+                        <span className={`text-sm font-bold truncate max-w-[200px] md:max-w-[300px] ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{task.fileName || 'Documento adjunto'}</span>
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Haga clic para descargar</span>
+                    </div>
+                </a>
+            )}
+            
+            {renderReactions()}
 
-              <div className="mt-4 pt-4 border-t border-white/30">
-                  <button
-                      onClick={() => setShowCommentModal(true)}
-                      className="w-full py-3 bg-white/40 hover:bg-white/60 border border-white/50 shadow-sm rounded-xl font-bold text-gray-800 transition-all flex justify-center items-center gap-2"
-                  >
-                      <FileText size={18} className="text-[#AD3333]" />
-                      {task.comments?.length > 0 ? `Ver los ${task.comments.length} comentarios` : 'Sé el primero en comentar 💬'}
-                  </button>
-              </div>
+            <div className="mt-4 pt-4 border-t border-white/30">
+                <button onClick={() => setShowCommentModal(true)} className={`w-full py-3 bg-white/40 hover:bg-white/60 border border-white/50 shadow-sm rounded-xl font-bold transition-all flex justify-center items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                    <FileText size={18} className="text-[#AD3333]" />
+                    {task.comments?.length > 0 ? `Ver los ${task.comments.length} comentarios` : 'Sé el primero en comentar 💬'}
+                </button>
+            </div>
 
-              {/* MODAL DE COMENTARIOS AMPLIADO */}
-              {showCommentModal && ReactDOM.createPortal(
-                  <div className={`fixed inset-0 z-[9999] flex justify-center items-end md:items-center bg-black/70 backdrop-blur-md p-0 md:p-4 transition-all ${isDarkMode ? 'dark-mode' : ''}`}>
-                      <div className={`w-full max-w-3xl h-[90vh] md:h-[85vh] flex flex-col p-4 md:p-6 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
-                          
-                          <div className={`flex justify-between items-center mb-4 border-b pb-4 shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
-                              <div>
-                                  <h3 className={`text-xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                                      <FileText className="text-[#AD3333]" /> Comentarios
-                                  </h3>
-                                  <p className={`text-xs font-medium mt-1 truncate max-w-[250px] md:max-w-md ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>De: {task.title}</p>
-                              </div>
-                              <button onClick={() => setShowCommentModal(false)} className={`p-2 rounded-full transition-all shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-red-500 bg-gray-800 hover:bg-gray-700' : 'text-gray-500 hover:text-red-600 bg-white hover:bg-gray-100'}`}><X size={20}/></button>
-                          </div>
+            {showCommentModal && ReactDOM.createPortal(
+                <div className={`fixed inset-0 z-[9999] flex justify-center items-end md:items-center bg-black/70 backdrop-blur-md p-0 md:p-4 transition-all ${isDarkMode ? 'dark-mode' : ''}`}>
+                    <div className={`w-full max-w-3xl h-[90vh] md:h-[85vh] flex flex-col p-4 md:p-6 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+                        
+                        <div className={`flex justify-between items-center mb-4 border-b pb-4 shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                            <div>
+                                <h3 className={`text-xl font-extrabold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                                    <FileText className="text-[#AD3333]" /> Comentarios
+                                </h3>
+                                <p className={`text-xs font-medium mt-1 truncate max-w-[250px] md:max-w-md ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>De: {task.title}</p>
+                            </div>
+                            <button onClick={() => setShowCommentModal(false)} className={`p-2 rounded-full transition-all shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-red-500 bg-gray-800 hover:bg-gray-700' : 'text-gray-500 hover:text-red-600 bg-white hover:bg-gray-100'}`}><X size={20}/></button>
+                        </div>
 
-                          <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scroll-smooth">
-                            {task.comments?.map((c, i) => {
-                              const cid = c.id || `old-${i}`; 
-                              const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe'));
-                              const isEditing = editingCommentId === cid;
-                              
-                              if (c.isDeleted) {
-                                  if (role === 'teacher' || isOwner) {
-                                      return (
-                                          <div key={cid} className={`p-3 rounded-xl text-xs italic border flex flex-col gap-2 ${isDarkMode ? 'bg-gray-800/50 border-gray-700 text-gray-500' : 'bg-gray-200/50 border-gray-300 text-gray-500'}`}>
-                                              <div className="flex justify-between items-center">
-                                                  <span>{c.author} borró el comentario.</span>
-                                                  {role === 'teacher' && (
-                                                      <div className="flex gap-2 items-center">
-                                                          <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className={`font-bold px-2 py-1 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-blue-400 hover:text-blue-300' : 'bg-white text-blue-600 hover:text-blue-800'}`}>
-                                                              {revealedComments[cid] ? "Ocultar" : "Revelar"}
-                                                          </button>
-                                                          <button onClick={() => confirmAction("¿Desea borrar este registro definitivamente de la base de datos?", () => handleDeleteComment(cid, c.author))} className={`font-bold p-1.5 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-red-400 hover:text-red-300' : 'bg-white text-red-600 hover:text-red-800'}`} title="Borrar registro permanentemente">
-                                                              <Trash2 size={14} />
-                                                          </button>
-                                                      </div>
-                                                  )}
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4 scroll-smooth">
+                          {task.comments?.map((c, i) => {
+                            const cid = c.id || `old-${i}`; 
+                            const isOwner = c.author === loggedInName || (role === 'teacher' && (c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe'));
+                            const isEditing = editingCommentId === cid;
+                            
+                            if (c.isDeleted) {
+                                if (role === 'teacher' || isOwner) {
+                                    return (
+                                        <div key={cid} className={`p-3 rounded-xl text-xs italic border flex flex-col gap-2 ${isDarkMode ? 'bg-gray-800/50 border-gray-700 text-gray-500' : 'bg-gray-200/50 border-gray-300 text-gray-500'}`}>
+                                            <div className="flex justify-between items-center">
+                                                <span>{c.author} borró el comentario.</span>
+                                                {role === 'teacher' && (
+                                                    <div className="flex gap-2 items-center">
+                                                        <button onClick={() => setRevealedComments(prev => ({...prev, [cid]: !prev[cid]}))} className={`font-bold px-2 py-1 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-blue-400 hover:text-blue-300' : 'bg-white text-blue-600 hover:text-blue-800'}`}>
+                                                            {revealedComments[cid] ? "Ocultar" : "Revelar"}
+                                                        </button>
+                                                        <button onClick={() => confirmAction("¿Desea borrar este registro definitivamente de la base de datos?", () => handleDeleteComment(cid, c.author))} className={`font-bold p-1.5 rounded shadow-sm transition-all ${isDarkMode ? 'bg-gray-700 text-red-400 hover:text-red-300' : 'bg-white text-red-600 hover:text-red-800'}`} title="Borrar registro permanentemente">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {role === 'teacher' && revealedComments[cid] && (
+                                              <div className="flex flex-col gap-2 mt-1">
+                                                  {c.text && <p className={`p-2 rounded line-through not-italic ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-700'}`}>{c.text}</p>}
+                                                  {c.imageUrl && <img src={c.imageUrl} loading="lazy" alt="Adjunto" onClick={() => setFullScreenImage(c.imageUrl)} className={`w-20 h-20 rounded-xl border object-cover shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 opacity-70 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />}
+                                                  {c.fileUrl && <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-xl border w-fit transition-colors opacity-70 ${isDarkMode ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}><FileDocIcon size={20} className="text-red-500" /><span className={`text-xs font-medium truncate max-w-[150px] md:max-w-[200px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{c.fileName || 'Documento'}</span></a>}
                                               </div>
-                                              {role === 'teacher' && revealedComments[cid] && (
-    <div className="flex flex-col gap-2 mt-1">
-        {c.text && (
-            <p className={`p-2 rounded line-through not-italic ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-700'}`}>
-                {c.text}
-            </p>
-        )}
-        
-        {c.imageUrl && (
-    <img 
-        src={c.imageUrl} 
-        loading="lazy"
-        alt="Adjunto" 
-        onClick={() => setFullScreenImage(c.imageUrl)}
-        className={`w-20 h-20 rounded-xl border object-cover mt-1 shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
-        onError={(e) => e.target.style.display = 'none'} 
-    />
-)}
-        
-        {c.fileUrl && (
-            <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-xl border w-fit transition-colors opacity-70 ${isDarkMode ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
-                <FileDocIcon size={20} className="text-red-500" />
-                <span className={`text-xs font-medium truncate max-w-[150px] md:max-w-[200px] ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {c.fileName || 'Documento'}
-                </span>
-            </a>
-        )}
-    </div>
-)}
-                                          </div>
-                                      );
-                                  }
-                                  return null; 
-                              }
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                return null; 
+                            }
 
-                              return (
-                                  <div key={cid} className={`p-4 rounded-2xl text-sm border shadow-sm group/comment transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/80' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                                      <div className="flex justify-between items-start">
-                                          <div className="flex items-center gap-2">
-                                              <span className={`font-bold text-base ${c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-200' : 'text-gray-800')}`}>{c.author}</span>
-                                              {c.isEdited && !isEditing && (
-                                                  <div className="relative inline-block">
-                                                      <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-500 italic transition-colors mt-0.5">(Editado)</button>
-                                                      {historyOpenCid === cid && (
-                                                          <div className={`absolute top-full left-0 mt-1 backdrop-blur-xl border shadow-xl rounded-lg p-2 z-50 w-56 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
-                                                              <p className={`text-xs font-bold mb-2 border-b pb-1 ${isDarkMode ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>Historial de ediciones</p>
-                                                              {c.editHistory?.map((h, hi) => (
-                                                                  <div key={hi} className={`mb-2 pb-2 border-b last:border-0 last:mb-0 last:pb-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                                                                      <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
-                                                                      <p className={`text-xs line-through ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{h.text}</p>
-                                                                  </div>
-                                                              ))}
-                                                          </div>
-                                                      )}
-                                                  </div>
-                                              )}
-                                          </div>
-                                          
-                                          <div className="hidden group-hover/comment:flex items-center gap-2">
-                                              {isOwner && !isEditing && (
-                                                  <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400 bg-gray-700' : 'text-gray-400 hover:text-blue-600 bg-gray-100'}`}><Edit3 size={16}/></button>
-                                              )}
-                                              {(role === 'teacher' || isOwner) && !isEditing && (
-                                                  <button onClick={() => confirmAction("¿Seguro que desea borrar este comentario?", () => handleDeleteComment(cid, c.author))} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 bg-gray-700' : 'text-gray-400 hover:text-red-600 bg-gray-100'}`}><Trash2 size={16}/></button>
-                                              )}
-                                          </div>
-                                      </div>
+                            return (
+                                <div key={cid} id={`old-${cid}`} className={`p-4 rounded-2xl text-sm border shadow-sm group/comment transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700/80' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                                    {c.replyTo && (
+                                        <div className={`mb-3 pl-3 border-l-4 py-1.5 ${isDarkMode ? 'border-blue-500 bg-gray-900/50 text-gray-300' : 'border-blue-400 bg-gray-100 text-gray-600'} text-xs opacity-90 rounded-r-xl`}>
+                                            <p className="font-bold text-blue-500 mb-0.5">{c.replyTo.author}</p>
+                                            <p className="truncate">{c.replyTo.text || (c.replyTo.imageUrl ? '📷 Imagen' : 'Archivo adjunto')}</p>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleOpenProfileByName(c.author)} className={`font-bold text-base hover:underline text-left ${c.author === TEACHER_NAME || c.author === 'Profesora' || c.author === 'La profe' ? 'text-[#AD3333]' : (isDarkMode ? 'text-gray-200' : 'text-gray-800')}`}>{c.author}</button>
+                                            {c.isEdited && !isEditing && (
+                                                <div className="relative inline-block">
+                                                    <button onClick={() => setHistoryOpenCid(historyOpenCid === cid ? null : cid)} className="text-[10px] text-gray-400 hover:text-blue-500 italic transition-colors mt-0.5">(Editado)</button>
+                                                    {historyOpenCid === cid && (
+                                                        <div className={`absolute top-full left-0 mt-1 backdrop-blur-xl border shadow-xl rounded-lg p-2 z-50 w-56 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
+                                                            <p className={`text-xs font-bold mb-2 border-b pb-1 ${isDarkMode ? 'text-gray-300 border-gray-600' : 'text-gray-700 border-gray-300'}`}>Historial de ediciones</p>
+                                                            {c.editHistory?.map((h, hi) => (
+                                                                <div key={hi} className={`mb-2 pb-2 border-b last:border-0 last:mb-0 last:pb-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                                                                    <p className="text-[9px] text-gray-500 mb-0.5">{new Date(h.date).toLocaleString()}</p>
+                                                                    <p className={`text-xs line-through ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{h.text}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="hidden group-hover/comment:flex items-center gap-2">
+                                            {!isEditing && <button onClick={() => setReplyingTo(c)} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400 bg-gray-700' : 'text-gray-400 hover:text-blue-600 bg-gray-100'}`} title="Responder"><ReplyIcon size={16}/></button>}
+                                            {isOwner && !isEditing && (
+                                                <button onClick={() => {setEditingCommentId(cid); setEditCommentText(c.text);}} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400 bg-gray-700' : 'text-gray-400 hover:text-blue-600 bg-gray-100'}`}><Edit3 size={16}/></button>
+                                            )}
+                                            {(role === 'teacher' || isOwner) && !isEditing && (
+                                                <button onClick={() => confirmAction("¿Seguro que desea borrar este comentario?", () => handleDeleteComment(cid, c.author))} className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 bg-gray-700' : 'text-gray-400 hover:text-red-600 bg-gray-100'}`}><Trash2 size={16}/></button>
+                                            )}
+                                        </div>
+                                    </div>
 
-                                      {isEditing ? (
-                                          <div className="mt-3 flex gap-2 items-center">
-                                              <input className={`py-2 px-3 text-sm flex-1 rounded-xl outline-none focus:ring-2 transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-700 text-gray-100 focus:ring-blue-500/50' : 'bg-gray-100 border border-gray-300 text-gray-900 focus:ring-blue-400/50'}`} value={editCommentText} onChange={e => setEditCommentText(e.target.value)} />
-                                              <button onClick={saveEditedComment} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-green-400 bg-gray-700 hover:bg-gray-600' : 'text-green-700 bg-gray-100 hover:bg-gray-200'}`}><CheckCheck size={18}/></button>
-                                              <button onClick={() => setEditingCommentId(null)} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-gray-100 hover:bg-gray-200'}`}><X size={18}/></button>
-                                          </div>
-                                      ) : (
-                                          <div className="flex flex-col gap-3 mt-2">
-                                              {c.text && <p className={`text-base leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{c.text}</p>}
-                                              {c.imageUrl && (
-                                                  <img 
-                                                      src={c.imageUrl} 
-                                                      alt="Adjunto" 
-                                                      onClick={() => setFullScreenImage(c.imageUrl)}
-                                                      className={`w-20 h-20 rounded-xl border object-cover mt-1 shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
-                                                      onError={(e) => e.target.style.display = 'none'} 
-                                                  />
-                                              )}
-                                              {c.fileUrl && (
-    <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-3 rounded-xl border mt-2 w-fit transition-colors ${isDarkMode ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
-        <FileDocIcon size={24} className="text-red-500" />
-        <span className={`text-sm font-medium truncate max-w-[150px] md:max-w-[200px] ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{c.fileName || 'Documento'}</span>
-    </a>
-)}
-                                          </div>
-                                      )}
+                                    {isEditing ? (
+                                        <div className="mt-3 flex gap-2 items-center">
+                                            <input className={`py-2 px-3 text-sm flex-1 rounded-xl outline-none focus:ring-2 transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-700 text-gray-100 focus:ring-blue-500/50' : 'bg-gray-100 border border-gray-300 text-gray-900 focus:ring-blue-400/50'}`} value={editCommentText} onChange={e => setEditCommentText(e.target.value)} />
+                                            <button onClick={saveEditedComment} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-green-400 bg-gray-700 hover:bg-gray-600' : 'text-green-700 bg-gray-100 hover:bg-gray-200'}`}><CheckCheck size={18}/></button>
+                                            <button onClick={() => setEditingCommentId(null)} className={`p-2 rounded-xl shadow-sm ${isDarkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-gray-100 hover:bg-gray-200'}`}><X size={18}/></button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3 mt-2">
+                                            {c.text && <p className={`text-base leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{c.text}</p>}
+                                            {c.imageUrl && <img src={c.imageUrl} loading="lazy" alt="Adjunto" onClick={() => setFullScreenImage(c.imageUrl)} className={`w-20 h-20 rounded-xl border object-cover mt-1 shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />}
+                                            {c.fileUrl && <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-3 rounded-xl border mt-2 w-fit transition-colors ${isDarkMode ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}><FileDocIcon size={24} className="text-red-500" /><span className={`text-sm font-medium truncate max-w-[150px] md:max-w-[200px] ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{c.fileName || 'Documento'}</span></a>}
+                                        </div>
+                                    )}
 
-                                      <div className="mt-4 flex gap-1.5 items-center flex-wrap">
-                                          {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
-                                              const emoji = typeof rData === 'object' ? rData.emoji : rData;
-                                              let name = typeof rData === 'object' ? rData.name : 'Un usuario';
-                                              if (name === 'Profesora' || name === 'La profe') name = TEACHER_NAME;
-                                              
-                                              const existing = acc.find(item => item.emoji === emoji);
-                                              if (existing) { existing.count++; existing.names.push(name); } 
-                                              else { acc.push({ emoji, count: 1, names: [name] }); }
-                                              return acc;
-                                          }, []).map((r, idx) => (
-                                              <span key={idx} title={`${r.names.join(', ')} reaccionó así`} className={`px-2 py-1 rounded-full text-xs font-bold border cursor-help shadow-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-700'}`}>{r.emoji} {r.count}</span>
+                                    <div className="mt-4 flex gap-1.5 items-center flex-wrap">
+                                        {Object.entries(c.reactions || {}).reduce((acc, [uid, rData]) => {
+                                            const emoji = typeof rData === 'object' ? rData.emoji : rData;
+                                            let name = typeof rData === 'object' ? rData.name : 'Un usuario';
+                                            if (name === 'Profesora' || name === 'La profe') name = TEACHER_NAME;
+                                            const existing = acc.find(item => item.emoji === emoji);
+                                            if (existing) { existing.count++; existing.names.push(name); } 
+                                            else { acc.push({ emoji, count: 1, names: [name] }); }
+                                            return acc;
+                                        }, []).map((r, idx) => (
+                                            <span key={idx} title={`${r.names.join(', ')} reaccionó así`} className={`px-2 py-1 rounded-full text-xs font-bold border cursor-help shadow-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-700'}`}>{r.emoji} {r.count}</span>
+                                        ))}
+                                        
+                                        {!isLocked && (
+                                            <div className="flex items-center gap-1 ml-1">
+                                                <button onClick={() => setActiveReactionCommentId(activeReactionCommentId === cid ? null : cid)} className={`rounded-full p-1.5 transition-colors shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-gray-200 bg-gray-700 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200'}`}><Plus size={14}/></button>
+                                                {activeReactionCommentId === cid && (
+                                                    <div className={`flex gap-1.5 rounded-full px-3 py-1 border shadow-md animate-in fade-in slide-in-from-left-2 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                                        {['❤️','👍','😂','😲'].map(emj => (
+                                                            <button key={emj} onClick={() => { toggleCommentReaction(cid, emj); setActiveReactionCommentId(null); }} className="hover:scale-125 transition-transform text-base">{emj}</button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                          })}
+                          {(!task.comments || task.comments.length === 0) && <p className="text-sm text-gray-500 italic text-center mt-10">Sé el primero en iniciar la conversación.</p>}
+                        </div>
+                        
+                        {!isLocked ? (
+                          <form onSubmit={handleAddComment} className={`pt-4 border-t flex flex-col gap-3 shrink-0 relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                            
+                            {replyingTo && (
+                                <div className={`flex justify-between items-center px-4 py-2 rounded-xl border-l-4 border-blue-500 text-sm shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'}`}>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="font-bold text-blue-500 truncate">Respondiendo a {replyingTo.author}</span>
+                                        <span className="truncate opacity-80 text-xs">{replyingTo.text || 'Archivo adjunto'}</span>
+                                    </div>
+                                    <button type="button" onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-red-500 ml-3 p-1"><X size={16}/></button>
+                                </div>
+                            )}
+
+                            <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 focus-within:ring-blue-500/50' : 'bg-white border-gray-300 focus-within:ring-blue-400/50'}`}>
+                              <div className="relative">
+                                  <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 bg-transparent transition-colors rounded-full ${showEmojiPicker ? 'text-blue-500' : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`}>
+                                      <SmileIcon size={20} />
+                                  </button>
+                                  {showEmojiPicker && (
+                                      <div className={`absolute bottom-full left-0 mb-4 backdrop-blur-2xl border shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-3 z-[99999] w-[240px] animate-in fade-in zoom-in-95 duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                          {COMMENT_EMOJIS.map(emj => (
+                                              <button key={emj} type="button" onClick={() => {setCommentText(prev => prev + emj); setShowEmojiPicker(false);}} className="text-2xl hover:scale-125 transition-transform">{emj}</button>
                                           ))}
-                                          
-                                          {!isLocked && (
-                                              <div className="flex items-center gap-1 ml-1">
-                                                  <button onClick={() => setActiveReactionCommentId(activeReactionCommentId === cid ? null : cid)} className={`rounded-full p-1.5 transition-colors shadow-sm ${isDarkMode ? 'text-gray-400 hover:text-gray-200 bg-gray-700 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200'}`}><Plus size={14}/></button>
-                                                  {activeReactionCommentId === cid && (
-                                                      <div className={`flex gap-1.5 rounded-full px-3 py-1 border shadow-md animate-in fade-in slide-in-from-left-2 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-                                                          {['❤️','👍','😂','😲'].map(emj => (
-                                                              <button key={emj} onClick={() => { toggleCommentReaction(cid, emj); setActiveReactionCommentId(null); }} className="hover:scale-125 transition-transform text-base">{emj}</button>
-                                                          ))}
-                                                      </div>
-                                                  )}
-                                              </div>
-                                          )}
                                       </div>
-                                  </div>
-                              );
-                            })}
-                            {(!task.comments || task.comments.length === 0) && <p className="text-sm text-gray-500 italic text-center mt-10">Sé el primero en iniciar la conversación.</p>}
-                          </div>
-                          
-                          {!isLocked ? (
-                            <form onSubmit={handleAddComment} className={`pt-4 border-t flex flex-col gap-3 shrink-0 relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
-                              <div className={`flex gap-2 items-center rounded-2xl px-3 py-2 transition-all shadow-inner border focus-within:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 focus-within:ring-blue-500/50' : 'bg-white border-gray-300 focus-within:ring-blue-400/50'}`}>
-                                
-                                <div className="relative">
-                                    <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className={`p-2 bg-transparent transition-colors rounded-full ${showEmojiPicker ? 'text-blue-500' : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`}>
-    <SmileIcon size={20} />
-</button>
+                                  )}
+                              </div>
 
-                                    {showEmojiPicker && (
-                                        <div className={`absolute bottom-full left-0 mb-4 backdrop-blur-2xl border shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-3 z-[99999] w-[240px] animate-in fade-in zoom-in-95 duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
-                                            {COMMENT_EMOJIS.map(emj => (
-                                                <button key={emj} type="button" onClick={() => {setCommentText(prev => prev + emj); setShowEmojiPicker(false);}} className="text-2xl hover:scale-125 transition-transform">{emj}</button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                              <div className="relative">
+                                  <button type="button" onClick={() => setShowAttachmentMenu(!showAttachmentMenu)} className={`p-2 bg-transparent transition-colors rounded-full ${(showCommentImageInput || showAttachmentMenu) ? 'text-blue-500' : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`} title="Adjuntar">
+                                      <Plus size={20} />
+                                  </button>
+                                  {showAttachmentMenu && (
+                                      <div className={`absolute bottom-full left-0 mb-4 w-44 backdrop-blur-2xl border shadow-2xl rounded-2xl p-2 flex flex-col gap-1 z-[9999] animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                          <button type="button" onClick={() => { setShowCommentImageInput(!showCommentImageInput); setShowAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                              <ImageIcon size={16} /> Enlace de imagen
+                                          </button>
+                                          <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                              <ImageIcon size={16} /> Imagen
+                                              <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleLocalFileUpload(e); setShowAttachmentMenu(false); }} />
+                                          </label>
+                                          <button type="button" onClick={() => { window.openGifPicker((url) => setCommentImageUrl(url)); setShowAttachmentMenu(false); }} className={`flex w-full items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                              <span className="font-black border border-current px-1 rounded text-[10px] flex items-center justify-center h-4">GIF</span> GIF
+                                          </button>
+                                          <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                              <PaperclipIcon size={16} /> Documento
+                                              <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={(e) => { handleLocalFileUpload(e); setShowAttachmentMenu(false); }} />
+                                          </label>
+                                      </div>
+                                  )}
+                              </div>
 
-                                <div className="relative">
-                                    <button type="button" onClick={() => setShowAttachmentMenu(!showAttachmentMenu)} className={`p-2 bg-transparent transition-colors rounded-full ${(showCommentImageInput || showAttachmentMenu) ? 'text-blue-500' : (isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600')}`} title="Adjuntar">
-    <Plus size={20} />
-</button>
-
-                                    {showAttachmentMenu && (
-                                        <div className={`absolute bottom-full left-0 mb-4 w-44 backdrop-blur-2xl border shadow-2xl rounded-2xl p-2 flex flex-col gap-1 z-[9999] animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
-                                            <button type="button" onClick={() => { setShowCommentImageInput(!showCommentImageInput); setShowAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                                                <ImageIcon size={16} /> Enlace de imagen
-                                            </button>
-                                            <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                                                <ImageIcon size={16} /> Imagen
-                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleLocalFileUpload(e); setShowAttachmentMenu(false); }} />
-                                            </label>
-                                            <button type="button" onClick={() => { window.openGifPicker((url) => setCommentImageUrl(url)); setShowAttachmentMenu(false); }} className={`flex w-full items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                                                <span className="font-black border border-current px-1 rounded text-[10px] flex items-center justify-center h-4">GIF</span> GIF
-                                            </button>
-                                            <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                                                <PaperclipIcon size={16} /> Documento
-                                                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={(e) => { handleLocalFileUpload(e); setShowAttachmentMenu(false); }} />
-                                            </label>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <input 
+                              <input 
                                   value={commentText} onChange={(e) => setCommentText(e.target.value)} 
                                   placeholder="Escribe tu mensaje aquí..." 
                                   className={`flex-1 bg-transparent border-none outline-none py-2 px-2 text-base font-medium ${isDarkMode ? 'text-gray-100 placeholder-gray-500' : 'text-gray-900 placeholder-gray-500'}`} 
-                                />
-                                
-                                <button type="submit" disabled={isProcessing} className="p-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-xl transition-all disabled:opacity-50 flex items-center justify-center">
-                                    {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                                </button>
-                              </div>
+                              />
+                              
+                              <button type="submit" disabled={isProcessing} className="p-3 bg-blue-600 text-white hover:bg-blue-700 shadow-md rounded-xl transition-all disabled:opacity-50 flex items-center justify-center">
+                                  {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                              </button>
+                            </div>
 
-                              {(showCommentImageInput || commentImageUrl) && (
-                                  <div className="px-1 animate-in fade-in slide-in-from-top-2 relative">
-                                      {showCommentImageInput && (
-                                          <input 
-                                              value={commentImageUrl} onChange={e => setCommentImageUrl(e.target.value)} 
-                                              placeholder="Enlace DIRECTO de imagen (ej. termina en .jpg o .png)..." 
-                                              className={`w-full rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all text-sm font-medium border shadow-inner ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:ring-blue-500/50' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-400/50'}`} 
-                                          />
-                                      )}
-                                      
-                                      {commentImageUrl && (
-                                          <div className="relative w-fit mt-3">
-                                              <img src={commentImageUrl} alt="Preview" className={`h-24 w-24 object-cover rounded-xl border shadow-sm ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />
-                                              <button type="button" onClick={() => setCommentImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
-                                          </div>
-                                      )}
-                                  </div>
-                              )}
-
-                              {role === 'teacher' && (
-                                <div className="flex gap-2 justify-start mt-1">
-                                  <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isProcessing} title="Traducir a Inglés" className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇺🇸 Inglés</button>
-                                  <button type="button" onClick={() => handleTranslate('Francés')} disabled={isProcessing} title="Traducir a Francés" className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇫🇷 Francés</button>
+                            {(showCommentImageInput || commentImageUrl) && (
+                                <div className="px-1 animate-in fade-in slide-in-from-top-2 relative">
+                                    {showCommentImageInput && (
+                                        <input 
+                                            value={commentImageUrl} onChange={e => setCommentImageUrl(e.target.value)} 
+                                            placeholder="Enlace DIRECTO de imagen (ej. termina en .jpg o .png)..." 
+                                            className={`w-full rounded-xl px-4 py-3 outline-none focus:ring-2 transition-all text-sm font-medium border shadow-inner ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:ring-blue-500/50' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-400/50'}`} 
+                                        />
+                                    )}
+                                    {commentImageUrl && (
+                                        <div className="relative w-fit mt-3">
+                                            <img src={commentImageUrl} alt="Preview" className={`h-24 w-24 object-cover rounded-xl border shadow-sm ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} onError={(e) => e.target.style.display = 'none'} />
+                                            <button type="button" onClick={() => setCommentImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
+                                        </div>
+                                    )}
                                 </div>
-                              )}
-                            </form>
-                          ) : (
-                            <p className="text-sm font-bold text-red-600 bg-red-100/50 p-4 rounded-xl border border-red-200 text-center mt-2">🔒 La interacción para esta tarea ha sido bloqueada.</p>
-                          )}
-                      </div>
-                  </div>
-              , document.body)}
+                            )}
 
-              {fullScreenImage && ReactDOM.createPortal(
-                  <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setFullScreenImage(null)}>
-                      <button className="absolute top-4 md:top-8 right-4 md:right-8 text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all shadow-lg"><X size={28}/></button>
-                      <img src={fullScreenImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
-                  </div>
-              , document.body)}
-            </div>
-          );
-        };
+                            {role === 'teacher' && (
+                              <div className="flex gap-2 justify-start mt-1">
+                                <button type="button" onClick={() => handleTranslate('Inglés')} disabled={isProcessing} className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇺🇸 Inglés</button>
+                                <button type="button" onClick={() => handleTranslate('Francés')} disabled={isProcessing} className={`px-4 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50 border ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-300 text-gray-800 hover:bg-gray-200'}`}>🇫🇷 Francés</button>
+                              </div>
+                            )}
+                          </form>
+                        ) : (
+                          <p className="text-sm font-bold text-red-600 bg-red-100/50 p-4 rounded-xl border border-red-200 text-center mt-2">🔒 La interacción para esta tarea ha sido bloqueada.</p>
+                        )}
+                    </div>
+                </div>
+            , document.body)}
+
+            {fullScreenImage && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setFullScreenImage(null)}>
+                    <button className="absolute top-4 md:top-8 right-4 md:right-8 text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all shadow-lg"><X size={28}/></button>
+                    <img src={fullScreenImage} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+                </div>
+            , document.body)}
+        </div>
+    );
+};
 
 
         const TasksTab = ({
@@ -873,7 +764,7 @@ const handleSaveEditedTask = async () => {
     prevTaskTitle, setPrevTaskTitle, prevTaskDesc, setPrevTaskDesc, hasAiModified,
     setHasAiModified, callGemini, showMessage, handleAiTranslate, taskDate, setTaskDate,
     taskTime, setTaskTime, allowLate, setAllowLate, db, appId, loggedInName, getToday,
-    tasks, user, isDarkMode, confirmAction, setFullScreenImage
+    tasks, user, isDarkMode, confirmAction, setFullScreenImage, handleOpenProfileByName
 }) => {
     return (
         <div className="space-y-6">
@@ -980,7 +871,7 @@ const handleSaveEditedTask = async () => {
                 </div>
             )}
             {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
-            {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} confirmAction={confirmAction} />)}
+            {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} confirmAction={confirmAction} handleOpenProfileByName={handleOpenProfileByName} setFullScreenImage={setFullScreenImage} />)}
         </div>
     );
 };
@@ -1120,7 +1011,20 @@ const handleSaveEditedTask = async () => {
           
           const [toastMessage, setToastMessage] = useState("");
           const showMessage = (msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(""), 5000); };
+          const [profileReplyingTo, setProfileReplyingTo] = useState({});
 
+const handleOpenProfileByName = (name) => {
+    if (!name) return;
+    if (name === TEACHER_NAME || name === 'Profesora' || name === 'La profe') {
+        setViewingProfileId('teacher');
+    } else {
+        const foundUser = allChatUsers.find(u => u.name === name);
+        if (foundUser) setViewingProfileId(foundUser.id);
+    }
+    changeTab('profile');
+    setShowCommentModal(false); // Cierra el modal si estaba abierto
+};
+            
           const getToday = () => new Date().toISOString().split('T')[0];
           
           const [postType, setPostType] = useState('task'); 
@@ -2109,9 +2013,7 @@ const handleAddProfileComment = async (postId, e) => {
 };
 
 const renderProfile = () => {
-    // Revisar si vemos nuestro perfil o el de otro
     const isMyProfile = !viewingProfileId || viewingProfileId === myChatId;
-    
     let profileName = loggedInName;
     let profileRole = role === 'teacher' ? 'Docente' : 'Estudiante';
     let targetFilterId = myChatId;
@@ -2125,12 +2027,10 @@ const renderProfile = () => {
         }
     }
 
-    // Filtrar para mostrar solo los posts del dueño del perfil actual
     const myPosts = userPosts.filter(p => p.authorUsername === targetFilterId || (isMyProfile && p.authorId === user.uid));
     
     return (
         <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
-            {/* Cabecera del Perfil */}
             <div className={`${glassCard} flex flex-col md:flex-row items-center gap-6 mb-8 relative overflow-hidden`}>
                 {!isMyProfile && (
                     <button onClick={() => {setViewingProfileId(null); changeTab('chat');}} className="absolute top-4 left-4 z-20 p-2 bg-white/50 rounded-full hover:bg-white transition text-gray-800 shadow-sm" title="Volver al chat">
@@ -2147,25 +2047,16 @@ const renderProfile = () => {
                 </div>
             </div>
 
-            {/* Crear Publicación (Se oculta si visitamos el perfil de otra persona) */}
             {isMyProfile && (
                 <form onSubmit={publishProfilePost} className={`${glassCard} flex flex-col gap-4 mb-8`}>
-                    <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                        Crear nueva publicación
-                    </h3>
-                    <textarea 
-                        value={profilePostText} onChange={e => setProfilePostText(e.target.value)} 
-                        placeholder="¿Qué quieres compartir en tu perfil hoy?" 
-                        className={`${glassInput} h-20 resize-none`} 
-                    />
-                    
+                    <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Crear nueva publicación</h3>
+                    <textarea value={profilePostText} onChange={e => setProfilePostText(e.target.value)} placeholder="¿Qué quieres compartir en tu perfil hoy?" className={`${glassInput} h-20 resize-none`} />
                     {profilePostImage && (
                         <div className="relative w-fit">
                             <img src={profilePostImage} alt="Preview" className="h-32 rounded-xl object-cover border border-white/50 shadow-sm" />
                             <button type="button" onClick={() => setProfilePostImage("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md"><X size={14}/></button>
                         </div>
                     )}
-                    
                     <div className="flex justify-between items-center mt-2">
                         <label className={`cursor-pointer px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border ${isDarkMode ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 text-gray-300' : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'}`}>
                             <ImageIcon size={18} /> Añadir Foto
@@ -2178,7 +2069,6 @@ const renderProfile = () => {
                 </form>
             )}
 
-            {/* Cuadrícula de Posts con Comentarios */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {myPosts.length === 0 ? <p className="text-gray-500 italic col-span-full text-center">Aún no hay publicaciones en este perfil.</p> : null}
                 {myPosts.map(post => (
@@ -2188,34 +2078,50 @@ const renderProfile = () => {
                                 <Trash2 size={16}/>
                             </button>
                         )}
-                        
-                       {post.imageUrl && (
-    <img src={post.imageUrl} loading="lazy" onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />
-)}
-                        {post.text && <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{post.text}</p>}
+                        {post.imageUrl && <img src={post.imageUrl} loading="lazy" onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />}
+                        {post.text && <p className={`text-sm leading-relaxed line-clamp-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{post.text}</p>}
                         <span className="text-[10px] text-gray-400 font-bold border-b border-gray-500/20 pb-2">{new Date(post.createdAt).toLocaleDateString()}</span>
                         
-                        {/* Sección de Comentarios */}
                         <div className="flex flex-col gap-2 mt-1">
                             <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
                                 {(post.comments || []).map(c => (
                                     <div key={c.id} className={`p-2 rounded-xl text-xs ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                                        <span className="font-bold block text-blue-500 mb-0.5">{c.author}</span>
-                                        {c.text}
+                                        {c.replyTo && (
+                                            <div className={`mb-1 pl-2 border-l-2 py-0.5 ${isDarkMode ? 'border-blue-500 bg-gray-900/50 text-gray-400' : 'border-blue-400 bg-white/50 text-gray-500'} text-[10px] opacity-90 rounded-r-md`}>
+                                                <span className="font-bold text-blue-500 mr-1">{c.replyTo.author}</span>
+                                                <span className="truncate">{c.replyTo.text}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-start group/pcomm">
+                                            <div>
+                                                <button onClick={() => handleOpenProfileByName(c.author)} className="font-bold text-blue-500 mb-0.5 hover:underline text-left">{c.author}</button>
+                                                <p>{c.text}</p>
+                                            </div>
+                                            <button onClick={() => setProfileReplyingTo({...profileReplyingTo, [post.id]: c})} className="opacity-0 group-hover/pcomm:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"><ReplyIcon size={12}/></button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <form onSubmit={(e) => handleAddProfileComment(post.id, e)} className="flex gap-2 mt-1 relative">
-                                <input 
-                                    value={profileCommentInputs[post.id] || ""} 
-                                    onChange={e => setProfileCommentInputs({...profileCommentInputs, [post.id]: e.target.value})} 
-                                    placeholder="Escribe un comentario..." 
-                                    className={`flex-1 px-3 py-1.5 text-xs outline-none rounded-xl border focus:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`} 
-                                />
+                            {profileReplyingTo[post.id] && (
+                                <div className={`flex justify-between items-center px-3 py-1.5 rounded-t-xl border-b text-[11px] ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-200 border-gray-300 text-gray-700'}`}>
+                                    <span className="truncate">Respondiendo a <b className="text-blue-500">{profileReplyingTo[post.id].author}</b></span>
+                                    <button type="button" onClick={() => setProfileReplyingTo({...profileReplyingTo, [post.id]: null})}><X size={14}/></button>
+                                </div>
+                            )}
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const text = profileCommentInputs[post.id];
+                                if (!text || !text.trim()) return;
+                                const rep = profileReplyingTo[post.id];
+                                const newComment = { id: Date.now().toString(), author: loggedInName, text: text.trim(), createdAt: Date.now(), replyTo: rep ? { id: rep.id, author: rep.author, text: rep.text } : null };
+                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userPosts', post.id), { comments: [...(post.comments || []), newComment] });
+                                setProfileCommentInputs({ ...profileCommentInputs, [post.id]: "" });
+                                setProfileReplyingTo({ ...profileReplyingTo, [post.id]: null });
+                            }} className="flex gap-2 mt-1 relative">
+                                <input value={profileCommentInputs[post.id] || ""} onChange={e => setProfileCommentInputs({...profileCommentInputs, [post.id]: e.target.value})} placeholder="Escribe un comentario..." className={`flex-1 px-3 py-1.5 text-xs outline-none rounded-xl border focus:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`} />
                                 <button type="submit" disabled={!profileCommentInputs[post.id]} className="text-blue-500 disabled:opacity-50"><Send size={16}/></button>
                             </form>
                         </div>
-
                     </div>
                 ))}
             </div>
@@ -2468,18 +2374,24 @@ const renderProfile = () => {
                                    <p className="text-xs text-gray-500">Correo: {data.email}</p>
                                    
                                    {/* CAMPO DE EDICIÓN DEL ROL */}
-                                   {editingUserLabelId === userKey ? (
-                                       <div className="flex gap-2 mt-2 items-center">
-                                           <input value={editUserLabelValue} onChange={(e) => setEditUserLabelValue(e.target.value)} placeholder="Ej: Monitor..." className={`${glassInput} !py-1 px-2 text-xs h-8`} />
-                                           <button onClick={async () => {
-                                               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey), { customLabel: editUserLabelValue.trim() });
-                                               setEditingUserLabelId(null);
-                                           }} className="text-green-600 hover:text-green-700 bg-green-500/10 p-1 rounded-md transition-all"><CheckLine size={18}/></button>
-                                           <button onClick={() => setEditingUserLabelId(null)} className="text-red-500 hover:text-red-600 bg-red-500/10 p-1 rounded-md transition-all"><X size={18}/></button>
-                                       </div>
-                                   ) : (
-                                       <p className="text-xs font-bold text-blue-600 mt-1">Etiqueta: {data.customLabel || 'Estudiante'}</p>
-                                   )}
+{editingUserLabelId === userKey ? (
+    <div className="flex gap-2 mt-2 items-center">
+        <input value={editUserLabelValue} onChange={(e) => setEditUserLabelValue(e.target.value)} placeholder="Ej: Monitor..." className={`${glassInput} !py-1 px-2 text-xs h-8`} />
+        
+        <button onClick={async () => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', userKey), { customLabel: editUserLabelValue.trim() });
+            setEditingUserLabelId(null);
+        }} className="text-green-600 hover:text-green-700 bg-green-500/10 p-1.5 rounded-lg transition-all" title="Guardar">
+            <CheckLine size={16}/>
+        </button>
+        
+        <button onClick={() => setEditingUserLabelId(null)} className="text-red-500 hover:text-red-600 bg-red-500/10 p-1.5 rounded-lg transition-all" title="Cancelar">
+            <XLine size={16}/>
+        </button>
+    </div>
+) : (
+    <p className="text-xs font-bold text-blue-600 mt-1">Etiqueta: {data.customLabel || 'Estudiante'}</p>
+)}
                                </div>
                                
                                <div className="flex gap-3 items-start shrink-0">
@@ -3222,6 +3134,7 @@ const renderProfile = () => {
               <main className="max-w-5xl mx-auto p-4 md:p-8 pb-48 md:pb-8 relative z-10">
                 {activeTab === 'tasks' && (
     <TasksTab 
+        handleOpenProfileByName={handleOpenProfileByName}
         role={role} glassCard={glassCard} glassInput={glassInput} redButton={redButton}
         postType={postType} setPostType={setPostType} taskTitle={taskTitle} setTaskTitle={setTaskTitle}
         taskDesc={taskDesc} setTaskDesc={setTaskDesc} showImageInput={showImageInput} setShowImageInput={setShowImageInput}
@@ -3903,9 +3816,9 @@ tickIcon = (
                                                   />
                                                   
                                                   {/* BOTON CON EL ICONO Y LAS MEDIDAS EXACTAS DE TU IMAGEN */}
-                                                  <button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`w-10 h-10 mr-[8px] rounded-[14px] shrink-0 transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
-                                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
-                                                  </button>
+<button type="submit" disabled={!chatAppInput.trim() && !chatAppImageUrl} className={`w-10 h-10 mr-[8px] rounded-[14px] shrink-0 transition-all flex items-center justify-center shadow-sm disabled:shadow-none disabled:opacity-60 ${chatAppInput.trim() || chatAppImageUrl ? 'bg-blue-600 text-white hover:bg-blue-700' : (isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-400')}`}>
+    <Send size={20} />
+</button>
                                               </div>
 
                                               {(showChatAppImageInput || chatAppImageUrl) && (
