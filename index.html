@@ -29,7 +29,7 @@
         // --- IMPORTACIONES FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { initializeFirestore, persistentLocalCache, getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeFirestore, persistentLocalCache, getFirestore, collection, onSnapshot, doc, setDoc, getDocs, deleteDoc, addDoc, updateDoc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getStorage, ref, uploadString, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
         
         // Íconos de Lucide
@@ -1378,77 +1378,106 @@ const handleSaveEditedTask = async () => {
             return () => unsubscribe();
           }, [userMappings]); 
 
-          useEffect(() => {
-            if (!user || !myChatId) return; // FIX: Prevenir que la vista móvil se ponga en blanco si no se ha cargado el user id aún
-            const base = ['artifacts', appId, 'public', 'data'];
-            const uTasks = onSnapshot(collection(db, ...base, 'tasks'), s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uUserPosts = onSnapshot(collection(db, ...base, 'userPosts'), s => setUserPosts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uSyllabus = onSnapshot(collection(db, ...base, 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
-            const uEvals = onSnapshot(collection(db, ...base, 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uGrades = onSnapshot(collection(db, ...base, 'grades'), s => setGrades(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uSug = onSnapshot(collection(db, ...base, 'suggestions'), s => setSuggestions(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uAlerts = onSnapshot(collection(db, ...base, 'alerts'), s => setAlerts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uReviews = onSnapshot(collection(db, ...base, 'reviews'), s => setReviews(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
-            const uBotSettings = onSnapshot(doc(db, ...base, 'settings', 'bot'), d => setBotInfoList(d.data()?.infoList || []));
-            const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
-            
-            const uGroups = onSnapshot(collection(db, ...base, 'chatGroups'), s => setChatGroups(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-            
-            const uUnread = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), d => {
-                if (d.exists()) {
-                    const data = d.data();
-                    
-                    // Usamos el window para recordar el último timestamp y notificar por CADA mensaje nuevo (no solo el primero)
-                    const lastTimestamp = window.lastNotifTime || 0;
-                    
-                    if (data.hasUnread && data.timestamp > lastTimestamp) {
-                        window.lastNotifTime = data.timestamp;
-
-    const isCurrentlyReading = window.currentChatViewId && data.chats && data.chats[window.currentChatViewId];
-
-    if (!isCurrentlyReading) {
-        notificationSound.current?.play().catch(e => console.log('Auto-play evitado'));
+          // 1. COSAS GLOBALES (Se necesitan siempre para notificaciones y chats)
+useEffect(() => {
+    if (!user || !myChatId) return;
+    const base = ['artifacts', appId, 'public', 'data'];
     
-        if ('Notification' in window && Notification.permission === 'granted') {
-            if (document.hidden) {
-                const sender = data.previewSender || 'Alguien';
-                const text = data.previewText || 'Te envió un mensaje';
-                new Notification('Mensaje de ' + sender, {
-                    body: text,
-                    icon: 'favicon.ico'
-                });
-            }
-        }
-    }
-                    } // <--- ESTA LLAVE FALTABA PARA CERRAR EL IF
-                    setHasUnreadChat(!!data.hasUnread);
-                    setUnreadChats(data.chats || {});
-                }
-            });
-
-            const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
-                const msgs = {};
-                s.docs.forEach(d => msgs[d.id] = d.data());
-                setLastMessages(msgs);
-            });
-
-            const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => {
-                if (d.exists()) {
-                    setChatPreferences(d.data().prefs || {});
-                } else {
-                    setChatPreferences({});
+    const uBotSettings = onSnapshot(doc(db, ...base, 'settings', 'bot'), d => setBotInfoList(d.data()?.infoList || []));
+    const uChat = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'chatbot', 'history'), d => setChatHistory(d.data()?.messages || []));
+    const uGroups = onSnapshot(collection(db, ...base, 'chatGroups'), s => setChatGroups(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    const uUnread = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'chatAlerts', myChatId), d => {
+        if (d.exists()) {
+            const data = d.data();
+            const lastTimestamp = window.lastNotifTime || 0;
+            if (data.hasUnread && data.timestamp > lastTimestamp) {
+                window.lastNotifTime = data.timestamp;
+                const isCurrentlyReading = window.currentChatViewId && data.chats && data.chats[window.currentChatViewId];
+                if (!isCurrentlyReading) {
+                    notificationSound.current?.play().catch(e => console.log('Auto-play evitado'));
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        if (document.hidden) {
+                            const sender = data.previewSender || 'Alguien';
+                            const text = data.previewText || 'Te envió un mensaje';
+                            new Notification('Mensaje de ' + sender, { body: text, icon: 'favicon.ico' });
+                        }
+                    }
                 }
-            });
+            }
+            setHasUnreadChat(!!data.hasUnread);
+            setUnreadChats(data.chats || {});
+        }
+    });
 
-            const uPresence = onSnapshot(collection(db, ...base, 'presence'), s => {
-                const p = {}; s.docs.forEach(d => p[d.id] = d.data()); setUserPresence(p);
-            });
-            const uTyping = onSnapshot(collection(db, ...base, 'typing'), s => {
-                const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
-            });
+    const uLastMsgs = onSnapshot(collection(db, ...base, 'lastMessages'), s => {
+        const msgs = {};
+        s.docs.forEach(d => msgs[d.id] = d.data());
+        setLastMessages(msgs);
+    });
 
-            return () => { uTasks(); uSyllabus(); uEvals(); uGrades(); uSug(); uAlerts(); uReviews(); uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uUserPosts(); };
-          }, [user, myChatId]);
+    const uChatPrefs = onSnapshot(doc(db, 'artifacts', appId, 'users', user.uid, 'preferences', 'chat'), d => {
+        if (d.exists()) setChatPreferences(d.data().prefs || {});
+        else setChatPreferences({});
+    });
+
+    const uPresence = onSnapshot(collection(db, ...base, 'presence'), s => {
+        const p = {}; s.docs.forEach(d => p[d.id] = d.data()); setUserPresence(p);
+    });
+    
+    const uTyping = onSnapshot(collection(db, ...base, 'typing'), s => {
+        const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
+    });
+
+    return () => { uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); };
+}, [user, myChatId]);
+
+// 2. PESTAÑA: ASIGNACIONES (Muro de clase)
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'tasks') return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('createdAt', 'desc'), limit(20));
+    const uTasks = onSnapshot(q, s => setTasks(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => uTasks();
+}, [user, myChatId, activeTab]);
+
+// 3. PESTAÑA: PERFIL (Muro de Pinterest)
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'profile') return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'userPosts'), orderBy('createdAt', 'desc'), limit(20));
+    const uUserPosts = onSnapshot(q, s => setUserPosts(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => uUserPosts();
+}, [user, myChatId, activeTab]);
+
+// 4. PESTAÑA: REPASOS (Diapositivas)
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'reviews') return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'reviews'), orderBy('createdAt', 'desc'), limit(15));
+    const uReviews = onSnapshot(q, s => setReviews(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => uReviews();
+}, [user, myChatId, activeTab]);
+
+// 5. PESTAÑA: SYLLABUS
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'syllabus') return;
+    const uSyllabus = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'syllabus'), s => setSyllabus(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.week - b.week)));
+    return () => uSyllabus();
+}, [user, myChatId, activeTab]);
+
+// 6. PESTAÑA: EVALUACIONES Y NOTAS
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'evaluations') return;
+    const uEvals = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'evaluations'), s => setEvaluations(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uGrades = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'grades'), s => setGrades(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    return () => { uEvals(); uGrades(); };
+}, [user, myChatId, activeTab]);
+
+// 7. PESTAÑA: BUZÓN (Solo para la profesora)
+useEffect(() => {
+    if (!user || !myChatId || activeTab !== 'inbox' || role !== 'teacher') return;
+    const uSug = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'suggestions'), s => setSuggestions(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    const uAlerts = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'alerts'), s => setAlerts(s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt)));
+    return () => { uSug(); uAlerts(); };
+}, [user, myChatId, activeTab, role]);
             useEffect(() => {
               if (myChatId) {
                   const finalPresenceId = role === 'teacher' ? 'teacher' : myChatId;
