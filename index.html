@@ -518,9 +518,14 @@ const handleSaveEditedTask = async () => {
                   {isEditingTask ? (
                       <input value={editTaskData.title} onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} className={`${glassInput} text-xl font-bold mb-2 p-2`} placeholder="Título..." />
                   ) : (
-                      <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
-                      </h3>
+                      <div className="flex flex-col">
+    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+      {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
+    </h3>
+    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">
+        Publicado por: {task.authorName || "Gina Marcela Quintana Delgado"}
+    </p>
+</div>
                   )}
                   {task.type !== 'post' && (
                       isEditingTask ? (
@@ -862,6 +867,8 @@ const handleSaveEditedTask = async () => {
           const [hasEntered, setHasEntered] = useState(false); 
           const [loginType, setLoginType] = useState(null);
           const [showUserMenu, setShowUserMenu] = useState(false);
+            const [viewingProfileId, setViewingProfileId] = useState(null);
+          const [profileCommentInputs, setProfileCommentInputs] = useState({});
             const [userPosts, setUserPosts] = useState([]);
             const [profilePostText, setProfilePostText] = useState("");
             const [profilePostImage, setProfilePostImage] = useState("");
@@ -1929,74 +1936,136 @@ const publishProfilePost = async (e) => {
     setIsPublishingProfile(true);
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'userPosts'), {
         authorId: user.uid,
+        authorUsername: myChatId, // Guardamos su nombre de usuario (ej. camilopruebas) para encontrarlo
         authorName: loggedInName,
         text: profilePostText.trim(),
         imageUrl: profilePostImage,
+        comments: [], // Creamos la lista de comentarios
         createdAt: Date.now()
     });
     setProfilePostText(""); setProfilePostImage(""); setIsPublishingProfile(false);
     showMessage("✅ Publicado en tu perfil.");
 };
 
+// Función para añadir comentarios a un post del perfil
+const handleAddProfileComment = async (postId, e) => {
+    e.preventDefault();
+    const text = profileCommentInputs[postId];
+    if (!text || !text.trim()) return;
+    const post = userPosts.find(p => p.id === postId);
+    const newComment = { id: Date.now().toString(), author: loggedInName, text: text.trim(), createdAt: Date.now() };
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userPosts', postId), { comments: [...(post.comments || []), newComment] });
+    setProfileCommentInputs({ ...profileCommentInputs, [postId]: "" });
+};
+
 const renderProfile = () => {
-    const myPosts = userPosts.filter(p => p.authorId === user.uid);
+    // Revisar si vemos nuestro perfil o el de otro
+    const isMyProfile = !viewingProfileId || viewingProfileId === myChatId;
+    
+    let profileName = loggedInName;
+    let profileRole = role === 'teacher' ? 'Docente' : 'Estudiante';
+    let targetFilterId = myChatId;
+
+    if (!isMyProfile) {
+        const targetUser = allChatUsers.find(u => u.id === viewingProfileId);
+        if (targetUser) {
+            profileName = targetUser.name;
+            profileRole = targetUser.customLabel || (targetUser.role === 'teacher' ? 'Docente' : 'Estudiante');
+            targetFilterId = viewingProfileId;
+        }
+    }
+
+    // Filtrar para mostrar solo los posts del dueño del perfil actual
+    const myPosts = userPosts.filter(p => p.authorUsername === targetFilterId || (isMyProfile && p.authorId === user.uid));
     
     return (
         <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
             {/* Cabecera del Perfil */}
             <div className={`${glassCard} flex flex-col md:flex-row items-center gap-6 mb-8 relative overflow-hidden`}>
+                {!isMyProfile && (
+                    <button onClick={() => {setViewingProfileId(null); changeTab('chat');}} className="absolute top-4 left-4 z-20 p-2 bg-white/50 rounded-full hover:bg-white transition text-gray-800 shadow-sm" title="Volver al chat">
+                        <ArrowLeftIcon size={20}/>
+                    </button>
+                )}
                 <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-400 to-purple-500 opacity-20"></div>
-                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-xl border-4 border-white z-10">
+                <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-xl border-4 border-white z-10 mt-4 md:mt-0">
                     <UserIcon size={50} />
                 </div>
                 <div className="text-center md:text-left z-10">
-                    <h2 className={`text-3xl font-extrabold drop-shadow-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{loggedInName}</h2>
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+                    <h2 className={`text-3xl font-extrabold drop-shadow-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{profileName}</h2>
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{profileRole}</p>
                 </div>
             </div>
 
-            {/* Crear Publicación */}
-            <form onSubmit={publishProfilePost} className={`${glassCard} flex flex-col gap-4 mb-8`}>
-                <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                    <Sparkles className="text-blue-500" /> Crear nueva publicación
-                </h3>
-                <textarea 
-                    value={profilePostText} onChange={e => setProfilePostText(e.target.value)} 
-                    placeholder="¿Qué quieres compartir en tu perfil hoy?" 
-                    className={`${glassInput} h-20 resize-none`} 
-                />
-                
-                {profilePostImage && (
-                    <div className="relative w-fit">
-                        <img src={profilePostImage} alt="Preview" className="h-32 rounded-xl object-cover border border-white/50 shadow-sm" />
-                        <button type="button" onClick={() => setProfilePostImage("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md"><X size={14}/></button>
+            {/* Crear Publicación (Se oculta si visitamos el perfil de otra persona) */}
+            {isMyProfile && (
+                <form onSubmit={publishProfilePost} className={`${glassCard} flex flex-col gap-4 mb-8`}>
+                    <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        Crear nueva publicación
+                    </h3>
+                    <textarea 
+                        value={profilePostText} onChange={e => setProfilePostText(e.target.value)} 
+                        placeholder="¿Qué quieres compartir en tu perfil hoy?" 
+                        className={`${glassInput} h-20 resize-none`} 
+                    />
+                    
+                    {profilePostImage && (
+                        <div className="relative w-fit">
+                            <img src={profilePostImage} alt="Preview" className="h-32 rounded-xl object-cover border border-white/50 shadow-sm" />
+                            <button type="button" onClick={() => setProfilePostImage("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md"><X size={14}/></button>
+                        </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center mt-2">
+                        <label className={`cursor-pointer px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border ${isDarkMode ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 text-gray-300' : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'}`}>
+                            <ImageIcon size={18} /> Añadir Foto
+                            <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isPublishingProfile} />
+                        </label>
+                        <button type="submit" disabled={isPublishingProfile || (!profilePostText && !profilePostImage)} className={`${redButton} disabled:opacity-50`}>
+                            {isPublishingProfile ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>} Publicar
+                        </button>
                     </div>
-                )}
-                
-                <div className="flex justify-between items-center mt-2">
-                    <label className={`cursor-pointer px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border ${isDarkMode ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 text-gray-300' : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'}`}>
-                        <ImageIcon size={18} /> Añadir Foto
-                        <input type="file" accept="image/*" className="hidden" onChange={handleProfileImageUpload} disabled={isPublishingProfile} />
-                    </label>
-                    <button type="submit" disabled={isPublishingProfile || (!profilePostText && !profilePostImage)} className={`${redButton} disabled:opacity-50`}>
-                        {isPublishingProfile ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>} Publicar
-                    </button>
-                </div>
-            </form>
+                </form>
+            )}
 
-            {/* Cuadrícula Estilo Pinterest */}
+            {/* Cuadrícula de Posts con Comentarios */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {myPosts.length === 0 ? <p className="text-gray-500 italic col-span-full text-center">Aún no tienes publicaciones en tu perfil.</p> : null}
+                {myPosts.length === 0 ? <p className="text-gray-500 italic col-span-full text-center">Aún no hay publicaciones en este perfil.</p> : null}
                 {myPosts.map(post => (
                     <div key={post.id} className={`${glassCard} !p-4 flex flex-col gap-3 group break-inside-avoid relative`}>
-                        <button onClick={() => confirmAction("¿Eliminar publicación de tu perfil?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userPosts', post.id)))} className="absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <Trash2 size={16}/>
-                        </button>
+                        {isMyProfile && (
+                            <button onClick={() => confirmAction("¿Eliminar publicación de tu perfil?", () => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userPosts', post.id)))} className="absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm">
+                                <Trash2 size={16}/>
+                            </button>
+                        )}
+                        
                         {post.imageUrl && (
                             <img src={post.imageUrl} onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />
                         )}
                         {post.text && <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{post.text}</p>}
-                        <span className="text-[10px] text-gray-400 font-bold mt-auto pt-2 border-t border-gray-500/20">{new Date(post.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-gray-400 font-bold border-b border-gray-500/20 pb-2">{new Date(post.createdAt).toLocaleDateString()}</span>
+                        
+                        {/* Sección de Comentarios */}
+                        <div className="flex flex-col gap-2 mt-1">
+                            <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
+                                {(post.comments || []).map(c => (
+                                    <div key={c.id} className={`p-2 rounded-xl text-xs ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                                        <span className="font-bold block text-blue-500 mb-0.5">{c.author}</span>
+                                        {c.text}
+                                    </div>
+                                ))}
+                            </div>
+                            <form onSubmit={(e) => handleAddProfileComment(post.id, e)} className="flex gap-2 mt-1 relative">
+                                <input 
+                                    value={profileCommentInputs[post.id] || ""} 
+                                    onChange={e => setProfileCommentInputs({...profileCommentInputs, [post.id]: e.target.value})} 
+                                    placeholder="Escribe un comentario..." 
+                                    className={`flex-1 px-3 py-1.5 text-xs outline-none rounded-xl border focus:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`} 
+                                />
+                                <button type="submit" disabled={!profileCommentInputs[post.id]} className="text-blue-500 disabled:opacity-50"><Send size={16}/></button>
+                            </form>
+                        </div>
+
                     </div>
                 ))}
             </div>
@@ -2097,6 +2166,7 @@ const renderProfile = () => {
                       if(taskTitle && taskDesc) {
                         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
     type: postType, title: taskTitle, description: taskDesc, 
+    authorName: loggedInName, 
     imageUrl: postImageUrl.trim(), fileUrl: postFileUrl, fileName: postFileName,
     dueDate: postType === 'task' ? taskDate : null, dueTime: postType === 'task' ? taskTime : null, allowLate: postType === 'task' ? allowLate : true, createdAt: Date.now(), comments: [], reactions: {} 
 });
@@ -3086,9 +3156,9 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
               </div>
               <div className="p-2 flex flex-col gap-1">
-                  <button onClick={() => { changeTab('profile'); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
-                      <UserIcon size={18} /> Mi Perfil
-                  </button>
+                  <button onClick={() => { setViewingProfileId(null); changeTab('profile'); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+    <UserIcon size={18} /> Perfil
+</button>
                   {role === 'teacher' ? (
                       <button onClick={() => { changeTab('inbox'); setShowUserMenu(false); }} className={`w-full flex items-center justify-between px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                           <div className="flex items-center gap-2"><Mail size={18} /> Buzón</div>
@@ -3404,12 +3474,20 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
 </div>
                                                   <div className="flex flex-col min-w-0 relative">
                                                   <button 
-                                                      onClick={() => { if (activeChat.type === 'group') setShowGroupInfo(!showGroupInfo); }}
-                                                      className={`text-xl font-extrabold truncate leading-tight text-left transition-colors ${activeChat.type === 'group' ? (isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600') : ''} ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}
-                                                      title={activeChat.type === 'group' ? "Ver miembros del grupo" : ""}
-                                                  >
-                                                      {activeChat.name}
-                                                  </button>
+    onClick={() => { 
+        if (activeChat.type === 'group') {
+            setShowGroupInfo(!showGroupInfo); 
+        } else if (activeChat.type === 'dm') {
+            const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
+            setViewingProfileId(targetId);
+            changeTab('profile');
+        }
+    }}
+    className={`text-xl font-extrabold truncate leading-tight text-left transition-colors hover:text-blue-500 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}
+    title={activeChat.type === 'group' ? "Ver miembros del grupo" : "Ver perfil"}
+>
+    {activeChat.name}
+</button>
 
                                                   {activeChat.type === 'dm' && (() => {
                                                       const targetId = activeChat.id.split('_').find(id => id !== 'dm' && id !== myChatId);
