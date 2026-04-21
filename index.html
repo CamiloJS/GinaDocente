@@ -575,10 +575,10 @@ const handleSaveEditedTask = async () => {
               )}
               
               {task.imageUrl && (
-                  <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
-                      <img src={task.imageUrl} alt="Adjunto" onClick={() => setFullScreenImage(task.imageUrl)} className="w-full h-auto max-h-96 object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity" onError={(e) => e.target.style.display = 'none'} />
-                  </div>
-              )}
+    <div className="mt-4 rounded-2xl overflow-hidden border border-white/40 shadow-sm max-w-full">
+        <img src={task.imageUrl} loading="lazy" alt="Adjunto" onClick={() => setFullScreenImage(task.imageUrl)} className="w-full h-auto max-h-96 object-contain bg-black/5 cursor-pointer hover:opacity-90 transition-opacity" onError={(e) => e.target.style.display = 'none'} />
+    </div>
+)}
 {task.fileUrl && (
     <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-3 p-4 rounded-2xl border mt-4 w-fit transition-colors shadow-sm ${isDarkMode ? 'bg-gray-800/50 border-gray-600 hover:bg-gray-800' : 'bg-white/60 border-gray-300 hover:bg-white'}`}>
         <div className="p-2 bg-red-100 rounded-xl"><FileDocIcon size={28} className="text-red-600" /></div>
@@ -648,14 +648,15 @@ const handleSaveEditedTask = async () => {
         )}
         
         {c.imageUrl && (
-            <img 
-                src={c.imageUrl} 
-                alt="Adjunto revelado" 
-                onClick={() => setFullScreenImage(c.imageUrl)} 
-                className={`w-20 h-20 rounded-xl border object-cover shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 opacity-70 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
-                onError={(e) => e.target.style.display = 'none'} 
-            />
-        )}
+    <img 
+        src={c.imageUrl} 
+        loading="lazy"
+        alt="Adjunto" 
+        onClick={() => setFullScreenImage(c.imageUrl)}
+        className={`w-20 h-20 rounded-xl border object-cover mt-1 shadow-sm cursor-pointer hover:opacity-80 transition-opacity bg-black/5 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+        onError={(e) => e.target.style.display = 'none'} 
+    />
+)}
         
         {c.fileUrl && (
             <a href={c.fileUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-xl border w-fit transition-colors opacity-70 ${isDarkMode ? 'bg-gray-700/50 border-gray-600 hover:bg-gray-700' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
@@ -863,6 +864,126 @@ const handleSaveEditedTask = async () => {
           );
         };
 
+
+        const TasksTab = ({
+    role, glassCard, glassInput, redButton, postType, setPostType, taskTitle, setTaskTitle,
+    taskDesc, setTaskDesc, showImageInput, setShowImageInput, postImageUrl, setPostImageUrl,
+    postFileUrl, setPostFileUrl, postFileName, setPostFileName, showPostAttachmentMenu,
+    setShowPostAttachmentMenu, handlePostLocalFileUpload, isAiLoading, setIsAiLoading,
+    prevTaskTitle, setPrevTaskTitle, prevTaskDesc, setPrevTaskDesc, hasAiModified,
+    setHasAiModified, callGemini, showMessage, handleAiTranslate, taskDate, setTaskDate,
+    taskTime, setTaskTime, allowLate, setAllowLate, db, appId, loggedInName, getToday,
+    tasks, user, isDarkMode, confirmAction, setFullScreenImage
+}) => {
+    return (
+        <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Muro de Clase</h2>
+            
+            {role === 'teacher' && (
+                <div className={`${glassCard} mb-8 flex flex-col gap-4`}>
+                    <div className="flex gap-2 mb-2 bg-white/40 p-1 rounded-xl w-fit border border-white/50">
+                        <button onClick={() => setPostType('task')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'task' ? 'bg-white shadow-sm text-[#AD3333]' : 'text-gray-600 hover:text-gray-900'}`}>Tarea nueva</button>
+                        <button onClick={() => setPostType('post')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'post' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>Nueva publicación</button>
+                    </div>
+
+                    <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={postType === 'task' ? "Título de la tarea..." : "Título de la publicación..."} className={glassInput} required />
+                    <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas o escribe una idea y usa la IA para potenciarla..." className={`${glassInput} h-32 resize-none`} required />
+                    
+                    {(showImageInput || postImageUrl) && (
+                        <div className="animate-in fade-in slide-in-from-top-2 relative">
+                            {showImageInput && (
+                                <input 
+                                    value={postImageUrl} 
+                                    onChange={(e) => setPostImageUrl(e.target.value)} 
+                                    placeholder="Pega el enlace directo de la imagen aquí..." 
+                                    className={glassInput} 
+                                />
+                            )}
+                            {postImageUrl && (
+                                <div className="relative w-fit mt-3">
+                                    <img src={postImageUrl} alt="Preview" className="h-32 object-cover rounded-xl border border-white/50 bg-black/5 shadow-sm" onError={(e) => e.target.style.display = 'none'} />
+                                    <button type="button" onClick={() => setPostImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1.5 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 mb-2 items-center">
+                        <button type="button" onClick={async () => {
+                            if (!taskDesc && !taskTitle) return showMessage("Escribe una idea en la descripción primero.");
+                            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+                            const result = await callGemini(`Mejora esta publicación: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`);
+                            if (!result) { setIsAiLoading(false); return; }
+                            const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
+                            const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
+                            if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); setTaskDesc(descMatch[1].trim()); } else { setTaskDesc(result); }
+                            setHasAiModified(true); setIsAiLoading(false);
+                        }} disabled={isAiLoading} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1 disabled:opacity-50"><Sparkles size={16} /> Potenciar</button>
+                        
+                        <button type="button" onClick={async () => {
+                            if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
+                            setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
+                            const result = await callGemini(`Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`);
+                            if (!result) { setIsAiLoading(false); return; }
+                            setTaskDesc(result); setHasAiModified(true); setIsAiLoading(false);
+                        }} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir</button>
+                        
+                        <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
+                        <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
+
+                        <div className="relative z-[9999]">
+                            <button type="button" onClick={() => setShowPostAttachmentMenu(!showPostAttachmentMenu)} className={`bg-transparent px-2 py-1.5 rounded-full text-sm font-bold hover:text-blue-600 transition-colors flex items-center gap-1 ${showImageInput || showPostAttachmentMenu ? 'text-blue-600' : (isDarkMode ? 'text-gray-300' : 'text-gray-600')}`} title="Adjuntar">
+                                <Plus size={18} /> Adjuntar
+                            </button>
+                            
+                            {showPostAttachmentMenu && (
+                                <div className={`absolute top-full left-0 mt-2 w-44 backdrop-blur-2xl border shadow-xl rounded-xl p-2 flex flex-col gap-1 z-[9999] animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
+                                    <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                        <ImageIcon size={16} /> Imagen
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { handlePostLocalFileUpload(e); setShowPostAttachmentMenu(false); }} />
+                                    </label>
+                                    <button type="button" onClick={() => { window.openGifPicker((url) => setPostImageUrl(url)); setShowPostAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors w-full text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                        <span className="font-black border border-current px-1 rounded text-[10px] flex items-center justify-center h-4">GIF</span> GIF
+                                    </button>
+                                    <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
+                                        <PaperclipIcon size={16} /> Adjuntar Documento
+                                        <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={(e) => { handlePostLocalFileUpload(e); setShowPostAttachmentMenu(false); }} />
+                                    </label>
+                                </div>
+                            )}
+                        </div>
+
+                        {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-4 items-center bg-white/30 p-4 rounded-xl border border-white/40">
+                        {postType === 'task' && (
+                            <>
+                                <div><label className="text-xs font-bold text-gray-700 block">Fecha límite</label><input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} className={`${glassInput} py-2`} required /></div>
+                                <div><label className="text-xs font-bold text-gray-700 block">Hora límite</label><input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className={`${glassInput} py-2`} required /></div>
+                                <label className="flex items-center gap-2 mt-4 cursor-pointer"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-[#AD3333]" /><span className="text-sm font-bold text-gray-800">Permitir entregas tardías</span></label>
+                            </>
+                        )}
+                        
+                        <button type="button" onClick={async () => {
+                            if(taskTitle && taskDesc) {
+                                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                                    type: postType, title: taskTitle, description: taskDesc, 
+                                    authorName: loggedInName, 
+                                    imageUrl: postImageUrl.trim(), fileUrl: postFileUrl, fileName: postFileName,
+                                    dueDate: postType === 'task' ? taskDate : null, dueTime: postType === 'task' ? taskTime : null, allowLate: postType === 'task' ? allowLate : true, createdAt: Date.now(), comments: [], reactions: {} 
+                                });
+                                setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setPostFileName(""); setShowImageInput(false); setShowPostAttachmentMenu(false); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
+                            } else showMessage("Llena título y descripción.");
+                        }} className={`${redButton} ml-auto ${postType === 'post' ? 'mt-0' : 'mt-4'}`}>Publicar</button>
+                    </div>
+                </div>
+            )}
+            {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
+            {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} confirmAction={confirmAction} />)}
+        </div>
+    );
+};
         function App() {
           const [hasEntered, setHasEntered] = useState(false); 
           const [loginType, setLoginType] = useState(null);
@@ -2068,9 +2189,9 @@ const renderProfile = () => {
                             </button>
                         )}
                         
-                        {post.imageUrl && (
-                            <img src={post.imageUrl} onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />
-                        )}
+                       {post.imageUrl && (
+    <img src={post.imageUrl} loading="lazy" onClick={() => setFullScreenImage(post.imageUrl)} alt="Post" className={`w-full aspect-square object-cover rounded-2xl cursor-pointer shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`} />
+)}
                         {post.text && <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{post.text}</p>}
                         <span className="text-[10px] text-gray-400 font-bold border-b border-gray-500/20 pb-2">{new Date(post.createdAt).toLocaleDateString()}</span>
                         
@@ -2101,114 +2222,7 @@ const renderProfile = () => {
         </div>
     );
 };
-          const renderTasks = () => (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2 drop-shadow-sm"><BookOpen className="text-[#AD3333]" /> Muro de Clase</h2>
-              
-              {role === 'teacher' && (
-                <div className={`${glassCard} mb-8 flex flex-col gap-4`}>
-                  <div className="flex gap-2 mb-2 bg-white/40 p-1 rounded-xl w-fit border border-white/50">
-                      <button onClick={() => setPostType('task')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'task' ? 'bg-white shadow-sm text-[#AD3333]' : 'text-gray-600 hover:text-gray-900'}`}>Tarea nueva</button>
-                      <button onClick={() => setPostType('post')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${postType === 'post' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>Nueva publicación</button>
-                  </div>
-
-                  <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder={postType === 'task' ? "Título de la tarea..." : "Título de la publicación..."} className={glassInput} required />
-                  <textarea value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Instrucciones detalladas o escribe una idea y usa la IA para potenciarla..." className={`${glassInput} h-32 resize-none`} required />
-                  
-                  {(showImageInput || postImageUrl) && (
-                      <div className="animate-in fade-in slide-in-from-top-2 relative">
-                          {showImageInput && (
-                              <input 
-                                  value={postImageUrl} 
-                                  onChange={(e) => setPostImageUrl(e.target.value)} 
-                                  placeholder="Pega el enlace directo de la imagen aquí..." 
-                                  className={glassInput} 
-                              />
-                          )}
-                          {postImageUrl && (
-                              <div className="relative w-fit mt-3">
-                                  <img src={postImageUrl} alt="Preview" className="h-32 object-cover rounded-xl border border-white/50 bg-black/5 shadow-sm" onError={(e) => e.target.style.display = 'none'} />
-                                  <button type="button" onClick={() => setPostImageUrl("")} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1.5 hover:bg-red-700 transition shadow-md"><X size={14}/></button>
-                              </div>
-                          )}
-                      </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mb-2 items-center">
-                    <button type="button" onClick={async () => {
-                        if (!taskDesc && !taskTitle) return showMessage("Escribe una idea en la descripción primero.");
-                        setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-                        const result = await callGemini(`Mejora esta publicación: Título: ${taskTitle}\nDescripción: ${taskDesc}\nDevuelve SÓLO en formato:\nTITULO: [Título nuevo]\nDESCRIPCION: [Descripción detallada]`);
-                        if (!result) { setIsAiLoading(false); return; }
-                        const titleMatch = result.match(/(?:T[IÍ]TULO|TITLE|TITULO)\s*[:\-]?\s*\*?\*?\s*(.*)/i);
-                        const descMatch = result.match(/(?:DESCRIPCI[OÓ]N|DESCRIPTION|DESCRIPCION)\s*[:\-]?\s*\*?\*?\s*([\s\S]*)/i);
-                        if (titleMatch && descMatch) { setTaskTitle(titleMatch[1].replace(/\*/g, '').trim()); setTaskDesc(descMatch[1].trim()); } else { setTaskDesc(result); }
-                        setHasAiModified(true); setIsAiLoading(false);
-                    }} disabled={isAiLoading} className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1 disabled:opacity-50"><Sparkles size={16} /> Potenciar</button>
-                    
-                    <button type="button" onClick={async () => {
-                        if (!taskDesc) return showMessage("Escribe algo en la descripción para corregir.");
-                        setPrevTaskTitle(taskTitle); setPrevTaskDesc(taskDesc); setIsAiLoading(true);
-                        const result = await callGemini(`Corrige la ortografía y gramática manteniendo el idioma original. Devuelve SÓLO el texto corregido:\n\n${taskDesc}`);
-                        if (!result) { setIsAiLoading(false); return; }
-                        setTaskDesc(result); setHasAiModified(true); setIsAiLoading(false);
-                    }} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-white/80 transition-all flex items-center gap-1 disabled:opacity-50"><CheckCheck size={16} /> Corregir</button>
-                    
-                    <button type="button" onClick={() => handleAiTranslate('Inglés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇺🇸</button>
-                    <button type="button" onClick={() => handleAiTranslate('Francés')} disabled={isAiLoading} className="bg-white/50 text-gray-800 border border-white/60 px-3 py-1.5 rounded-lg text-lg shadow-sm hover:bg-white/80 transition-all disabled:opacity-50">🇫🇷</button>
-
-                    <div className="relative z-[9999]">
-    <button type="button" onClick={() => setShowPostAttachmentMenu(!showPostAttachmentMenu)} className={`bg-transparent px-2 py-1.5 rounded-full text-sm font-bold hover:text-blue-600 transition-colors flex items-center gap-1 ${showImageInput || showPostAttachmentMenu ? 'text-blue-600' : (isDarkMode ? 'text-gray-300' : 'text-gray-600')}`} title="Adjuntar">
-    <Plus size={18} /> Adjuntar
-</button>
-    
-    {showPostAttachmentMenu && (
-        <div className={`absolute top-full left-0 mt-2 w-44 backdrop-blur-2xl border shadow-xl rounded-xl p-2 flex flex-col gap-1 z-[9999] animate-in fade-in zoom-in duration-200 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-300'}`}>
-            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                <ImageIcon size={16} /> Imagen
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => { handlePostLocalFileUpload(e); setShowPostAttachmentMenu(false); }} />
-            </label>
-            <button type="button" onClick={() => { window.openGifPicker((url) => setPostImageUrl(url)); setShowPostAttachmentMenu(false); }} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors w-full text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                <span className="font-black border border-current px-1 rounded text-[10px] flex items-center justify-center h-4">GIF</span> GIF
-            </button>
-            <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}>
-                <PaperclipIcon size={16} /> Adjuntar Documento
-                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" className="hidden" onChange={(e) => { handlePostLocalFileUpload(e); setShowPostAttachmentMenu(false); }} />
-            </label>
-        </div>
-    )}
-</div>
-
-                    {hasAiModified && <button type="button" onClick={() => { setTaskTitle(prevTaskTitle); setTaskDesc(prevTaskDesc); setHasAiModified(false); }} className="bg-white/50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 transition-all flex items-center gap-1 ml-auto"><Undo2 size={16} /> Deshacer</button>}
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 items-center bg-white/30 p-4 rounded-xl border border-white/40">
-                    {postType === 'task' && (
-                        <>
-                            <div><label className="text-xs font-bold text-gray-700 block">Fecha límite</label><input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} className={`${glassInput} py-2`} required /></div>
-                            <div><label className="text-xs font-bold text-gray-700 block">Hora límite</label><input type="time" value={taskTime} onChange={(e) => setTaskTime(e.target.value)} className={`${glassInput} py-2`} required /></div>
-                            <label className="flex items-center gap-2 mt-4 cursor-pointer"><input type="checkbox" checked={allowLate} onChange={(e) => setAllowLate(e.target.checked)} className="w-5 h-5 accent-[#AD3333]" /><span className="text-sm font-bold text-gray-800">Permitir entregas tardías</span></label>
-                        </>
-                    )}
-                    
-                    <button type="button" onClick={async () => {
-                      if(taskTitle && taskDesc) {
-                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-    type: postType, title: taskTitle, description: taskDesc, 
-    authorName: loggedInName, 
-    imageUrl: postImageUrl.trim(), fileUrl: postFileUrl, fileName: postFileName,
-    dueDate: postType === 'task' ? taskDate : null, dueTime: postType === 'task' ? taskTime : null, allowLate: postType === 'task' ? allowLate : true, createdAt: Date.now(), comments: [], reactions: {} 
-});
-setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setPostFileName(""); setShowImageInput(false); setShowPostAttachmentMenu(false); setTaskDate(getToday()); setTaskTime("23:59"); setHasAiModified(false); setAllowLate(false);
-                      } else showMessage("Llena título y descripción.");
-                    }} className={`${redButton} ml-auto ${postType === 'post' ? 'mt-0' : 'mt-4'}`}>Publicar</button>
-                  </div>
-                </div>
-              )}
-              {tasks.length === 0 ? <p className="text-gray-600 italic px-4">No hay publicaciones aún.</p> : null}
-              {tasks.map(task => <TaskCard key={task.id} task={{...task, type: task.type || 'task'}} role={role} db={db} appId={appId} glassCard={glassCard} glassInput={glassInput} callGemini={callGemini} currentUser={user} showMessage={showMessage} loggedInName={loggedInName} isDarkMode={isDarkMode} confirmAction={confirmAction} />)}
-            </div>
-          );
+          
 
           const renderReviews = () => {
             if (draftReview) {
@@ -3206,7 +3220,22 @@ setTaskTitle(""); setTaskDesc(""); setPostImageUrl(""); setPostFileUrl(""); setP
 </nav>
 
               <main className="max-w-5xl mx-auto p-4 md:p-8 pb-48 md:pb-8 relative z-10">
-                {activeTab === 'tasks' && renderTasks()}
+                {activeTab === 'tasks' && (
+    <TasksTab 
+        role={role} glassCard={glassCard} glassInput={glassInput} redButton={redButton}
+        postType={postType} setPostType={setPostType} taskTitle={taskTitle} setTaskTitle={setTaskTitle}
+        taskDesc={taskDesc} setTaskDesc={setTaskDesc} showImageInput={showImageInput} setShowImageInput={setShowImageInput}
+        postImageUrl={postImageUrl} setPostImageUrl={setPostImageUrl} postFileUrl={postFileUrl} setPostFileUrl={setPostFileUrl}
+        postFileName={postFileName} setPostFileName={setPostFileName} showPostAttachmentMenu={showPostAttachmentMenu}
+        setShowPostAttachmentMenu={setShowPostAttachmentMenu} handlePostLocalFileUpload={handlePostLocalFileUpload}
+        isAiLoading={isAiLoading} setIsAiLoading={setIsAiLoading} prevTaskTitle={prevTaskTitle} setPrevTaskTitle={setPrevTaskTitle}
+        prevTaskDesc={prevTaskDesc} setPrevTaskDesc={setPrevTaskDesc} hasAiModified={hasAiModified} setHasAiModified={setHasAiModified}
+        callGemini={callGemini} showMessage={showMessage} handleAiTranslate={handleAiTranslate} taskDate={taskDate}
+        setTaskDate={setTaskDate} taskTime={taskTime} setTaskTime={setTaskTime} allowLate={allowLate} setAllowLate={setAllowLate}
+        db={db} appId={appId} loggedInName={loggedInName} getToday={getToday} tasks={tasks} user={user} isDarkMode={isDarkMode}
+        confirmAction={confirmAction} setFullScreenImage={setFullScreenImage}
+    />
+)}
                 {activeTab === 'reviews' && renderReviews()}
                 {activeTab === 'syllabus' && renderSyllabus()}
                 {activeTab === 'evaluations' && renderEvaluations()}
