@@ -519,12 +519,12 @@ const handleSaveEditedTask = async () => {
                       <input value={editTaskData.title} onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} className={`${glassInput} text-xl font-bold mb-2 p-2`} placeholder="Título..." />
                   ) : (
                       <div className="flex flex-col">
-    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+    <span className={`text-[11px] font-black uppercase tracking-wider mb-0.5 ${isDarkMode ? 'text-red-500' : 'text-blue-600'}`}>
+        {task.authorName || "Gina Marcela Quintana Delgado"}
+    </span>
+    <h3 className={`text-xl font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
       {task.title} {isLocked && <Lock size={18} className="text-red-600" />}
     </h3>
-    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-1">
-        Publicado por: {task.authorName || "Gina Marcela Quintana Delgado"}
-    </p>
 </div>
                   )}
                   {task.type !== 'post' && (
