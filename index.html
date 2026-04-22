@@ -1631,7 +1631,8 @@ useEffect(() => {
                   
                   let awayTimer;
                   let busyTimer;
-                  let pingInterval; // El marcapasos
+                  let pingInterval; 
+                  let forceOfflineTimer; // 👈 NUEVO: El contador de 24 horas
                   let currentStatus = 'offline';
 
                   const setOnline = () => {
@@ -1642,6 +1643,7 @@ useEffect(() => {
                       
                       clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
+                      clearTimeout(forceOfflineTimer); // Reiniciamos las 24h si hay actividad
                       
                       // 1 MINUTO sin hacer nada -> Ausente
                       awayTimer = setTimeout(() => {
@@ -1654,11 +1656,15 @@ useEffect(() => {
                           currentStatus = 'busy';
                           setDoc(presenceRef, { isOnline: true, status: 'busy', lastPing: Date.now() }, { merge: true }).catch(()=>{});
                       }, 3 * 60 * 1000); 
+
+                      // 24 HORAS sin interactuar -> Desconectado a la fuerza
+                      forceOfflineTimer = setTimeout(() => {
+                          handleOffline();
+                      }, 24 * 60 * 60 * 1000); 
                   };
 
                   setOnline();
 
-                  // El latido: Avisa a la base de datos cada 45 segundos que la pestaña sigue viva
                   pingInterval = setInterval(() => {
                       if (currentStatus !== 'offline') {
                           setDoc(presenceRef, { lastPing: Date.now() }, { merge: true }).catch(()=>{});
@@ -1683,6 +1689,7 @@ useEffect(() => {
                       currentStatus = 'offline';
                       clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
+                      clearTimeout(forceOfflineTimer); // Apagamos el contador
                       clearInterval(pingInterval);
                       setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true }).catch(()=>{});
                       
@@ -1706,6 +1713,7 @@ useEffect(() => {
                       clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
                       clearTimeout(throttleTimer);
+                      clearTimeout(forceOfflineTimer);
                       clearInterval(pingInterval);
                       events.forEach(e => window.removeEventListener(e, handleActivity));
                       handleOffline(); 
