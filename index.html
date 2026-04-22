@@ -3224,11 +3224,13 @@ const renderProfile = () => {
 </nav>
 
               <main className="max-w-5xl mx-auto p-4 md:p-8 pb-48 md:pb-8 relative z-10">
-                {activeTab === 'tasks' && (
-    <TasksTab 
-        handleOpenProfileByName={handleOpenProfileByName}
-        role={role} glassCard={glassCard} glassInput={glassInput} redButton={redButton}
-        postType={postType} setPostType={setPostType} taskTitle={taskTitle} setTaskTitle={setTaskTitle}
+  {activeTab === 'tasks' && (
+      <TasksTab 
+          academicGroups={academicGroups} 
+          myChatId={myChatId}
+          handleOpenProfileByName={handleOpenProfileByName}
+          role={role} glassCard={glassCard} glassInput={glassInput} redButton={redButton}
+          postType={postType} setPostType={setPostType} taskTitle={taskTitle} // ... el resto sigue igualito hacia abajo
         taskDesc={taskDesc} setTaskDesc={setTaskDesc} showImageInput={showImageInput} setShowImageInput={setShowImageInput}
         postImageUrl={postImageUrl} setPostImageUrl={setPostImageUrl} postFileUrl={postFileUrl} setPostFileUrl={setPostFileUrl}
         postFileName={postFileName} setPostFileName={setPostFileName} showPostAttachmentMenu={showPostAttachmentMenu}
