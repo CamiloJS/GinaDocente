@@ -2068,7 +2068,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
             const img = cropImageRef.current;
             
-            // Matemática exacta del recorte interactivo (evita NaN y crasheos)
+            // Matemática exacta del recorte interactivo
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                 const scale = Math.max(400 / img.naturalWidth, 400 / img.naturalHeight);
                 const w = img.naturalWidth * scale * cropZoom;
