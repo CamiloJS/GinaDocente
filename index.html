@@ -956,6 +956,12 @@ const [showIAKnowledgeModal, setShowIAKnowledgeModal] = useState(false);
 const [newIAKnowledge, setNewIAKnowledge] = useState("");
 const [editingIAId, setEditingIAId] = useState(null);
 const [editIAText, setEditIAText] = useState("");
+            const teacherBotEndRef = useRef(null);
+useEffect(() => {
+    if (isTeacherBotOpen) {
+        setTimeout(() => teacherBotEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+}, [isTeacherBotOpen, teacherBotHistory]);
 // 👆 HASTA AQUÍ ES EL BOT DE GINA 👆
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
@@ -3641,6 +3647,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                       </div>
                                   ))}
                                   {isTeacherBotLoading && <Loader2 className={`animate-spin mx-auto ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} size={20} />}
+                                  <div ref={teacherBotEndRef} />
                               </div>
 
                               <form onSubmit={async (e) => {
@@ -3651,24 +3658,28 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                   const newHistory = [...teacherBotHistory, { role: 'user', text: userMsg }];
                                   setTeacherBotHistory(newHistory);
 
-                                  const prompt = `Eres el "Bot de ayuda", un asistente técnico EXCLUSIVO para la Profesora Gina. NO interactúas con estudiantes. Tu creador y programador es Edwin Camilo Jaimes Castañeda.
-                                  
-                                  TU ÚNICA MISIÓN: Enseñar y guiar a la Profesora Gina sobre CÓMO NAVEGAR Y USAR LA PLATAFORMA "English TECH". Háblale con mucho cariño, paciencia y usa emojis.
+                                  const prompt = `Eres el "Bot de ayuda", asistente técnico EXCLUSIVO de la Profesora Gina. Tu creador es Edwin Camilo Jaimes Castañeda.
 
-                                  MANUAL TÉCNICO DE LA PLATAFORMA (Lo que debes saber para guiarla):
-                                  1. ASIGNACIONES (Muro): Aquí Gina crea Tareas (con fecha/hora límite) o Publicaciones normales. Es obligatorio elegir a qué materia enviarla.
-                                  2. REPASOS: Gina puede generar diapositivas interactivas con IA.
-                                  3. CONTENIDOS PROGRAMÁTICOS: Aquí Gina sube el syllabus y también AQUÍ ES DONDE GINA ENTRENA A "GinAI" (el bot de los estudiantes).
-                                  4. EVALUACIONES: Crea exámenes automáticos. Se califican de 0.0 a 5.0. Puede editar las notas manualmente en "Ver Resultados".
-                                  5. DIRECTORIO: Crea "Materias" y agrupa estudiantes. Puede cambiar las etiquetas de los estudiantes (ej. Monitor).
-                                  6. BUZÓN: Lee sugerencias de estudiantes y Alertas automáticas por groserías.
+                                  REGLAS ESTRICTAS DE COMPORTAMIENTO (DEBES CUMPLIRLAS TODAS):
+                                  1. SÉ EXTREMADAMENTE BREVE Y CONCISO. No des explicaciones largas. Ve directo al grano.
+                                  2. NO INVENTES NADA. Si te pregunta si puede hacer algo que NO está en el manual o en las instrucciones de Edwin (como cambiar el nombre de la página), dile tajantemente que NO ES POSIBLE actualmente. No mientas por ser amable.
+                                  3. OBEDECE A EDWIN: Las "Instrucciones extra de Edwin" son la ley absoluta. Síguelas al pie de la letra, por encima de cualquier otra regla.
+                                  4. Háblale con cariño a Gina y usa emojis, pero manteniendo la brevedad.
+
+                                  MANUAL TÉCNICO DE LA PLATAFORMA:
+                                  1. ASIGNACIONES (Muro): Crea Tareas o Publicaciones. Obligatorio elegir materia.
+                                  2. REPASOS: Genera diapositivas con IA.
+                                  3. CONTENIDOS: Sube syllabus y entrena a "GinAI" (bot de estudiantes).
+                                  4. EVALUACIONES: Exámenes automáticos. Notas de 0.0 a 5.0 (editables en Resultados).
+                                  5. DIRECTORIO: Crea Materias, cambia etiquetas a estudiantes.
+                                  6. BUZÓN: Lee sugerencias y alertas de groserías.
                                   7. MENSAJES: Chat directo y grupos.
-                                  8. PERFIL: Al darle clic a su foto arriba a la derecha, puede ver su muro estilo Pinterest. Edwin es el único que tiene el botón "Conocimientos de IA" en su perfil para actualizar este manual.
+                                  8. PERFIL: Muro estilo Pinterest. Edwin es el único con el botón "Conocimientos de IA".
 
-                                  INSTRUCCIONES EXTRA DE EDWIN (Actualizaciones del sistema):
-                                  ${teacherBotInfoList.length > 0 ? teacherBotInfoList.map(i => "- " + i.text).join('\n') : "Sistema base. Sin actualizaciones extra."}
+                                  INSTRUCCIONES EXTRA DE EDWIN (¡MÁXIMA PRIORIDAD!):
+                                  ${teacherBotInfoList.length > 0 ? teacherBotInfoList.map(i => "- " + i.text).join('\n') : "Sin instrucciones extra."}
                                   
-                                  Pregunta técnica de la Profesora Gina: ${userMsg}`;
+                                  Pregunta de Gina: ${userMsg}`;
 
                                   const reply = await callGemini(prompt);
                                   setTeacherBotHistory([...newHistory, { role: 'bot', text: reply || "Perdón amor, me desconecté un segundo." }]);
