@@ -946,6 +946,15 @@ const [isDraggingCrop, setIsDraggingCrop] = useState(false);
 const cropDragStart = useRef({ x: 0, y: 0 });
 const cropImageRef = useRef(null);
 const cropContainerRef = useRef(null);
+            // BOT DE GINA
+const [isTeacherBotOpen, setIsTeacherBotOpen] = useState(false);
+const [teacherBotHistory, setTeacherBotHistory] = useState([]);
+const [teacherBotInput, setTeacherBotInput] = useState("");
+const [teacherBotInfoList, setTeacherBotInfoList] = useState([]);
+const [isTeacherBotLoading, setIsTeacherBotLoading] = useState(false);
+const [showIAKnowledgeModal, setShowIAKnowledgeModal] = useState(false);
+const [newIAKnowledge, setNewIAKnowledge] = useState("");
+// 👆 HASTA AQUÍ ES EL BOT DE GINA 👆
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
@@ -1520,7 +1529,10 @@ useEffect(() => {
         const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
     });
 
-   return () => { uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uAcad(); };
+    // Listener para el conocimiento del bot de la profe
+    const uTeacherBot = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), d => setTeacherBotInfoList(d.data()?.infoList || []));
+
+   return () => { uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uAcad(); uTeacherBot(); };
 }, [user, myChatId]);
 
 // 2. PESTAÑA: ASIGNACIONES (Muro de clase)
@@ -3392,6 +3404,13 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                 ::-webkit-scrollbar-button {
                     display: none !important;
                 }
+
+                @keyframes teacher-bot-glow {
+                    0%, 100% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.3); transform: scale(1); }
+                    50% { box-shadow: 0 0 25px 10px rgba(255,255,255,0.7); transform: scale(1.05); }
+                }
+                .animate-teacher-bot { animation: teacher-bot-glow 3s ease-in-out infinite; }
+
               `}</style>
               
               <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-[#AD3333]/15 rounded-full blur-[100px] pointer-events-none" />
@@ -3457,6 +3476,15 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                           <Mail size={18} /> Sugerencias
                       </button>
                   )}
+
+                  {/* 👇 AQUÍ VA EL BOTÓN EXCLUSIVO DE EDWIN 👇 */}
+                  {loggedInName === "Edwin Camilo Jaimes Castañeda" && (
+                      <button onClick={() => { setShowIAKnowledgeModal(true); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors bg-purple-50 text-purple-700 hover:bg-purple-100`}>
+                          <Sparkles size={18} /> Conocimientos de IA
+                      </button>
+                  )}
+                  {/* 👆 HASTA AQUÍ 👆 */}
+
               </div>
           </div>
       )}
@@ -3549,7 +3577,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                           </div>
                       )}
                       
-                      <button 
+                      <button
                           onClick={() => setIsChatOpen(!isChatOpen)} 
                           className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none ${!isChatOpen ? 'bot-idle-animated' : 'transition-all duration-300 bg-white/40 border border-white/60 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] text-gray-700 hover:scale-110 hover:bg-white/60 backdrop-blur-2xl'}`}
                       >
@@ -3557,6 +3585,63 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                       </button>
                   </div>
               )}
+
+              {/* 👇 AQUÍ EMPIEZA EL BOT DE LA PROFESORA 👇 */}
+              {role === 'teacher' && hasEntered && (
+                  <div className="fixed bottom-[180px] md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
+                      {isTeacherBotOpen && (
+                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border-white/80 bg-white/40 shadow-2xl`}>
+                              <div className="flex justify-between items-center mb-3 border-b border-white/50 pb-3">
+                                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                      <CuteBotIcon size={24} className="text-blue-600" /> Bot de ayuda
+                                  </h3>
+                                  <button onClick={() => setIsTeacherBotOpen(false)} className="text-gray-500 hover:text-red-500 bg-white/40 p-1.5 rounded-full"><X size={16}/></button>
+                              </div>
+                              
+                              <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
+                                  <div className="bg-white/80 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none shadow-sm font-medium border border-blue-100">
+                                      Hola amorcito, este bot lo programé para que te ayude por si te pierdes con la página. 
+                                  </div>
+                                  {teacherBotHistory.map((m, i) => (
+                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-white text-blue-900 rounded-tl-none border border-blue-50'}`}>
+                                          {m.text}
+                                      </div>
+                                  ))}
+                                  {isTeacherBotLoading && <Loader2 className="animate-spin text-blue-600 mx-auto" size={20} />}
+                              </div>
+
+                              <form onSubmit={async (e) => {
+                                  e.preventDefault();
+                                  if (!teacherBotInput.trim()) return;
+                                  const userMsg = teacherBotInput; setTeacherBotInput("");
+                                  setIsTeacherBotLoading(true);
+                                  const newHistory = [...teacherBotHistory, { role: 'user', text: userMsg }];
+                                  setTeacherBotHistory(newHistory);
+
+                                  const prompt = `Eres el "Bot de ayuda" de la plataforma English TECH. Tu dueña es la Profesora Gina. 
+                                  Instrucciones de Edwin (el programador): Responde siempre con amor, paciencia y emojis. 
+                                  Tu objetivo es enseñarle a usar la página.
+                                  Conocimientos actuales de la página:
+                                  ${teacherBotInfoList.map(i => "- " + i.text).join('\n')}
+                                  
+                                  Pregunta de la Profe: ${userMsg}`;
+
+                                  const reply = await callGemini(prompt);
+                                  setTeacherBotHistory([...newHistory, { role: 'bot', text: reply || "Perdón amor, me desconecté un segundo." }]);
+                                  setIsTeacherBotLoading(false);
+                              }} className="flex gap-2">
+                                  <input value={teacherBotInput} onChange={e => setTeacherBotInput(e.target.value)} placeholder="¿En qué te ayudo, Gina?" className={`${glassInput} py-2 px-3 text-sm bg-white/80`} />
+                                  <button type="submit" className="bg-blue-600 text-white p-2.5 rounded-xl"><ArrowRightIcon size={16}/></button>
+                              </form>
+                          </div>
+                      )}
+                      
+                      <button onClick={() => setIsTeacherBotOpen(!isTeacherBotOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none backdrop-blur-2xl border-2 border-white/90 bg-white/50 text-blue-600 shadow-white/50 animate-teacher-bot`}>
+                          <CuteBotIcon size={32} />
+                      </button>
+                  </div>
+              )}
+              {/* 👆 AQUÍ TERMINA EL BOT DE LA PROFESORA 👆 */}
 
               {/* BOTÓN Y MODAL DE CHAT DIRECTO Y GRUPOS */}
               {hasEntered && (
@@ -4221,12 +4306,47 @@ tickIcon = (
                           </h3>
                           <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{confirmDialog.message}</p>
                           <div className="flex gap-3 mt-4">
-                              <button onClick={() => setConfirmDialog({ isOpen: false })} className={`flex-1 py-2.5 rounded-xl font-bold transition-all shadow-sm ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'}`}>Cancelar</button>
-                              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false }); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition-all shadow-md">Sí, borrar</button>
+                                  <button onClick={() => setConfirmDialog({ isOpen: false })} className={`flex-1 py-2.5 rounded-xl font-bold transition-all shadow-sm ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'}`}>Cancelar</button>
+                                  <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ isOpen: false }); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition-all shadow-md">Sí, borrar</button>
+                              </div>
                           </div>
                       </div>
-                  </div>
-              , document.body)}
+                  , document.body)}
+
+                  {/* 👇 AQUÍ VA EL CEREBRO DEL BOT PARA EDWIN 👇 */}
+                  {showIAKnowledgeModal && ReactDOM.createPortal(
+                      <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                          <div className={`${glassCard} max-w-md w-full flex flex-col gap-4 relative bg-white`}>
+                              <button onClick={() => setShowIAKnowledgeModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500"><X size={20}/></button>
+                              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Sparkles className="text-purple-600"/> Cerebro del Bot de Ayuda</h3>
+                              <p className="text-xs text-gray-500">Edwin, aquí puede escribir cómo funciona la página para que el robot se lo explique a la Profe Gina.</p>
+                              
+                              <div className="max-h-60 overflow-y-auto space-y-2">
+                                  {teacherBotInfoList.map(item => (
+                                      <div key={item.id} className="bg-gray-50 p-2 rounded-lg text-xs flex justify-between gap-2 border border-gray-100">
+                                          <span className="flex-1">{item.text}</span>
+                                          <button onClick={() => {
+                                              const newList = teacherBotInfoList.filter(i => i.id !== item.id);
+                                              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
+                                          }} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                                      </div>
+                                  ))}
+                              </div>
+
+                              <div className="flex gap-2">
+                                  <textarea value={newIAKnowledge} onChange={e => setNewIAKnowledge(e.target.value)} placeholder="Ej: Para agregar un estudiante, Gina debe ir a Directorio y llenar el formulario..." className={`${glassInput} h-20 text-xs resize-none`} />
+                                  <button onClick={() => {
+                                      if(!newIAKnowledge.trim()) return;
+                                      const newList = [...teacherBotInfoList, { id: Date.now().toString(), text: newIAKnowledge.trim() }];
+                                      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
+                                      setNewIAKnowledge("");
+                                  }} className={`${redButton} h-auto px-4 !bg-purple-600`}><Plus size={16}/></button>
+                              </div>
+                          </div>
+                      </div>
+                  , document.body)}
+                  {/* 👆 HASTA AQUÍ 👆 */}
+
             </div>
           );
         }
@@ -4236,8 +4356,3 @@ tickIcon = (
     </script>
 </body>
 </html>
-
-
-
-
-
