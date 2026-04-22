@@ -1720,15 +1720,25 @@ useEffect(() => {
             
           const allChatUsers = [
               { id: 'teacher', name: TEACHER_NAME, role: 'teacher' },
-              ...Object.entries(userMappings).map(([id, data]) => ({ id, name: data.fullName, role: data.role, customLabel: data.customLabel })),
-              ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ id, name: data.name, role: data.role, customLabel: data.customLabel }))
+              ...Object.entries(userMappings || {}).map(([id, data]) => ({ 
+                  id, 
+                  name: data?.fullName || FALLBACK_MAP[id]?.name || id, 
+                  role: data?.role || 'student', 
+                  customLabel: data?.customLabel || "" 
+              })),
+              ...Object.entries(FALLBACK_MAP).filter(([id, data]) => data.role !== 'teacher' && !userMappings[id]).map(([id, data]) => ({ 
+                  id, 
+                  name: data.name, 
+                  role: data.role, 
+                  customLabel: data.customLabel || "" 
+              }))
           ].filter(u => u.id !== myChatId); 
 
           const myGroups = chatGroups.filter(g => g.members?.includes(myChatId));
 
-          // FILTRAR POR BUSCADOR
-          const filteredUsers = allChatUsers.filter(u => u.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
-          const filteredGroups = myGroups.filter(g => g.name.toLowerCase().includes(chatSearchTerm.toLowerCase()));
+          // FILTRAR POR BUSCADOR (BLINDADO CONTRA TEXTOS VACÍOS)
+          const filteredUsers = allChatUsers.filter(u => (u.name || "").toLowerCase().includes((chatSearchTerm || "").toLowerCase()));
+          const filteredGroups = myGroups.filter(g => (g.name || "").toLowerCase().includes((chatSearchTerm || "").toLowerCase()));
             const activeChatsUsers = filteredUsers.filter(u => lastMessages[`dm_${[myChatId, u.id].sort().join('_')}`]);
           const otherContactsUsers = filteredUsers.filter(u => !lastMessages[`dm_${[myChatId, u.id].sort().join('_')}`]);
 
