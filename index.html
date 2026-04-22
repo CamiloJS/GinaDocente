@@ -954,6 +954,8 @@ const [teacherBotInfoList, setTeacherBotInfoList] = useState([]);
 const [isTeacherBotLoading, setIsTeacherBotLoading] = useState(false);
 const [showIAKnowledgeModal, setShowIAKnowledgeModal] = useState(false);
 const [newIAKnowledge, setNewIAKnowledge] = useState("");
+const [editingIAId, setEditingIAId] = useState(null);
+const [editIAText, setEditIAText] = useState("");
 // 👆 HASTA AQUÍ ES EL BOT DE GINA 👆
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
@@ -3649,13 +3651,24 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                   const newHistory = [...teacherBotHistory, { role: 'user', text: userMsg }];
                                   setTeacherBotHistory(newHistory);
 
-                                  const prompt = `Eres el "Bot de ayuda" de la plataforma English TECH. Tu dueña es la Profesora Gina. 
-                                  Instrucciones de Edwin (el programador): Responde siempre con amor, paciencia y emojis. 
-                                  Tu objetivo es enseñarle a usar la página.
-                                  Conocimientos actuales de la página:
-                                  ${teacherBotInfoList.map(i => "- " + i.text).join('\n')}
+                                  const prompt = `Eres el "Bot de ayuda", un asistente técnico EXCLUSIVO para la Profesora Gina. NO interactúas con estudiantes. Tu creador y programador es Edwin Camilo Jaimes Castañeda.
                                   
-                                  Pregunta de la Profe: ${userMsg}`;
+                                  TU ÚNICA MISIÓN: Enseñar y guiar a la Profesora Gina sobre CÓMO NAVEGAR Y USAR LA PLATAFORMA "English TECH". Háblale con mucho cariño, paciencia y usa emojis.
+
+                                  MANUAL TÉCNICO DE LA PLATAFORMA (Lo que debes saber para guiarla):
+                                  1. ASIGNACIONES (Muro): Aquí Gina crea Tareas (con fecha/hora límite) o Publicaciones normales. Es obligatorio elegir a qué materia enviarla.
+                                  2. REPASOS: Gina puede generar diapositivas interactivas con IA.
+                                  3. CONTENIDOS PROGRAMÁTICOS: Aquí Gina sube el syllabus y también AQUÍ ES DONDE GINA ENTRENA A "GinAI" (el bot de los estudiantes).
+                                  4. EVALUACIONES: Crea exámenes automáticos. Se califican de 0.0 a 5.0. Puede editar las notas manualmente en "Ver Resultados".
+                                  5. DIRECTORIO: Crea "Materias" y agrupa estudiantes. Puede cambiar las etiquetas de los estudiantes (ej. Monitor).
+                                  6. BUZÓN: Lee sugerencias de estudiantes y Alertas automáticas por groserías.
+                                  7. MENSAJES: Chat directo y grupos.
+                                  8. PERFIL: Al darle clic a su foto arriba a la derecha, puede ver su muro estilo Pinterest. Edwin es el único que tiene el botón "Conocimientos de IA" en su perfil para actualizar este manual.
+
+                                  INSTRUCCIONES EXTRA DE EDWIN (Actualizaciones del sistema):
+                                  ${teacherBotInfoList.length > 0 ? teacherBotInfoList.map(i => "- " + i.text).join('\n') : "Sistema base. Sin actualizaciones extra."}
+                                  
+                                  Pregunta técnica de la Profesora Gina: ${userMsg}`;
 
                                   const reply = await callGemini(prompt);
                                   setTeacherBotHistory([...newHistory, { role: 'bot', text: reply || "Perdón amor, me desconecté un segundo." }]);
@@ -4358,26 +4371,51 @@ tickIcon = (
                               <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Sparkles className="text-purple-600"/> Cerebro del Bot de Ayuda</h3>
                               <p className="text-xs text-gray-500">Edwin, aquí puede escribir cómo funciona la página para que el robot se lo explique a la Profe Gina.</p>
                               
-                              <div className="max-h-60 overflow-y-auto space-y-2">
-                                  {teacherBotInfoList.map(item => (
-                                      <div key={item.id} className="bg-gray-50 p-2 rounded-lg text-xs flex justify-between gap-2 border border-gray-100">
-                                          <span className="flex-1">{item.text}</span>
-                                          <button onClick={() => {
-                                              const newList = teacherBotInfoList.filter(i => i.id !== item.id);
-                                              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
-                                          }} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                              <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
+                                  {teacherBotInfoList.map(item => {
+                                      const isEditing = editingIAId === item.id;
+                                      return (
+                                      <div key={item.id} className="bg-gray-50 p-3 rounded-xl text-xs flex justify-between items-start gap-3 border border-gray-200 shadow-sm">
+                                          {isEditing ? (
+                                              <div className="flex flex-col gap-2 w-full">
+                                                  <textarea value={editIAText} onChange={e => setEditIAText(e.target.value)} className={`${glassInput} h-24 text-xs resize-none bg-white`} autoFocus />
+                                                  <div className="flex gap-3 justify-end">
+                                                      <button onClick={() => setEditingIAId(null)} className="text-gray-500 hover:text-red-500 transition-colors bg-gray-200 p-1.5 rounded-lg" title="Cancelar"><XLine size={16}/></button>
+                                                      <button onClick={() => {
+                                                          if(!editIAText.trim()) return;
+                                                          const newList = teacherBotInfoList.map(i => i.id === item.id ? { ...i, text: editIAText.trim() } : i);
+                                                          setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
+                                                          setEditingIAId(null);
+                                                      }} className="text-white bg-green-600 hover:bg-green-700 transition-colors p-1.5 rounded-lg" title="Guardar"><CheckLine size={16}/></button>
+                                                  </div>
+                                              </div>
+                                          ) : (
+                                              <>
+                                                  <span className="flex-1 whitespace-pre-wrap leading-relaxed text-gray-700">{item.text}</span>
+                                                  <div className="flex gap-2 shrink-0">
+                                                      <button onClick={() => {setEditingIAId(item.id); setEditIAText(item.text);}} className="text-blue-500 hover:text-blue-700 transition-colors bg-blue-100 p-1.5 rounded-lg" title="Editar"><Edit3 size={14}/></button>
+                                                      <button onClick={() => {
+                                                          confirmAction("¿Seguro que desea borrar este conocimiento?", () => {
+                                                              const newList = teacherBotInfoList.filter(i => i.id !== item.id);
+                                                              setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
+                                                          });
+                                                      }} className="text-red-500 hover:text-red-700 transition-colors bg-red-100 p-1.5 rounded-lg" title="Eliminar"><Trash2 size={14}/></button>
+                                                  </div>
+                                              </>
+                                          )}
                                       </div>
-                                  ))}
+                                  )})}
+                                  {teacherBotInfoList.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No hay conocimientos guardados aún.</p>}
                               </div>
 
-                              <div className="flex gap-2">
-                                  <textarea value={newIAKnowledge} onChange={e => setNewIAKnowledge(e.target.value)} placeholder="Ej: Para agregar un estudiante, Gina debe ir a Directorio y llenar el formulario..." className={`${glassInput} h-20 text-xs resize-none`} />
+                              <div className="flex gap-2 pt-2 border-t border-gray-100">
+                                  <textarea value={newIAKnowledge} onChange={e => setNewIAKnowledge(e.target.value)} placeholder="Añadir nuevo conocimiento a la IA..." className={`${glassInput} h-14 text-xs resize-none`} />
                                   <button onClick={() => {
                                       if(!newIAKnowledge.trim()) return;
                                       const newList = [...teacherBotInfoList, { id: Date.now().toString(), text: newIAKnowledge.trim() }];
                                       setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), { infoList: newList });
                                       setNewIAKnowledge("");
-                                  }} className={`${redButton} h-auto px-4 !bg-purple-600`}><Plus size={16}/></button>
+                                  }} className={`${redButton} h-auto px-4 !bg-purple-600 hover:!bg-purple-700`}><Plus size={18}/></button>
                               </div>
                           </div>
                       </div>
