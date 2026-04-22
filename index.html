@@ -3405,11 +3405,16 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                     display: none !important;
                 }
 
-                @keyframes teacher-bot-glow {
-                    0%, 100% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.3); transform: scale(1); }
-                    50% { box-shadow: 0 0 25px 10px rgba(255,255,255,0.7); transform: scale(1.05); }
+                @keyframes teacher-bot-glow-dark {
+                    0%, 100% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.4); transform: scale(1); }
+                    50% { box-shadow: 0 0 20px 8px rgba(255,255,255,0.8); transform: scale(1.05); }
                 }
-                .animate-teacher-bot { animation: teacher-bot-glow 3s ease-in-out infinite; }
+                @keyframes teacher-bot-glow-light {
+                    0%, 100% { box-shadow: 0 0 5px 2px rgba(0,0,0,0.4); transform: scale(1); }
+                    50% { box-shadow: 0 0 20px 8px rgba(0,0,0,0.8); transform: scale(1.05); }
+                }
+                .dark-mode .animate-teacher-bot { animation: teacher-bot-glow-dark 2.5s ease-in-out infinite; }
+                body:not(.dark-mode) .animate-teacher-bot { animation: teacher-bot-glow-light 2.5s ease-in-out infinite; }
 
               `}</style>
               
@@ -3590,24 +3595,24 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               {role === 'teacher' && hasEntered && (
                   <div className="fixed bottom-[180px] md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
                       {isTeacherBotOpen && (
-                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border-white/80 bg-white/40 shadow-2xl`}>
-                              <div className="flex justify-between items-center mb-3 border-b border-white/50 pb-3">
-                                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                      <CuteBotIcon size={24} className="text-blue-600" /> Bot de ayuda
+                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in shadow-2xl ${isDarkMode ? 'bg-gray-900/95 border-gray-700' : 'bg-white/95 border-gray-200'}`}>
+                              <div className={`flex justify-between items-center mb-3 border-b pb-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                                  <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                                      <CuteBotIcon size={24} className={isDarkMode ? 'text-blue-400' : 'text-blue-600'} /> Bot de ayuda
                                   </h3>
-                                  <button onClick={() => setIsTeacherBotOpen(false)} className="text-gray-500 hover:text-red-500 bg-white/40 p-1.5 rounded-full"><X size={16}/></button>
+                                  <button onClick={() => setIsTeacherBotOpen(false)} className={`p-1.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400 hover:bg-gray-800' : 'text-gray-500 hover:text-red-500 hover:bg-gray-100'}`}><X size={16}/></button>
                               </div>
                               
                               <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
-                                  <div className="bg-white/80 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none shadow-sm font-medium border border-blue-100">
-                                      Hola amorcito, este bot lo programé para que te ayude por si te pierdes con la página. 
+                                  <div className={`text-sm p-3 rounded-xl rounded-tl-none shadow-sm font-medium border ${isDarkMode ? 'bg-gray-800 text-blue-300 border-gray-700' : 'bg-blue-50 text-blue-900 border-blue-100'}`}>
+                                      Hola amorcito, este bot lo programé para que te ayude por si te pierdes con la página. ❤️
                                   </div>
                                   {teacherBotHistory.map((m, i) => (
-                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-white text-blue-900 rounded-tl-none border border-blue-50'}`}>
+                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? (isDarkMode ? 'bg-blue-600 text-white ml-auto rounded-tr-none' : 'bg-gray-800 text-white ml-auto rounded-tr-none') : (isDarkMode ? 'bg-gray-800 text-blue-300 rounded-tl-none border border-gray-700' : 'bg-blue-50 text-blue-900 rounded-tl-none border border-blue-100')}`}>
                                           {m.text}
                                       </div>
                                   ))}
-                                  {isTeacherBotLoading && <Loader2 className="animate-spin text-blue-600 mx-auto" size={20} />}
+                                  {isTeacherBotLoading && <Loader2 className={`animate-spin mx-auto ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} size={20} />}
                               </div>
 
                               <form onSubmit={async (e) => {
@@ -3630,13 +3635,13 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                   setTeacherBotHistory([...newHistory, { role: 'bot', text: reply || "Perdón amor, me desconecté un segundo." }]);
                                   setIsTeacherBotLoading(false);
                               }} className="flex gap-2">
-                                  <input value={teacherBotInput} onChange={e => setTeacherBotInput(e.target.value)} placeholder="¿En qué te ayudo, Gina?" className={`${glassInput} py-2 px-3 text-sm bg-white/80`} />
-                                  <button type="submit" className="bg-blue-600 text-white p-2.5 rounded-xl"><ArrowRightIcon size={16}/></button>
+                                  <input value={teacherBotInput} onChange={e => setTeacherBotInput(e.target.value)} placeholder="¿En qué te ayudo, Gina?" className={`flex-1 py-2 px-3 text-sm rounded-xl outline-none border focus:ring-2 transition-all ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-100 focus:ring-blue-500/50 placeholder-gray-500' : 'bg-gray-100 border-gray-300 text-gray-900 focus:ring-blue-400/50 placeholder-gray-500'}`} />
+                                  <button type="submit" disabled={isTeacherBotLoading} className={`p-2.5 rounded-xl transition-all shadow-md flex items-center justify-center disabled:opacity-50 ${isDarkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-800 text-white hover:bg-black'}`}><ArrowRightIcon size={16}/></button>
                               </form>
                           </div>
                       )}
                       
-                      <button onClick={() => setIsTeacherBotOpen(!isTeacherBotOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none backdrop-blur-2xl border-2 border-white/90 bg-white/50 text-blue-600 shadow-white/50 animate-teacher-bot`}>
+                      <button onClick={() => setIsTeacherBotOpen(!isTeacherBotOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none backdrop-blur-2xl border-2 transition-colors animate-teacher-bot ${isDarkMode ? 'bg-white text-gray-900 border-white' : 'bg-gray-900 text-white border-gray-900'}`}>
                           <CuteBotIcon size={32} />
                       </button>
                   </div>
