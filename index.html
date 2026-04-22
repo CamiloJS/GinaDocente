@@ -1165,6 +1165,7 @@ const handleOpenProfileByName = (name) => {
           const [isCreatingGroup, setIsCreatingGroup] = useState(false);
           const [academicGroups, setAcademicGroups] = useState([]);
             const [isCreatingAcadGroup, setIsCreatingAcadGroup] = useState(false);
+            const [isSavingMateria, setIsSavingMateria] = useState(false);
             const [newAcadGroupName, setNewAcadGroupName] = useState("");
             const [selectedAcadMembers, setSelectedAcadMembers] = useState([]);
           const [newGroupName, setNewGroupName] = useState("");
@@ -1549,7 +1550,24 @@ useEffect(() => {
     const uPresence = onSnapshot(collection(db, ...base, 'presence'), s => {
         const p = {}; s.docs.forEach(d => p[d.id] = d.data()); setUserPresence(p);
     });
-    
+
+    // 👇 NUEVO: Cazafantasmas (Revisa los latidos cada 30 seg) 👇
+    const ghostInterval = setInterval(() => {
+        setUserPresence(prev => {
+            const now = Date.now();
+            let changed = false;
+            const newP = { ...prev };
+            Object.keys(newP).forEach(k => {
+                // Si pasaron más de 90 seg sin latido, lo marca desconectado a la fuerza
+                if (newP[k].status !== 'offline' && newP[k].lastPing && (now - newP[k].lastPing > 90000)) {
+                    newP[k] = { ...newP[k], status: 'offline', isOnline: false };
+                    changed = true;
+                }
+            });
+            return changed ? newP : prev;
+        });
+    }, 30000);
+
     const uTyping = onSnapshot(collection(db, ...base, 'typing'), s => {
         const t = {}; s.docs.forEach(d => t[d.id] = d.data()); setTypingStatus(t);
     });
@@ -1557,7 +1575,7 @@ useEffect(() => {
     // Listener para el conocimiento del bot de la profe
     const uTeacherBot = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'teacherBot'), d => setTeacherBotInfoList(d.data()?.infoList || []));
 
-   return () => { uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uAcad(); uTeacherBot(); };
+   return () => { uBotSettings(); uChat(); uGroups(); uUnread(); uLastMsgs(); uChatPrefs(); uPresence(); uTyping(); uAcad(); uTeacherBot(); clearInterval(ghostInterval); };
 }, [user, myChatId]);
 
 // 2. PESTAÑA: ASIGNACIONES (Muro de clase)
@@ -1613,38 +1631,45 @@ useEffect(() => {
                   
                   let awayTimer;
                   let busyTimer;
+                  let pingInterval; // El marcapasos
                   let currentStatus = 'offline';
 
                   const setOnline = () => {
                       if (currentStatus !== 'online') {
                           currentStatus = 'online';
-                          setDoc(presenceRef, { isOnline: true, status: 'online' }, { merge: true });
+                          setDoc(presenceRef, { isOnline: true, status: 'online', lastPing: Date.now() }, { merge: true }).catch(()=>{});
                       }
-                      // Reiniciar los temporizadores
+                      
                       clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
                       
+                      // 1 MINUTO sin hacer nada -> Ausente
                       awayTimer = setTimeout(() => {
-    currentStatus = 'away';
-    setDoc(presenceRef, { isOnline: true, status: 'away', lastSeen: Date.now() }, { merge: true });
-}, 5 * 60 * 1000); // 5 minutos sin hacer nada -> Ausente
+                          currentStatus = 'away';
+                          setDoc(presenceRef, { isOnline: true, status: 'away', lastPing: Date.now() }, { merge: true }).catch(()=>{});
+                      }, 60 * 1000); 
 
+                      // 3 MINUTOS sin hacer nada -> Ocupado
                       busyTimer = setTimeout(() => {
-    currentStatus = 'busy';
-    setDoc(presenceRef, { isOnline: true, status: 'busy', lastSeen: Date.now() }, { merge: true });
-}, 30 * 60 * 1000); // 30 minutos sin hacer nada -> Ocupado
+                          currentStatus = 'busy';
+                          setDoc(presenceRef, { isOnline: true, status: 'busy', lastPing: Date.now() }, { merge: true }).catch(()=>{});
+                      }, 3 * 60 * 1000); 
                   };
 
-                  // Iniciar al entrar
                   setOnline();
 
-                  // Detectar cualquier actividad del usuario
+                  // El latido: Avisa a la base de datos cada 45 segundos que la pestaña sigue viva
+                  pingInterval = setInterval(() => {
+                      if (currentStatus !== 'offline') {
+                          setDoc(presenceRef, { lastPing: Date.now() }, { merge: true }).catch(()=>{});
+                      }
+                  }, 45000);
+
                   const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
                   let throttleTimer;
                   
                   const handleActivity = () => {
                       if (throttleTimer) return;
-                      // Evitar saturar el navegador, solo reinicia los timers si pasa 1 segundo entre movimientos
                       throttleTimer = setTimeout(() => {
                           setOnline();
                           throttleTimer = null;
@@ -1653,15 +1678,14 @@ useEffect(() => {
 
                   events.forEach(e => window.addEventListener(e, handleActivity));
 
-                  // Marcar como desconectado al cerrar, minimizar o cambiar de pestaña
                   const handleOffline = () => {
-                      if (currentStatus === 'offline') return; // Evita ejecuciones repetidas
+                      if (currentStatus === 'offline') return;
                       currentStatus = 'offline';
-                      clearTimeout(awayTimer); // Fundamental: Matar los temporizadores para que no "revivan" al volver
+                      clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
-                      setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true });
+                      clearInterval(pingInterval);
+                      setDoc(presenceRef, { isOnline: false, status: 'offline', lastSeen: Date.now() }, { merge: true }).catch(()=>{});
                       
-                      // FIX BUG "Escribiendo...": Apagar si cierran la app mientras teclean
                       if (window.currentChatViewId) {
                           setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'typing', window.currentChatViewId), { [myChatId]: false }, { merge: true }).catch(()=>{});
                       }
@@ -1672,7 +1696,6 @@ useEffect(() => {
                       else setOnline();
                   };
 
-                  // Eventos súper robustos combinados para PC y Celular
                   window.addEventListener('focus', setOnline);
                   window.addEventListener('blur', handleOffline);
                   window.addEventListener('beforeunload', handleOffline);
@@ -1683,6 +1706,7 @@ useEffect(() => {
                       clearTimeout(awayTimer);
                       clearTimeout(busyTimer);
                       clearTimeout(throttleTimer);
+                      clearInterval(pingInterval);
                       events.forEach(e => window.removeEventListener(e, handleActivity));
                       handleOffline(); 
                       window.removeEventListener('focus', setOnline);
@@ -2647,29 +2671,24 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
         e.preventDefault();
         if(!newAcadGroupName.trim() || selectedAcadMembers.length === 0) return showMessage("⚠️ Escribe un nombre y selecciona estudiantes.");
         
-        setIsSavingMateria(true); // 🟢 1. Enciende el botón de carga
+        setIsSavingMateria(true);
         
         try {
-            // 2. Intenta guardar en la base de datos
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'academicGroups'), {
                 name: newAcadGroupName.trim(),
                 members: selectedAcadMembers,
                 createdAt: Date.now()
             });
-            
-            // 3. Si se guardó bien, limpia todo
             setNewAcadGroupName(""); 
             setSelectedAcadMembers([]); 
             setIsCreatingAcadGroup(false);
             showMessage("✅ Materia creada exitosamente.");
-            
         } catch (error) {
-            // 🔴 4. Si hay un error (ej. se cae el internet), avisa y no se traba
             console.error(error);
             showMessage("❌ Hubo un error al guardar. Revisa tu conexión.");
         }
         
-        setIsSavingMateria(false); // 5. Apaga el botón de carga al terminar
+        setIsSavingMateria(false);
     };
 
     return (
