@@ -1217,7 +1217,14 @@ const handleOpenProfileByName = (name) => {
               const accs = JSON.parse(localStorage.getItem('englishTech_savedAccounts') || '[]');
               setSavedAccounts(accs);
           }, []);
-
+            const formatBotText = (text) => {
+              if (!text) return "";
+              return text.split(/(\*\*.*?\*\*)/g).map((part, index) => 
+                  part.startsWith('**') && part.endsWith('**') 
+                      ? <strong key={index} className="font-black">{part.slice(2, -2)}</strong> 
+                      : <span key={index}>{part}</span>
+              );
+          };
           const callGemini = async (promptText) => {
             try {
               const res = await fetch('/api/gemini', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ promptText: promptText }) });
@@ -3562,7 +3569,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               {(role === 'student' || myChatId === 'camilopruebas') && hasEntered && (
                   <div className="fixed bottom-[180px] md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
                       {isChatOpen && (
-                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border border-white/60 shadow-2xl`}>
+                          <div className={`${glassCard} w-[90vw] sm:w-[400px] md:w-[480px] h-[500px] md:h-[600px] max-h-[75vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in border border-white/60 shadow-2xl`}>
                               <div className="flex justify-between items-center mb-3 border-b border-gray-300/30 pb-3">
                                   <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                       <CuteBotIcon size={24} className="text-gray-700" /> GinAI
@@ -3571,12 +3578,12 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                               </div>
                               
                               <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
-                                  <div className="bg-blue-100 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm">
+                                  <div className="bg-blue-100 text-blue-900 text-sm p-3 rounded-xl rounded-tl-none w-10/12 shadow-sm whitespace-pre-wrap leading-relaxed">
                                       Hola, soy el asistente de la profesora Gina, estoy aquí para resolver tus dudas sobre las materias que estás viendo con ella.
                                   </div>
                                   {chatHistory.map((m, i) => (
-                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
-                                          {m.text}
+                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm whitespace-pre-wrap leading-relaxed ${m.role === 'user' ? 'bg-gray-800 text-white ml-auto rounded-tr-none' : 'bg-blue-100 text-blue-900 rounded-tl-none'}`}>
+                                          {formatBotText(m.text)}
                                       </div>
                                   ))}
                                   {isChatLoading && (
@@ -3614,7 +3621,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
               {role === 'teacher' && hasEntered && (
                   <div className="fixed bottom-[180px] md:bottom-28 right-4 md:right-6 z-[100] flex flex-col items-end">
                       {isTeacherBotOpen && (
-                          <div className={`${glassCard} w-[90vw] sm:w-[350px] h-[450px] max-h-[60vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in shadow-2xl ${isDarkMode ? 'bg-gray-900/95 border-gray-700' : 'bg-white/95 border-gray-200'}`}>
+                          <div className={`${glassCard} w-[90vw] sm:w-[400px] md:w-[480px] h-[500px] md:h-[600px] max-h-[75vh] mb-4 flex flex-col p-4 animate-in slide-in-from-bottom-10 fade-in shadow-2xl ${isDarkMode ? 'bg-gray-900/95 border-gray-700' : 'bg-white/95 border-gray-200'}`}>
                               <div className={`flex justify-between items-center mb-3 border-b pb-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                                   <h3 className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                                       <CuteBotIcon size={24} className={isDarkMode ? 'text-blue-400' : 'text-blue-600'} /> Bot de ayuda
@@ -3623,12 +3630,12 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                               </div>
                               
                               <div className="flex-1 overflow-y-auto space-y-3 pr-2 mb-3">
-                                  <div className={`text-sm p-3 rounded-xl rounded-tl-none shadow-sm font-medium border ${isDarkMode ? 'bg-gray-800 text-blue-300 border-gray-700' : 'bg-blue-50 text-blue-900 border-blue-100'}`}>
+                                  <div className={`text-sm p-3 rounded-xl rounded-tl-none shadow-sm font-medium whitespace-pre-wrap leading-relaxed border ${isDarkMode ? 'bg-gray-800 text-blue-300 border-gray-700' : 'bg-blue-50 text-blue-900 border-blue-100'}`}>
                                       Hola amorcito, este bot lo programé para que te ayude por si te pierdes con la página. ❤️
                                   </div>
                                   {teacherBotHistory.map((m, i) => (
-                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm ${m.role === 'user' ? (isDarkMode ? 'bg-blue-600 text-white ml-auto rounded-tr-none' : 'bg-gray-800 text-white ml-auto rounded-tr-none') : (isDarkMode ? 'bg-gray-800 text-blue-300 rounded-tl-none border border-gray-700' : 'bg-blue-50 text-blue-900 rounded-tl-none border border-blue-100')}`}>
-                                          {m.text}
+                                      <div key={i} className={`text-sm p-3 rounded-xl max-w-[85%] shadow-sm whitespace-pre-wrap leading-relaxed ${m.role === 'user' ? (isDarkMode ? 'bg-blue-600 text-white ml-auto rounded-tr-none' : 'bg-gray-800 text-white ml-auto rounded-tr-none') : (isDarkMode ? 'bg-gray-800 text-blue-300 rounded-tl-none border border-gray-700' : 'bg-blue-50 text-blue-900 rounded-tl-none border border-blue-100')}`}>
+                                          {formatBotText(m.text)}
                                       </div>
                                   ))}
                                   {isTeacherBotLoading && <Loader2 className={`animate-spin mx-auto ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} size={20} />}
@@ -3660,7 +3667,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                           </div>
                       )}
                       
-                      <button onClick={() => setIsTeacherBotOpen(!isTeacherBotOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none backdrop-blur-2xl border-2 transition-colors teacher-bot-spin ${isDarkMode ? 'bg-white text-black border-gray-300' : 'bg-gray-900 text-white border-gray-900'}`}>
+                      <button onClick={() => setIsTeacherBotOpen(!isTeacherBotOpen)} className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none backdrop-blur-2xl border-2 transition-all hover:scale-110 shadow-2xl ${isDarkMode ? 'bg-white text-black border-gray-200' : 'bg-gray-900 text-white border-gray-900'}`}>
                           <CuteBotIcon size={32} className={isDarkMode ? '!text-black' : '!text-white'} />
                       </button>
                   </div>
