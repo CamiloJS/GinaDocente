@@ -940,6 +940,12 @@ const [editProfilePostData, setEditProfilePostData] = useState({ title: "", text
 const [showAvatarUploadModal, setShowAvatarUploadModal] = useState(false);
 const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
 const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+            const [cropZoom, setCropZoom] = useState(1);
+const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
+const [isDraggingCrop, setIsDraggingCrop] = useState(false);
+const cropDragStart = useRef({ x: 0, y: 0 });
+const cropImageRef = useRef(null);
+const cropContainerRef = useRef(null);
           const [loggedInUser, setLoggedInUser] = useState(""); 
           const [loggedInName, setLoggedInName] = useState(""); 
           const [userMappings, setUserMappings] = useState({}); 
@@ -2039,30 +2045,44 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
         const reader = new FileReader();
         reader.onload = (event) => {
             setAvatarPreviewUrl(event.target.result);
+            setCropZoom(1); setCropOffset({ x: 0, y: 0 }); // Reiniciar el recortador
             setShowAvatarUploadModal(true);
         };
         reader.readAsDataURL(file);
     };
 
     const saveAvatar = async () => {
-        if (!avatarPreviewUrl) return;
+        if (!avatarPreviewUrl || !cropImageRef.current || !cropContainerRef.current) return;
         setIsUploadingAvatar(true);
         try {
-            const img = new Image();
-            img.src = avatarPreviewUrl;
-            await new Promise(r => img.onload = r);
             const canvas = document.createElement('canvas');
-            const size = Math.min(img.width, img.height); // Cortar cuadrado
-            canvas.width = 400; canvas.height = 400; // Resolución final
+            canvas.width = 400; canvas.height = 400;
             const ctx = canvas.getContext('2d');
-            const startX = (img.width - size) / 2;
-            const startY = (img.height - size) / 2;
-            ctx.drawImage(img, startX, startY, size, size, 0, 0, 400, 400);
+            
+            // Fondo blanco para imágenes transparentes
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 400, 400);
+
+            const img = cropImageRef.current;
+            const container = cropContainerRef.current;
+            
+            // Matemática avanzada para extraer el pedazo exacto que el usuario está viendo
+            const rect = img.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const scaleX = img.naturalWidth / rect.width;
+            const scaleY = img.naturalHeight / rect.height;
+            const srcX = (containerRect.left - rect.left) * scaleX;
+            const srcY = (containerRect.top - rect.top) * scaleY;
+            const srcWidth = containerRect.width * scaleX;
+            const srcHeight = containerRect.height * scaleY;
+
+            ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, 400, 400);
             
             const compressed = canvas.toDataURL('image/jpeg', 0.8);
             const url = await uploadImageToStorage(compressed, 'avatars');
             
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', myChatId), { profilePicUrl: url });
+            // FIX: Usamos setDoc con merge:true para FORZAR a Firebase a guardarlo, exista o no la carpeta previa.
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', myChatId), { profilePicUrl: url }, { merge: true });
+            
             setShowAvatarUploadModal(false); setAvatarPreviewUrl("");
             showMessage("✅ Foto de perfil actualizada.");
         } catch(err) { showMessage("❌ Error al guardar foto."); }
@@ -2180,14 +2200,64 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
                 {/* Modal Recortador de Avatar */}
                 {showAvatarUploadModal && ReactDOM.createPortal(
-                    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in">
+                    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in"
+                         onMouseMove={(e) => {
+                             if(!isDraggingCrop) return;
+                             setCropOffset({ x: e.clientX - cropDragStart.current.x, y: e.clientY - cropDragStart.current.y });
+                         }}
+                         onMouseUp={() => setIsDraggingCrop(false)}
+                         onMouseLeave={() => setIsDraggingCrop(false)}
+                         onTouchMove={(e) => {
+                             if(!isDraggingCrop) return;
+                             setCropOffset({ x: e.touches[0].clientX - cropDragStart.current.x, y: e.touches[0].clientY - cropDragStart.current.y });
+                         }}
+                         onTouchEnd={() => setIsDraggingCrop(false)}
+                    >
                         <div className={`w-full max-w-sm flex flex-col p-6 rounded-3xl shadow-2xl ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}>
-                            <h3 className={`text-xl font-bold mb-4 text-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Previsualización de Foto</h3>
-                            <div className="flex justify-center mb-6">
-                                <img src={avatarPreviewUrl} className="w-48 h-48 rounded-full object-cover border-4 border-blue-500 shadow-lg" />
+                            <h3 className={`text-xl font-bold mb-4 text-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Ajustar Foto</h3>
+                            
+                            <div className="flex flex-col items-center mb-6">
+                                {/* Contenedor de recorte circular arrastrable */}
+                                <div 
+                                    ref={cropContainerRef}
+                                    className="w-48 h-48 rounded-full border-4 border-blue-500 shadow-lg overflow-hidden relative cursor-move bg-gray-200"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setIsDraggingCrop(true);
+                                        cropDragStart.current = { x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y };
+                                    }}
+                                    onTouchStart={(e) => {
+                                        setIsDraggingCrop(true);
+                                        cropDragStart.current = { x: e.touches[0].clientX - cropOffset.x, y: e.touches[0].clientY - cropOffset.y };
+                                    }}
+                                >
+                                    <img 
+                                        ref={cropImageRef}
+                                        src={avatarPreviewUrl} 
+                                        draggable="false"
+                                        className="absolute max-w-none pointer-events-none"
+                                        style={{
+                                            transform: `translate(calc(-50% + ${cropOffset.x}px), calc(-50% + ${cropOffset.y}px)) scale(${cropZoom})`,
+                                            top: '50%', left: '50%', minWidth: '100%', minHeight: '100%'
+                                        }} 
+                                    />
+                                </div>
+                                
+                                {/* Control de Zoom */}
+                                <div className="w-full mt-6 flex items-center gap-3 px-4">
+                                    <span className="text-gray-500"><ImageIcon size={16}/></span>
+                                    <input 
+                                        type="range" min="1" max="3" step="0.05" 
+                                        value={cropZoom} 
+                                        onChange={e => setCropZoom(parseFloat(e.target.value))} 
+                                        className="flex-1 accent-blue-500 cursor-pointer"
+                                    />
+                                    <span className="text-gray-500"><ImageIcon size={24}/></span>
+                                </div>
                             </div>
+
                             <div className="flex gap-3">
-                                <button onClick={() => setShowAvatarUploadModal(false)} disabled={isUploadingAvatar} className={`flex-1 py-3 rounded-xl font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>Cancelar</button>
+                                <button onClick={() => setShowAvatarUploadModal(false)} disabled={isUploadingAvatar} className={`flex-1 py-3 rounded-xl font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Cancelar</button>
                                 <button onClick={saveAvatar} disabled={isUploadingAvatar} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
                                     {isUploadingAvatar ? <Loader2 className="animate-spin" size={20}/> : <CheckLine size={20}/>} Guardar
                                 </button>
