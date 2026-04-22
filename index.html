@@ -2646,13 +2646,30 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
     const handleCreateAcademicGroup = async (e) => {
         e.preventDefault();
         if(!newAcadGroupName.trim() || selectedAcadMembers.length === 0) return showMessage("⚠️ Escribe un nombre y selecciona estudiantes.");
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'academicGroups'), {
-            name: newAcadGroupName.trim(),
-            members: selectedAcadMembers,
-            createdAt: Date.now()
-        });
-        setNewAcadGroupName(""); setSelectedAcadMembers([]); setIsCreatingAcadGroup(false);
-        showMessage("✅ Materia creada.");
+        
+        setIsSavingMateria(true); // 🟢 1. Enciende el botón de carga
+        
+        try {
+            // 2. Intenta guardar en la base de datos
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'academicGroups'), {
+                name: newAcadGroupName.trim(),
+                members: selectedAcadMembers,
+                createdAt: Date.now()
+            });
+            
+            // 3. Si se guardó bien, limpia todo
+            setNewAcadGroupName(""); 
+            setSelectedAcadMembers([]); 
+            setIsCreatingAcadGroup(false);
+            showMessage("✅ Materia creada exitosamente.");
+            
+        } catch (error) {
+            // 🔴 4. Si hay un error (ej. se cae el internet), avisa y no se traba
+            console.error(error);
+            showMessage("❌ Hubo un error al guardar. Revisa tu conexión.");
+        }
+        
+        setIsSavingMateria(false); // 5. Apaga el botón de carga al terminar
     };
 
     return (
@@ -2685,7 +2702,10 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                 </label>
                             ))}
                         </div>
-                        <button type="submit" className={`${redButton} w-full mt-4 !bg-blue-600 hover:!bg-blue-700 shadow-blue-600/30`}>Guardar Materia</button>
+                        <button type="submit" disabled={isSavingMateria} className={`${redButton} w-full mt-4 !bg-blue-600 hover:!bg-blue-700 shadow-blue-600/30 disabled:opacity-50`}>
+                            {isSavingMateria ? <Loader2 className="animate-spin" size={20}/> : <CheckLine size={20}/>} 
+                            {isSavingMateria ? 'Guardando...' : 'Guardar Materia'}
+                        </button>
                     </form>
                 )}
 
