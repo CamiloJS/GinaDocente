@@ -2054,37 +2054,46 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
     const saveAvatar = async () => {
         if (!avatarPreviewUrl || !cropImageRef.current) return;
         setIsUploadingAvatar(true);
+        
         try {
             const canvas = document.createElement('canvas');
             canvas.width = 400; canvas.height = 400;
             const ctx = canvas.getContext('2d');
-            
             ctx.fillStyle = "#ffffff"; 
             ctx.fillRect(0, 0, 400, 400);
 
             const img = cropImageRef.current;
             
-            // Matemática robusta para adaptar cualquier tamaño de imagen sin romperse
-            const scale = Math.max(400 / img.naturalWidth, 400 / img.naturalHeight);
-            const w = img.naturalWidth * scale * cropZoom;
-            const h = img.naturalHeight * scale * cropZoom;
-            
-            const dx = (400 - w) / 2 + (cropOffset.x * (400/192));
-            const dy = (400 - h) / 2 + (cropOffset.y * (400/192));
+            // Matemática exacta del recorte interactivo
+            if (img.naturalWidth > 0) {
+                const scale = Math.max(400 / img.naturalWidth, 400 / img.naturalHeight);
+                const w = img.naturalWidth * scale * cropZoom;
+                const h = img.naturalHeight * scale * cropZoom;
+                
+                // Multiplicamos por 2 porque el cuadrito visual es de 200px pero el canvas final es de 400px
+                const dx = (400 - w) / 2 + (cropOffset.x * 2.08); 
+                const dy = (400 - h) / 2 + (cropOffset.y * 2.08);
 
-            ctx.drawImage(img, dx, dy, w, h);
+                ctx.drawImage(img, dx, dy, w, h);
+            }
+
+            const compressed = img.naturalWidth > 0 ? canvas.toDataURL('image/jpeg', 0.8) : avatarPreviewUrl;
             
-            const compressed = canvas.toDataURL('image/jpeg', 0.8);
+            // 🛑 ¡CLAVE! Cerramos el modal DE INMEDIATO para que no se quede congelado en la pantalla
+            setShowAvatarUploadModal(false); 
+            
+            // Subimos la imagen en segundo plano
             const url = await uploadImageToStorage(compressed, 'avatars');
-            
-            // OBLIGAMOS a Firebase a guardar el dato, exista o no la carpeta previa
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', myChatId), { profilePicUrl: url }, { merge: true });
             
+            setAvatarPreviewUrl("");
+            showMessage("✅ Foto de perfil actualizada correctamente.");
+            
+        } catch(err) { 
+            console.error("Error de Firebase:", err);
             setShowAvatarUploadModal(false); 
             setAvatarPreviewUrl("");
-            showMessage("✅ Foto de perfil actualizada.");
-        } catch(err) { 
-            showMessage("❌ Error al guardar foto. Intenta de nuevo."); 
+            showMessage("❌ Error al guardar. Verifica tus reglas de seguridad en Firebase."); 
         }
         setIsUploadingAvatar(false);
     };
