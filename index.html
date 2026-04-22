@@ -2052,7 +2052,11 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
     };
 
     const saveAvatar = async () => {
-        if (!avatarPreviewUrl || !cropImageRef.current) return;
+        if (!avatarPreviewUrl || !cropImageRef.current) {
+            setShowAvatarUploadModal(false);
+            return;
+        }
+        
         setIsUploadingAvatar(true);
         
         try {
@@ -2064,25 +2068,23 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
 
             const img = cropImageRef.current;
             
-            // Matemática exacta del recorte interactivo
-            if (img.naturalWidth > 0) {
+            // Matemática exacta del recorte interactivo (evita NaN y crasheos)
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                 const scale = Math.max(400 / img.naturalWidth, 400 / img.naturalHeight);
                 const w = img.naturalWidth * scale * cropZoom;
                 const h = img.naturalHeight * scale * cropZoom;
                 
-                // Multiplicamos por 2 porque el cuadrito visual es de 200px pero el canvas final es de 400px
                 const dx = (400 - w) / 2 + (cropOffset.x * 2.08); 
                 const dy = (400 - h) / 2 + (cropOffset.y * 2.08);
 
                 ctx.drawImage(img, dx, dy, w, h);
             }
 
-            const compressed = img.naturalWidth > 0 ? canvas.toDataURL('image/jpeg', 0.8) : avatarPreviewUrl;
+            const compressed = (img.naturalWidth > 0) ? canvas.toDataURL('image/jpeg', 0.8) : avatarPreviewUrl;
             
-            // 🛑 ¡CLAVE! Cerramos el modal DE INMEDIATO para que no se quede congelado en la pantalla
+            // 🛑 CERRAR EL MODAL INMEDIATAMENTE para evitar congelamientos
             setShowAvatarUploadModal(false); 
             
-            // Subimos la imagen en segundo plano
             const url = await uploadImageToStorage(compressed, 'avatars');
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userMappings', myChatId), { profilePicUrl: url }, { merge: true });
             
@@ -2090,10 +2092,10 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
             showMessage("✅ Foto de perfil actualizada correctamente.");
             
         } catch(err) { 
-            console.error("Error de Firebase:", err);
+            console.error("Error al guardar foto:", err);
             setShowAvatarUploadModal(false); 
             setAvatarPreviewUrl("");
-            showMessage("❌ Error al guardar. Verifica tus reglas de seguridad en Firebase."); 
+            showMessage("❌ Error al guardar. Revisa Firebase Storage."); 
         }
         setIsUploadingAvatar(false);
     };
