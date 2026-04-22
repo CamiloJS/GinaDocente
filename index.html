@@ -3684,7 +3684,7 @@ const [activeChatReactionMsgId, setActiveChatReactionMsgId] = useState(null);
                                   HISTORIAL DE LA CONVERSACIÓN:
                                   ${newHistory.map(m => `${m.role === 'user' ? 'Gina' : 'Tú'}: ${m.text}`).join('\n')}
                                   
-                                  Por favor, responde al último mensaje de Gina teniendo en cuenta todo el historial anterior.`;
+                                  Por favor, responde al último mensaje de Gina teniendo en cuenta todo el historial anterior.
                                   Pregunta técnica de Gina: ${userMsg}`;
 
                                   const reply = await callGemini(prompt);
