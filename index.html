@@ -2085,7 +2085,7 @@ const renderProfile = () => {
     
     return (
         <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
-            <div className={`${glassCard} flex flex-col md:flex-row items-center gap-6 mb-8 relative overflow-hidden`}>
+            <div className={`${glassCard} flex flex-col md:flex-row items-center gap-6 mb-8 relative overflow-hidden ${!isMyProfile ? 'pt-16 md:pt-6 md:pl-16' : ''}`}>
                 {!isMyProfile && (
                     <button onClick={() => {setViewingProfileId(null); changeTab('chat');}} className="absolute top-4 left-4 z-20 p-2 bg-white/50 rounded-full hover:bg-white transition text-gray-800 shadow-sm" title="Volver al chat">
                         <ArrowLeftIcon size={20}/>
@@ -3211,14 +3211,14 @@ const renderProfile = () => {
       </button>
 
       {showUserMenu && (
-          <div className={`absolute right-0 top-12 mt-2 w-56 rounded-2xl shadow-2xl border backdrop-blur-2xl z-[99999] animate-in fade-in slide-in-from-top-4 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
-              <div className="p-4 border-b border-gray-500/20 flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-2">
-                      <UserIcon size={30} />
-                  </div>
-                  <p className={`font-bold text-base truncate w-full text-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{loggedInName}</p>
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
-              </div>
+    <div className={`absolute right-0 top-12 mt-2 w-72 rounded-2xl shadow-2xl border backdrop-blur-2xl z-[99999] animate-in fade-in slide-in-from-top-4 ${isDarkMode ? 'bg-gray-800/95 border-gray-600' : 'bg-white/95 border-gray-200'}`}>
+        <div className="p-4 border-b border-gray-500/20 flex flex-col items-center px-6">
+            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-2 shrink-0">
+                <UserIcon size={30} />
+            </div>
+            <p className={`font-bold text-base w-full text-center leading-tight mb-1 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{loggedInName}</p>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{role === 'teacher' ? 'Docente' : 'Estudiante'}</p>
+        </div>
               <div className="p-2 flex flex-col gap-1">
                   <button onClick={() => { setViewingProfileId(null); changeTab('profile'); setShowUserMenu(false); }} className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${isDarkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}>
     <UserIcon size={18} /> Perfil
